@@ -1,0 +1,376 @@
+# DEPLOYMENT
+
+## IIS Production Deployment & Hosting Guide
+
+---
+
+## 1. Prerequisites — Target Windows Server
+
+| Component | Version | Notes |
+|---|---|---|
+| OS | Windows Server 2019 / 2022 (Standard or Datacenter) | 64-bit only; latest monthly updates installed |
+| .NET Hosting Bundle | **ASP.NET Core 8.0 Hosting Bundle x64** | Install before IIS role; includes .NET Runtime + IIS Module. Install order: 1) Windows Update → 2) IIS → 3) Hosting Bundle (repair after if order was wrong). Download URL: `https://dotnet.microsoft.com/download/dotnet/8.0` |
+| Web Server (IIS) | 10.0+ | Role services: Web Server, Management Tools, ISAPI Extensions, ISAPI Filters, Request Filtering, CGI (for URL Rewrite), Basic Auth (optional) |
+| URL Rewrite Module 2 | v2.1+ | For HTTP→HTTPS redirect, HSTS, custom headers. Outbound rules for security headers. |
+| SQL Server | 2019 / 2022 (or Azure SQL / AWS RDS SQL | Separate server preferred. |
+| SMTP / Email Relay | SendGrid API or internal SMTP | Either works; SendGrid recommended. |
+| TLS Certificate | Valid CA-issued (or Let's Encrypt free OK) | RSA 2048+ min; SHA-256 signature; SAN covers all hostnames. |
+
+Optional: **Azure Blob / S3 storage (for file attachments storage provider `AZB` if not using local disk.
+
+---
+
+## 2. Server Build Order
+
+### 2.1 Install IIS Role + Hosting Bundle
+
+```powershell
+# Run elevated PowerShell:
+Install-WindowsFeature Web-Server -IncludeManagementTools
+Install-WindowsFeature Web-Asp-Net45, Web-CGI, Web-ISAPI-Ext, Web-ISAPI-Filter, Web-Basic-Auth, Web-Windows-Auth
+Install-WindowsFeature Web-Mgmt-Tools, Web-Mgmt-Console, Web-Scripting-Tools
+# Reboot if prompted
+
+# Install URL Rewrite (downloaded MSI or winget):
+winget install Microsoft.URLRewrite
+
+# Install .NET 8 Hosting Bundle (auto):
+# Download dotnet-hosting-8.0.x-win.exe from MS
+# Run installer, reboot required
+dotnet --info   # verify ASP.NET Core list includes IIS Module:
+```
+
+Post-install check: open `C:\Program Files\IIS\Asp.Net Core Module\V2\aspnetcorev2.dll` file present.
+
+---
+
+## 3. SQL Server Preparation
+
+### 3.1 Create Database & Login
+
+```sql
+-- On DB server (SSMS or sqlcmd):
+CREATE DATABASE LivestockManagement COLLATE Latin1_General_100_CI_AS_SC_UTF8;
+GO
+ALTER DATABASE LivestockManagement SET RECOVERY FULL;
+GO
+ALTER DATABASE LivestockManagement SET AUTO_UPDATE_STATISTICS_ASYNC ON;
+GO
+ALTER DATABASE LivestockManagement SET ALLOW_SNAPSHOT_ISOLATION ON;
+ALTER DATABASE LivestockManagement SET READ_COMMITTED_SNAPSHOT ON; -- row-versioning for better concurrency under EF Core rowversion
+GO
+
+USE [master];
+CREATE LOGIN [IIS APPPOOL\LivestockAppPool] FROM WINDOWS WITH DEFAULT_DATABASE = LivestockManagement;
+GO
+USE LivestockManagement;
+CREATE USER [IIS APPPOOL\LivestockAppPool] FOR LOGIN [IIS APPPOOL\LivestockAppPool];
+ALTER ROLE db_datareader ADD MEMBER [IIS APPPOOL\LivestockAppPool];
+ALTER ROLE db_datawriter ADD MEMBER [IIS APPPOOL\LivestockAppPool];
+GRANT EXECUTE ON SCHEMA::dbo TO [IIS APPPOOL\LivestockAppPool];
+GRANT VIEW DEFINITION ON SCHEMA::dbo TO [IIS APPPOOL\LivestockAppPool];
+-- NOTE: deny DDL for runtime identity: deny ALter/Create/drop
+DENY ALTER ANY SCHEMA TO [IIS APPPOOL\LivestockAppPool];
+DENY CREATE TABLE, CREATE VIEW, CREATE PROCEDURE TO [IIS APPPOOL\LivestockAppPool];
+GO
+```
+
+*Migration execution:* Use a **separate elevated account** (e.g. `DBO` owner or dedicated deployment user, never AppPool identity). Use Migrations SQL script (idempotent):
+```powershell
+dotnet ef migrations script --idempotent --output .\artifacts\migrations.sql --project src\LivestockManagement.Infrastructure --startup-project src\LivestockManagement.Web
+sqlcmd -S DB-SERVER-01 -d LivestockManagement -U deploy_user -P **** -i .\artifacts\migrations.sql
+```
+
+---
+
+## 4. App Pool & Website Setup
+
+### 4.1 App Pool Creation
+
+```powershell
+Import-Module WebAdministration
+
+$pool = New-WebAppPool -Name "LivestockAppPool"
+Set-ItemProperty -Path "IIS:\AppPools\LivestockAppPool" -Name managedRuntimeVersion -Value ""
+Set-ItemProperty -Path "IIS:\AppPools\LivestockAppPool" -Name managedPipelineMode -Value 0  # Integrated
+Set-ItemProperty -Path "IIS:\AppPools\LivestockAppPool" -Name processModel.identityType -Value 3  # ApplicationPoolIdentity
+Set-ItemProperty -Path "IIS:\AppPools\LivestockAppPool" -Name processModel.idleTimeout -Value (New-TimeSpan -Minutes 0) # keep-alive
+Set-ItemProperty -Path "IIS:\AppPools\LivestockAppPool" -Name recycling.periodicRestart.time -Value (New-TimeSpan -Hours 24)  # recycle nightly
+Set-ItemProperty -Path "IIS:\AppPools\LivestockAppPool" -Name recycling.logEventOnRecycle -Value 40  # log recycle to event log
+Set-ItemProperty -Path "IIS:\AppPools\LivestockAppPool" -Name failure.rapidFailProtection -Value $true
+# Ensure 32-bit disabled:
+Set-ItemProperty -Path "IIS:\AppPools\LivestockAppPool" -Name enable32BitAppOnWin64 -Value $false
+```
+
+### 4.2 Website + HTTPS Binding
+
+```powershell
+New-Website -Name "Livestock" -PhysicalPath "D:\inetpub\wwwroot\livestock\www" -ApplicationPool "LivestockAppPool" -Port 443 -HostHeader "livestock.example.com" -SSL
+# Bind cert thumbprint:
+$cert = Get-ChildItem Cert:\LocalMachine\My | Where-Object { $_.Subject -match "livestock.example.com" } | Select-Object -First 1
+New-WebBinding -Name "Livestock" -Protocol https -Port 443 -HostHeader "livestock.example.com"
+$binding = Get-WebBinding -Name "Livestock" -Protocol https
+$binding.AddSslCertificate($cert.Thumbprint, "My")
+
+# Add HTTP->HTTPS redirect on port 80:
+New-WebBinding -Name "Livestock" -Protocol http -Port 80 -HostHeader "livestock.example.com"
+# URL Rewrite rule for HTTP->HTTPS handled in web.config section 6
+```
+
+---
+
+## 5. Physical Folder ACLs (Folder Structure
+
+Recommended layout:
+```
+D:\inetpub\wwwroot\livestock
+├── www\                    <- Web Deploy publish directory (IIS points here)
+│   ├── appsettings.json   (defaults, NO secrets)
+│   ├── appsettings.Production.json
+│   ├── web.config
+│   ├── LivestockManagement.Web.dll
+│   ├── web.config
+│   └── wwwroot\
+├── logs\                   <- Serilog write target
+├── App_Data\               <- DataProtection keys, local SQLite Hangfire.sqlite if used
+└── files\                  <- LOCAL file storage (FileStorage.Provider=LocalDisk only)
+```
+
+### ACL assignments:
+
+```powershell
+$appPoolIdentity = "IIS AppPool\LivestockAppPool"
+
+# Deny everything in wwwroot (read + execute, no write
+icacls "D:\inetpub\wwwroot\livestock\www" /grant:r "$appPoolIdentity:(OI)(CI)(RX) /T /inheritance:r
+icacls "D:\inetpub\wwwroot\livestock\www" /grant "BUILTIN\IIS_IUSRS:(OI)(CI)(RX)" /T /grant "SYSTEM:(OI)(CI)(F)" /T /grant "Administrators:(OI)(CI)(F)" /T
+
+# logs folder: Modify for AppPool (write logs)
+New-Item -ItemType Directory "D:\inetpub\wwwroot\livestock\logs" -Force | Out-Null
+icacls "D:\inetpub\wwwroot\livestock\logs" /grant:r "$appPoolIdentity:(OI)(CI)(M)"
+
+# App_Data: Modify for DataProtection + any runtime
+New-Item "D:\inetpub\wwwroot\livestock\App_Data"
+icacls "D:\inetpub\wwwroot\livestock\App_Data" /grant:r "$appPoolIdentity:(OI)(CI)(M)"
+
+# files: Modify for LocalDisk file storage
+New-Item "D:\inetpub\wwwroot\livestock\files"
+icacls "D:\inetpub\wwwroot\livestock\files" /grant:r "$appPoolIdentity:(OI)(CI)(M)"
+
+# Remove inheritance
+# Remove inheritance on upload dir from www web.config request blocking:
+icacls "D:\inetpub\wwwroot\livestock\wwwroot\uploads"  # not under www — web.config deny
+```
+
+CRITICAL RULE: **NEVER grant the uploadable files live inside `www\` **. Never.**
+
+---
+
+## 6. Environment Variables & Configuration
+
+### 6.1 Set per-machine / per-app pool env vars (PREFERRED — secrets)
+
+```powershell
+# Load webAdministration setAppPoolConfig:
+appcmd.exe set config -section:system.applicationHost/applicationPools /+"[name='LivestockAppPool'].environmentVariables.[name='ASPNETCORE_ENVIRONMENT',value='Production']" /commit:apphost
+appcmd.exe set config -section:system.applicationHost/applicationPools /+"[name='LivestockAppPool'].environmentVariables.[name='ConnectionStrings__LivestockDb',value='Server=DB-SERVER-01;Database=LivestockManagement;Trusted_Connection=True;Encrypt=True;TrustServerCertificate=False;MultipleActiveResultSets=True;']" /commit:apphost
+appcmd.exe set config -section:system.applicationHost/applicationPools /+"[name='LivestockAppPool'].environmentVariables.[name='Email__SendGridApiKey',value='SG.xxxxx.xxxx']" /commit:apphost
+appcmd.exe set config -section:system.applicationHost/applicationPools /+"[name='LivestockAppPool'].environmentVariables.[name='ENV_ENABLE_DEV_SEED',value='false']" /commit:apphost
+appcmd.exe set config -section:system.applicationHost/applicationPools /+"[name='LivestockAppPool'].environmentVariables.[name='FileStorage__Provider',value='Local']" /commit:apphost
+appcmd.exe set config -section:system.applicationHost/applicationPools /+"[name='LivestockAppPool'].environmentVariables.[name='FileStorage__LocalPath',value='D:\inetpub\wwwroot\livestock\files']" /commit:apphost
+appcmd.exe set config -section:system.applicationHost/applicationPools /+"[name='LivestockAppPool'].environmentVariables.[name='Serilog__WriteTo__0__Args__serverUrl',value='https://seq.example.com']" /commit:apphost
+```
+
+### 6.2 Required Production env vars
+
+Env Var | Value | Required?
+|---|---|---|
+| `ASPNETCORE_ENVIRONMENT` | `Production` | ✅ Must |
+| `ConnectionStrings__LivestockDb` | EF Core connection string to SQL | ✅ |
+| `ConnectionStrings__Hangfire` | (optional; default LivestockDb if omitted) | |
+| `ENV_ENABLE_DEV_SEED` | `false` (NEVER TRUE in prod) | ✅ Security Critical |
+| `Email__Provider` | `SendGrid` or `Smtp` | ✅ |
+| `Email__SendGridApiKey` | API key from SendGrid | If SendGrid |
+| `Email__SmtpHost`, `Email__SmtpPort`, `Email__SmtpUser`, `Email__SmtpPassword`, `Email__SmtpEnableSsl` | If Smtp chosen |
+| `FileStorage__Provider` | `Local` / `AzureBlob` / `S3` | ✅ |
+| `FileStorage__LocalPath` | e.g. `D:\..\files` | If Local |
+| `FileStorage__AzureBlobConnectionString`, `FileStorage__Container` | Azure creds | If Azure |
+| `Serilog__WriteTo__Seq__ServerUrl` + `ApiKey` | SEQ sink | ✅ Recommended |
+| `DataProtection__StoragePath` | `D:\..\App_Data\keys` (default OK | ✅ |
+| `ASPNETCORE_URLS` | defaults `http://127.0.0.1:5000` (Kestrel endpoint, listen loopback only — IIS forward) |
+
+---
+
+## 7. web.config (Generated on Deploy
+
+**DO NOT HAND EDIT **. Publish produces the IIS module. Override/customize via project `web.config` transformations if needed for custom sections:
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <remove name="aspNetCore"/>
+      <add name="aspNetCore" path="*" verb="*" modules="AspNetCoreModuleV2" resourceType="Unspecified"/>
+    </handlers>
+    <aspNetCore processPath="dotnet"
+                arguments=".\LivestockManagement.Web.dll"
+                stdoutLogEnabled="false"
+                stdoutLogFile=".\logs\stdout"
+                hostingModel="inprocess">
+      <handlerSettings>
+        <handlerSetting name="debugLevel" value="FILE" />
+        <handlerSetting name="debugFile" value=".\logs\ancm.log" />
+      </handlerSettings>
+    </aspNetCore>
+    <httpProtocol>
+      <customHeaders>
+        <remove name="X-Powered-By" />
+        <remove name="Server" />
+        <add name="X-Frame-Options" value="DENY" />
+        <add name="X-Content-Type-Options" value="nosniff" />
+        <add name="Referrer-Policy" value="strict-origin-when-cross-origin" />
+        <add name="Strict-Transport-Security" value="max-age=31536000; includeSubDomains; preload" />
+      </customHeaders>
+    </httpProtocol>
+    <security>
+      <requestFiltering>
+        <!-- 11 MB (file upload limit is 10 MB limit): -->
+        <requestLimits maxAllowedContentLength="11534336" />
+        <fileExtensions applyToWebDAV="false">
+          <add fileExtension=".config" allowed="false" />
+          <add fileExtension=".json" allowed="false" />
+          <add fileExtension=".sql" allowed="false" />
+          <add fileExtension=".dll" allowed="false" />
+          <add fileExtension=".env" allowed="false" />
+        </fileExtensions>
+        <verbs allowUnlisted="true">
+          <add verb="TRACE" allowed="false" />
+          <add verb="OPTIONS" allowed="true" />
+        </verbs>
+        <hiddenSegments applyToWebDAV="false">
+          <add segment="web.config" />
+          <add segment="logs" />
+          <add segment="App_Data" />
+        </hiddenSegments>
+      </requestFiltering>
+    </security>
+    <httpRedirect enabled="true" destination="https://livestock.example.com$S$Q" httpResponseStatus="Permanent" onlySiteByDefault true"/>
+    <rewrite>
+      <rules>
+        <rule name="HTTP to HTTPS redirect" stopProcessing="true">
+          <match url="(.*)" />
+          <conditions><add input="{HTTPS}" pattern="^OFF$" /></conditions>
+          <action type="Redirect" url="https://{HTTP_HOST}/{R:1}" redirectType="Permanent" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+  <system.web>
+    <httpRuntime enableVersionHeader="false" />
+  </system.web>
+</configuration>
+```
+
+---
+
+## 8. Firewall
+
+### 8.1 Windows Firewall Rules
+
+```powershell
+# Inbound only 80/443 world:
+New-NetFirewallRule -DisplayName "HTTP (TCP:80)" -Direction Inbound -Protocol TCP -LocalPort 80 -Action Allow -Profile Any
+New-NetFirewallRule -DisplayName "HTTPS (TCP:443)" -Direction Inbound -Protocol TCP -LocalPort 443 -Action Allow -Profile Any
+
+# Block all other inbound from PUBLIC -> SQL port 1433 ONLY allow from DB subnet only:
+New-NetFirewallRule -DisplayName "MSSQL Outbound" -Direction Outbound -Protocol TCP -RemotePort 1433 -RemoteAddress 10.0.1.0/24 -Action Allow
+```
+
+Recommended network tiers:
+```
+Internet → WAF/Load balancer (optional Azure Front Door, Cloudflare) → Web Server (443 only) → SQL Server (1433 limited to web IP only)
+```
+
+---
+
+## 9. Deploy Procedure (Web Deploy / Zip Publish
+
+### 9.1 Build & Package from CI
+
+```powershell
+# Build:
+dotnet restore LivestockManagement.sln -c Release
+dotnet build LivestockManagement.sln -c Release --no-restore
+dotnet test LivestockManagement.sln -c Release --no-build --no-restore
+dotnet publish src\LivestockManagement.Web\LivestockManagement.Web.csproj -c Release --no-restore -o .\artifacts\publish -p:EnvironmentName=Production
+
+# Zip:
+Compress-Archive -Path .\artifacts\publish\* -DestinationPath .\artifacts\Livestock.Web.$(Build.BuildId).zip -Force
+```
+
+### 9.2 Blue/Green or AppOffline
+
+```powershell
+# Step 1: Drain-stop app offline:
+$site = "Livestock"
+$dest = "D:\inetpub\wwwroot\livestock\www"
+
+# 1) copy existing to backup D:\Backup\Livestock\$(get-date -f yyyyMMddHHmmss)
+New-Item "D:\Backup\$(get-date -f yyyyMMddHHmmss)" -ItemType Directory -Force
+Copy-Item "$dest\*" -Destination "D:\Backup\$Stamp" -Recurse -Force
+
+# 2) App_Offline to drain requests (ASP.NET Core will detect this returns 503 and shut down after draining requests for 60 sec:
+New-Item "$dest\App_Offline.htm" -ItemType File -Value "<html><body><h1>Site Upgrade — Temporarily Maintenance</body></html>"
+
+# 3) Copy new code EXCEPT App_Data, files, logs:
+Get-ChildItem -Path ".\artifacts\publish" -Exclude ("appsettings.Production.json","web.config") -Recurse | % {Copy-Item $_.FullName -Destination "$dest\" -Container -Recurse -Force}
+# Copy web.config only if explicitly changed
+
+# 4) Remove App_Offline:
+Remove-Item "$dest\App_Offline.htm
+```
+
+### 9.3 Health Check
+
+After deploy:
+```
+curl -k https://localhost/health → expect `Healthy`
+Serilog logs → startup info line `"Application started. Hosting environment: Production; Content root path: ...`
+Event Viewer → Windows Logs\Application: no warnings/errors in first 5 min.
+Hangfire dashboard /hangfire (auth as SysAdmin → jobs enqueued → no dead letters
+
+---
+
+## 10. Backup Plan
+
+### 10.1 SQL Backups (SQL Server Agent Job Schedule
+
+```sql
+-- Full backup nightly 02:00 → differential hourly tlog backup every 15:
+```
+
+PowerShell + Ola Hallengren Maintenance Solution (recommended).
+
+Retention as per ASSUMPTIONS.md A8: 7 daily, 4 weekly, 12 monthly.
+BACKUP DATABASE LivestockManagement TO DISK = '...' WITH CHECKSUM, COMPRESSION;
+
+### 10.2 File / Storage
+
+Azure blob — storage locally uses Azure Geo-redundant storage.
+Local disk → nightly robocopy `D:\..\files\… → SAN / file server backup nightly
+
+### 10.3 Restore Drill
+
+Quarterly restore drill: restore last night's backup to a test server; run smoke tests (login, view report, download an old invoice; validate entire end-to-end; sign-off documented.
+
+---
+
+## 11. Rollback Plan
+
+If post-deploy smoke tests FAIL (health fails, login fails, KPIs report):
+
+1. Immediately re-apply **prior version**: rename new code → rename `www-backup-YYYYMMDD` back to `www`.
+2. If DB migration is forward-compatible by default (all migrations non-destructive: adds never drops). If destructive migration needed, restore DB backup taken in step 9.2 to point-in-time restore.
+3. Notify stakeholders, open post-mortem PR with root cause.
+4. Hotfix branch → new CI build.

@@ -1,0 +1,180 @@
+@using LivestockManager.Web.Models.FarmViewModels
+@model FarmDetailsViewModel
+@{
+    ViewData["Title"] = "Farm Details";
+    var canEdit = User.IsInRole("Administrator") || User.IsInRole("Manager");
+    bool hasAddress = !string.IsNullOrWhiteSpace(Model.Street1) ||
+                      !string.IsNullOrWhiteSpace(Model.City) ||
+                      !string.IsNullOrWhiteSpace(Model.State) ||
+                      !string.IsNullOrWhiteSpace(Model.PostalCode) ||
+                      !string.IsNullOrWhiteSpace(Model.Country);
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h2 mb-1">
+            🏞️ @Model.Name
+            <code class="fs-6 fw-normal text-muted ms-2">@Model.Code</code>
+        </h1>
+        @if (Model.IsActive)
+        {
+            <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+        }
+        else
+        {
+            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+        }
+    </div>
+    <div class="d-flex flex-wrap gap-2 mt-2 mt-md-0">
+        <a href="/Livestock?farmId=@Model.Id" class="btn btn-outline-info">🐄 View Livestock</a>
+        @if (canEdit)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">✏️ Edit</a>
+        }
+        <a asp-action="Index" class="btn btn-outline-secondary">← Back to List</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-bottom py-3">
+                <h5 class="mb-0">📋 Farm Information</h5>
+            </div>
+            <div class="card-body p-4">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted mb-3">Farm Name</dt>
+                    <dd class="col-sm-8 mb-3 fw-medium">@Model.Name</dd>
+
+                    <dt class="col-sm-4 text-muted mb-3">Farm Code</dt>
+                    <dd class="col-sm-8 mb-3"><code>@Model.Code</code></dd>
+
+                    <dt class="col-sm-4 text-muted mb-3">Currency</dt>
+                    <dd class="col-sm-8 mb-3">@Model.Currency</dd>
+
+                    <dt class="col-sm-4 text-muted mb-3">Weight Unit</dt>
+                    <dd class="col-sm-8 mb-3">@Model.WeightUnit</dd>
+
+                    <dt class="col-sm-4 text-muted mb-3">Status</dt>
+                    <dd class="col-sm-8 mb-3">
+                        @if (Model.IsActive)
+                        {
+                            <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+                        }
+                    </dd>
+
+                    @if (!string.IsNullOrWhiteSpace(Model.ManagerInfo))
+                    {
+                        <dt class="col-sm-4 text-muted mb-3">Manager</dt>
+                        <dd class="col-sm-8 mb-3">👤 @Model.ManagerInfo</dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        @if (hasAddress)
+        {
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-white border-bottom py-3">
+                    <h5 class="mb-0">📍 Address</h5>
+                </div>
+                <div class="card-body p-4">
+                    <address class="mb-0 lh-lg">
+                        @if (!string.IsNullOrWhiteSpace(Model.Street1))
+                        {
+                            <div>@Model.Street1</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Model.Street2))
+                        {
+                            <div>@Model.Street2</div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Model.City) || !string.IsNullOrWhiteSpace(Model.State) || !string.IsNullOrWhiteSpace(Model.PostalCode))
+                        {
+                            <div>
+                                @if (!string.IsNullOrWhiteSpace(Model.City))
+                                {
+                                    <span>@Model.City</span>
+                                    if (!string.IsNullOrWhiteSpace(Model.State)) { <text>, @Model.State</text> }
+                                    if (!string.IsNullOrWhiteSpace(Model.PostalCode)) { <text>  @Model.PostalCode</text> }
+                                }
+                                else if (!string.IsNullOrWhiteSpace(Model.State))
+                                {
+                                    <span>@Model.State</span>
+                                    if (!string.IsNullOrWhiteSpace(Model.PostalCode)) { <text>  @Model.PostalCode</text> }
+                                }
+                                else if (!string.IsNullOrWhiteSpace(Model.PostalCode))
+                                {
+                                    <span>@Model.PostalCode</span>
+                                }
+                            </div>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(Model.Country))
+                        {
+                            <div class="fw-medium">@Model.Country</div>
+                        }
+                    </address>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-bottom py-3">
+                <h5 class="mb-0">📊 Livestock Counts</h5>
+            </div>
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <div class="kpi-card bg-white p-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="small text-muted mb-1">Total Livestock</div>
+                                    <div class="display-5 fw-bold" style="color: var(--agri-primary);">
+                                        @Model.LivestockCount.ToString("N0")
+                                    </div>
+                                </div>
+                                <div class="display-5 opacity-25">🐄</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <div class="kpi-card bg-white p-4" style="border-left-color: #198754;">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="small text-muted mb-1">Active Livestock</div>
+                                    <div class="display-5 fw-bold text-success">
+                                        @Model.ActiveLivestockCount.ToString("N0")
+                                    </div>
+                                </div>
+                                <div class="display-5 opacity-25">✅</div>
+                            </div>
+                            @if (Model.LivestockCount > 0)
+                            {
+                                <div class="progress mt-3" style="height: 8px;">
+                                    @{
+                                        var pct = Model.LivestockCount > 0
+                                            ? (int)Math.Round((double)Model.ActiveLivestockCount / Model.LivestockCount * 100)
+                                            : 0;
+                                    }
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: @pct%;" aria-valuenow="@pct" aria-valuemin="0" aria-valuemax="100"></div>
+                                </div>
+                                <div class="small text-muted mt-2 text-end">@pct% active</div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4 pt-4 border-top">
+                    <a href="/Livestock?farmId=@Model.Id" class="btn btn-info w-100">
+                        🐄 View all livestock on this farm
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

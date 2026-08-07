@@ -1,0 +1,51 @@
+@{
+    ViewData["Title"] = "Reports";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">📈 Reports</h1>
+        <div class="text-muted small">Analytics and exports</div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="rounded-circle p-3 mb-3 d-inline-flex" style="background-color: rgba(45,106,79,0.1);">
+                    <span class="fs-3" style="color: #2d6a4f;">🐑</span>
+                </div>
+                <h5 class="card-title fw-bold">Active Livestock by Type</h5>
+                <p class="card-text text-muted small mb-4">Counts of currently active livestock grouped by type and optionally filtered by farm.</p>
+                <a asp-action="ActiveLivestock" class="btn btn-outline-primary w-100">View Report →</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="rounded-circle p-3 mb-3 d-inline-flex" style="background-color: rgba(42,157,143,0.1);">
+                    <span class="fs-3" style="color: #2a9d8f;">💸</span>
+                </div>
+                <h5 class="card-title fw-bold">Sales by Period</h5>
+                <p class="card-text text-muted small mb-4">Discharges (sales) aggregated by farm for a selected date range, with total value.</p>
+                <a asp-action="SalesByPeriod" class="btn btn-outline-primary w-100">View Report →</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="rounded-circle p-3 mb-3 d-inline-flex" style="background-color: rgba(82,183,136,0.1);">
+                    <span class="fs-3" style="color: #52b788;">📊</span>
+                </div>
+                <h5 class="card-title fw-bold">Livestock Profitability</h5>
+                <p class="card-text text-muted small mb-4">Per-animal purchase cost vs. sold amount with basic profit/loss, including discharged animals.</p>
+                <a asp-action="LivestockProfitability" class="btn btn-outline-primary w-100">View Report →</a>
+            </div>
+        </div>
+    </div>
+</div>

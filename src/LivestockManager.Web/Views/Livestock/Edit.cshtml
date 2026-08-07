@@ -1,0 +1,84 @@
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Web.Models.LivestockViewModels
+@model LivestockEditViewModel
+@{
+    ViewData["Title"] = $"Edit - {Model.LivestockId}";
+    var getTypeDesc = (Func<LivestockType, string>)ViewData["GetLivestockTypeDescription"]!;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="text-muted small text-decoration-none">&larr; Back to Details</a>
+        <h1 class="h2 mt-1 mb-0">Edit Livestock - @Model.LivestockId</h1>
+    </div>
+</div>
+
+<div class="alert alert-warning border-warning d-flex align-items-center" role="alert">
+    <div class="me-2">&#9888;</div>
+    <div class="small">
+        <strong>Note:</strong> Modifying initial weight or acquisition date may affect profitability calculations.
+        Livestock ID and Type cannot be changed.
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+        <form asp-action="Edit" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="Id" />
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-4"></div>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Livestock ID</label>
+                    <input class="form-control bg-light" value="@Model.LivestockId" readonly disabled />
+                    <input type="hidden" asp-for="LivestockId" />
+                </div>
+
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold">Livestock Type</label>
+                    <input class="form-control bg-light" value="@getTypeDesc(Model.LivestockTypeId)" readonly disabled />
+                    <input type="hidden" asp-for="LivestockTypeId" />
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="FarmId" class="form-label fw-semibold"></label>
+                    <select asp-for="FarmId" asp-items="Model.FarmOptions" class="form-select">
+                        <option value="">Unassigned</option>
+                    </select>
+                    <span asp-validation-for="FarmId" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="AcquisitionDate" class="form-label fw-semibold"></label>
+                    <input asp-for="AcquisitionDate" type="date" class="form-control" asp-format="{0:yyyy-MM-dd}" />
+                    <span asp-validation-for="AcquisitionDate" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="InitialWeight" class="form-label fw-semibold"></label>
+                    <input asp-for="InitialWeight" type="number" step="0.01" min="0.01" class="form-control" />
+                    <div class="form-text small text-warning">Warning: changing this value updates baseline weight only.</div>
+                    <span asp-validation-for="InitialWeight" class="text-danger small"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="Comments" class="form-label fw-semibold"></label>
+                    <textarea asp-for="Comments" rows="4" class="form-control"></textarea>
+                    <span asp-validation-for="Comments" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row mt-5">
+                <div class="col-12 text-end">
+                    <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

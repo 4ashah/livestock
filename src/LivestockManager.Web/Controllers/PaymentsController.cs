@@ -1,0 +1,146 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using LivestockManager.Application.Common;
+using LivestockManager.Application.DTOs.Payments;
+using LivestockManager.Application.Services.Customers;
+using LivestockManager.Application.Services.Invoices;
+using LivestockManager.Application.Services.Payments;
+using LivestockManager.Domain.Enums;
+using LivestockManager.Infrastructure.Identity;
+
+namespace LivestockManager.Web.Controllers;
+
+[Authorize]
+public class PaymentsController : Controller
+{
+    private readonly IPaymentService _paymentService;
+    private readonly IInvoiceService _invoiceService;
+    private readonly ICustomerService _customerService;
+    private readonly IAppDbContext _db;
+    private readonly UserManager<ApplicationUser> _userManager;
+
+    public PaymentsController(
+        IPaymentService paymentService,
+        IInvoiceService invoiceService,
+        ICustomerService customerService,
+        IAppDbContext db,
+        UserManager<ApplicationUser> userManager)
+    {
+        _paymentService = paymentService;
+        _invoiceService = invoiceService;
+        _customerService = customerService;
+        _db = db;
+        _userManager = userManager;
+    }
+
+    private async Task<Guid> GetCompanyIdAsync()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        return user?.CompanyId ?? Guid.Empty;
+    }
+
+    private bool CanEdit => User.IsInRole("Administrator") || User.IsInRole("Manager");
+
+    public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, PaymentMethod? method, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var payments = await _paymentService.ListAsync(companyId, ct);
+
+        if (from.HasValue)
+        {
+            var fromDto = new DateTimeOffset(from.Value.Date, TimeSpan.Zero);
+            payments = payments.Where(p => p.PaymentDate >= fromDto).ToList();
+        }
+        if (to.HasValue)
+        {
+            var toDto = new DateTimeOffset(to.Value.Date.AddDays(1).AddTicks(-1), TimeSpan.Zero);
+            payments = payments.Where(p => p.PaymentDate <= toDto).ToList();
+        }
+        if (customerId.HasValue)
+            payments = payments.Where(p => p.CustomerId == customerId.Value).ToList();
+        if (method.HasValue)
+            payments = payments.Where(p => p.Method == method.Value).ToList();
+
+        ViewData["From"] = from?.ToString("yyyy-MM-dd");
+        ViewData["To"] = to?.ToString("yyyy-MM-dd");
+        ViewData["CustomerId"] = customerId;
+        ViewData["Method"] = method;
+        ViewData["Customers"] = await _customerService.ListAsync(companyId, ct);
+        return View(payments);
+    }
+
+    public async Task<IActionResult> Details(Guid id, CancellationToken ct)
+    {
+        if (id == Guid.Empty) return NotFound();
+        var payment = await _paymentService.GetByIdAsync(id, ct);
+        return View(payment);
+    }
+
+    [Authorize(Roles = "Administrator,Manager")]
+    public async Task<IActionResult> Create(Guid? invoiceId, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        ViewData["Customers"] = await _customerService.ListAsync(companyId, ct);
+        ViewData["Invoices"] = await _invoiceService.ListAsync(companyId, ct);
+
+        var model = new PaymentCreateDto
+        {
+            CompanyId = companyId,
+            PaymentDate = DateTimeOffset.UtcNow,
+            Method = PaymentMethod.Cash
+        };
+
+        if (invoiceId.HasValue)
+        {
+            var invoice = await _invoiceService.GetByIdAsync(invoiceId.Value, ct);
+            model.CustomerId = invoice.CustomerId;
+            model.Amount = invoice.OutstandingAmount;
+            model.Allocations = new List<PaymentAllocationDto>
+            {
+                new() { InvoiceId = invoiceId.Value, Amount = invoice.OutstandingAmount }
+            };
+            ViewData["SelectedInvoiceId"] = invoiceId.Value;
+            ViewData["SelectedInvoiceNumber"] = invoice.InvoiceNumber;
+            ViewData["OutstandingAmount"] = invoice.OutstandingAmount;
+        }
+
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Administrator,Manager")]
+    public async Task<IActionResult> Create(PaymentCreateDto dto, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        dto.CompanyId = companyId;
+
+        if (dto.Allocations == null || dto.Allocations.Count == 0)
+        {
+            var invId = Request.Form["SelectedInvoiceId"].FirstOrDefault();
+            if (!string.IsNullOrWhiteSpace(invId) && Guid.TryParse(invId, out var parsedId))
+            {
+                dto.Allocations = new List<PaymentAllocationDto>
+                {
+                    new() { InvoiceId = parsedId, Amount = dto.Amount }
+                };
+            }
+            else
+            {
+                ModelState.AddModelError("", "At least one invoice allocation is required.");
+            }
+        }
+
+        if (!ModelState.IsValid)
+        {
+            ViewData["Customers"] = await _customerService.ListAsync(companyId, ct);
+            ViewData["Invoices"] = await _invoiceService.ListAsync(companyId, ct);
+            return View(dto);
+        }
+
+        var payment = await _paymentService.PostAsync(dto, ct);
+        return RedirectToAction(nameof(Details), new { id = payment.Id });
+    }
+}

@@ -1,0 +1,267 @@
+@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignInManager
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Livestock Manager</title>
+    <environment include="Development">
+        <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.css" />
+        <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    </environment>
+    <environment exclude="Development">
+        <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+        <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    </environment>
+    <style>
+        :root {
+            --agri-dark: #1b4332;
+            --agri-primary: #2d6a4f;
+            --agri-secondary: #40916c;
+            --agri-light: #74c69d;
+            --agri-accent: #95d5b2;
+            --agri-bg: #f8faf6;
+            --sidebar-width: 250px;
+        }
+        body { background-color: var(--agri-bg); min-height: 100vh; }
+        .topbar {
+            background-color: var(--agri-dark);
+            height: 56px;
+            z-index: 1030;
+        }
+        .topbar .navbar-brand {
+            color: #fff;
+            font-weight: 700;
+            letter-spacing: 0.3px;
+        }
+        .sidebar-toggler {
+            border: none;
+            background: transparent;
+            color: #fff;
+            font-size: 1.3rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .sidebar {
+            background-color: var(--agri-primary);
+            width: var(--sidebar-width);
+            min-height: calc(100vh - 56px);
+            transition: transform 0.25s ease;
+            position: fixed;
+            top: 56px;
+            left: 0;
+            bottom: 0;
+            z-index: 1020;
+            overflow-y: auto;
+        }
+        .sidebar .nav-link {
+            color: #d8f3dc;
+            padding: 0.7rem 1.25rem;
+            border-left: 3px solid transparent;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background-color: var(--agri-secondary);
+            color: #fff;
+            border-left-color: var(--agri-light);
+        }
+        .sidebar .nav-section-title {
+            color: var(--agri-accent);
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 1rem 1.25rem 0.35rem;
+            font-weight: 700;
+        }
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 1.5rem;
+            padding-top: calc(56px + 1.5rem);
+            min-height: 100vh;
+        }
+        @@media (max-width: 991.98px) {
+            .sidebar { transform: translateX(-100%); }
+            .sidebar.open { transform: translateX(0); }
+            .main-content { margin-left: 0; }
+        }
+        .user-dropdown .dropdown-toggle {
+            color: #fff !important;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .user-avatar {
+            background-color: var(--agri-light);
+            color: var(--agri-dark);
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .kpi-card {
+            border-left: 4px solid var(--agri-secondary);
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .sidebar-backdrop {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            z-index: 1015;
+            top: 56px;
+        }
+        .sidebar-backdrop.show { display: block; }
+    </style>
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body>
+    <header>
+        <nav class="topbar navbar navbar-dark fixed-top px-3 d-flex align-items-center">
+            <button class="sidebar-toggler d-lg-none" type="button" id="sidebarToggle" aria-label="Toggle navigation">
+                &#9776;
+            </button>
+            <a class="navbar-brand ms-lg-0 ms-2" asp-area="" asp-controller="Home" asp-action="Index">
+                🌾 Livestock Manager
+            </a>
+            <div class="ms-auto">
+                <partial name="_LoginPartial" />
+            </div>
+        </nav>
+    </header>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <aside class="sidebar" id="sidebarNav">
+        <div class="py-2">
+            @if (SignInManager.IsSignedIn(User))
+            {
+                var isViewer = User.IsInRole("Viewer");
+                var isDataEntry = User.IsInRole("DataEntry");
+                var isManager = User.IsInRole("Manager");
+                var isAdmin = User.IsInRole("Administrator");
+                var canWrite = isAdmin || isManager || isDataEntry;
+                var canFinance = isAdmin || isManager;
+
+                <div class="nav-section-title">Main</div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">
+                            <span>&#128202;</span><span>Dashboard</span>
+                        </a>
+                    </li>
+                </ul>
+
+                <div class="nav-section-title">Operations</div>
+                <ul class="nav flex-column">
+                    @if (isAdmin || isManager)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Farms" asp-action="Index">
+                                <span>&#127969;</span><span>Farms</span>
+                            </a>
+                        </li>
+                    }
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-controller="Livestock" asp-action="Index">
+                            <span>&#128017;</span><span>Livestock</span>
+                        </a>
+                    </li>
+                    @if (!isViewer)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Customers" asp-action="Index">
+                                <span>&#128101;</span><span>Customers</span>
+                            </a>
+                        </li>
+                    }
+                </ul>
+
+                @if (!isViewer)
+                {
+                    <div class="nav-section-title">Finance</div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Sales" asp-action="Index">
+                                <span>&#128176;</span><span>Sales</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Invoices" asp-action="Index">
+                                <span>&#128196;</span><span>Invoices</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Payments" asp-action="Index">
+                                <span>&#128179;</span><span>Payments</span>
+                            </a>
+                        </li>
+                    </ul>
+                }
+
+                <div class="nav-section-title">Reporting</div>
+                <ul class="nav flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link" asp-area="" asp-controller="Reports" asp-action="Index">
+                            <span>&#128200;</span><span>Reports</span>
+                        </a>
+                    </li>
+                </ul>
+            }
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <main role="main">
+            @RenderBody()
+        </main>
+        <footer class="mt-5 pt-4 border-top text-muted small">
+            <div class="row">
+                <div class="col-md-6">
+                    &copy; @DateTime.Now.Year &mdash; Livestock Manager
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <a asp-area="" asp-controller="Home" asp-action="Privacy" class="text-muted me-3">Privacy</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <environment include="Development">
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.js"></script>
+    </environment>
+    <environment exclude="Development">
+        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    </environment>
+    <script>
+        (function () {
+            var sidebar = document.getElementById('sidebarNav');
+            var toggle = document.getElementById('sidebarToggle');
+            var backdrop = document.getElementById('sidebarBackdrop');
+            function toggleSidebar(open) {
+                if (open) {
+                    sidebar.classList.add('open');
+                    backdrop.classList.add('show');
+                } else {
+                    sidebar.classList.remove('open');
+                    backdrop.classList.remove('show');
+                }
+            }
+            if (toggle) toggle.addEventListener('click', function (e) {
+                e.preventDefault();
+                toggleSidebar(!sidebar.classList.contains('open'));
+            });
+            if (backdrop) backdrop.addEventListener('click', function () { toggleSidebar(false); });
+        })();
+    </script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,107 @@
+@model IEnumerable<dynamic>
+@{
+    ViewData["Title"] = "Livestock Profitability";
+    var farms = ViewData["Farms"] as List<dynamic> ?? new List<dynamic>();
+    var farmId = ViewData["FarmId"] as Guid?;
+    var rowList = Model?.ToList() ?? new List<dynamic>();
+    var totalPurchase = 0m;
+    var totalSold = 0m;
+    var totalPnL = 0m;
+    foreach (var r in rowList)
+    {
+        decimal pa;
+        if (decimal.TryParse(Convert.ToString(r.PurchaseAmount), out pa)) totalPurchase += pa;
+        decimal sa;
+        if (decimal.TryParse(Convert.ToString(r.SoldAmount), out sa)) totalSold += sa;
+        decimal pl;
+        if (decimal.TryParse(Convert.ToString(r.BasicProfitLoss), out pl)) totalPnL += pl;
+    }
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">📊 Livestock Profitability</h1>
+        <div class="text-muted small">
+            Purchases <strong>$@totalPurchase.ToString("F2")</strong> ·
+            Sales <strong>$@totalSold.ToString("F2")</strong> ·
+            P/L <strong class="@(totalPnL >= 0 ? "text-success" : "text-danger")">@(totalPnL >= 0 ? "+" : "-")$@Math.Abs(totalPnL).ToString("F2")</strong>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">← Reports</a>
+        <a asp-action="LivestockProfitability" asp-route-format="csv" asp-route-farmId="@(farmId.HasValue ? farmId.ToString() : "")" class="btn btn-outline-success">⬇ Export CSV</a>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-3">
+        <form asp-action="LivestockProfitability" method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold mb-1">Farm</label>
+                <select name="farmId" class="form-select">
+                    <option value="">All Farms</option>
+                    @foreach (var f in farms)
+                    {
+                        Guid fid = f.Id;
+                        var selected = farmId == fid;
+                        <option value="@f.Id" selected="@selected">@f.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" type="submit">🔍 Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle table-sm">
+                <thead class="table-light">
+                    <tr>
+                        <th>Livestock ID</th>
+                        <th>Type</th>
+                        <th>Acquired</th>
+                        <th>Status</th>
+                        <th class="text-end">Purchase</th>
+                        <th class="text-end">Sold</th>
+                        <th class="text-end">Profit/Loss</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in rowList)
+                    {
+                        decimal plVal = 0m;
+                        decimal plParse;
+                        if (decimal.TryParse(Convert.ToString(r.BasicProfitLoss), out plParse)) plVal = plParse;
+                        var statusStr = Convert.ToString(r.Status) ?? "";
+                        <tr>
+                            <td><code>@r.LivestockDisplayId</code></td>
+                            <td>@r.Type</td>
+                            <td>@r.AcquisitionDate</td>
+                            <td>
+                                @if (statusStr == "Active")
+                                { <span class="badge bg-success">Active</span> }
+                                else if (statusStr == "DischargedSold")
+                                { <span class="badge bg-primary">Sold</span> }
+                                else
+                                { <span class="badge bg-secondary">@statusStr</span> }
+                            </td>
+                            <td class="text-end">$@r.PurchaseAmount</td>
+                            <td class="text-end">$@r.SoldAmount</td>
+                            <td class="text-end fw-semibold @(plVal >= 0 ? "text-success" : "text-danger")">
+                                @(plVal >= 0 ? "+" : "-")$@Math.Abs(plVal).ToString("F2")
+                            </td>
+                        </tr>
+                    }
+                    @if (rowList.Count == 0)
+                    {
+                        <tr><td colspan="7" class="text-center py-5 text-muted small">No livestock data for these filters.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

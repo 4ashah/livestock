@@ -1,0 +1,141 @@
+@model LivestockManager.Application.DTOs.Customers.CustomerCreateDto
+@{
+    ViewData["Title"] = "New Customer";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">➕ New Customer</h1>
+        <div class="text-muted small">Add a new customer record</div>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">← Back to List</a>
+</div>
+
+<form asp-action="Create" method="post" class="row g-3" novalidate>
+    <div asp-validation-summary="All" class="col-12 alert alert-danger"></div>
+
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">Customer Info</h6>
+            </div>
+            <div class="card-body row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Customer Code *</label>
+                    <input asp-for="CustomerCode" class="form-control" required />
+                    <span asp-validation-for="CustomerCode" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Name *</label>
+                    <input asp-for="Name" class="form-control" required />
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Tax Number</label>
+                    <input asp-for="TaxNumber" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Phone</label>
+                    <input asp-for="Phone" class="form-control" />
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold">Email</label>
+                    <input asp-for="Email" type="email" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Payment Terms (days)</label>
+                    <input asp-for="PaymentTermsDays" type="number" class="form-control" value="30" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Credit Limit</label>
+                    <input asp-for="CreditLimit" type="number" step="0.01" class="form-control" value="0" />
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Notes</label>
+                    <textarea asp-for="Notes" rows="2" class="form-control"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">📍 Billing Address</h6>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#billingCollapse">Toggle</button>
+            </div>
+            <div class="card-body row g-3 collapse show" id="billingCollapse">
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Street 1</label>
+                    <input asp-for="BillingAddress.Street1" class="form-control" />
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Street 2</label>
+                    <input asp-for="BillingAddress.Street2" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">City</label>
+                    <input asp-for="BillingAddress.City" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">State</label>
+                    <input asp-for="BillingAddress.State" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Postal Code</label>
+                    <input asp-for="BillingAddress.PostalCode" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Country</label>
+                    <input asp-for="BillingAddress.Country" class="form-control" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">🚚 Delivery Address</h6>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#deliveryCollapse">Toggle</button>
+            </div>
+            <div class="card-body row g-3 collapse" id="deliveryCollapse">
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Street 1</label>
+                    <input asp-for="DeliveryAddress.Street1" class="form-control" />
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Street 2</label>
+                    <input asp-for="DeliveryAddress.Street2" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">City</label>
+                    <input asp-for="DeliveryAddress.City" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">State</label>
+                    <input asp-for="DeliveryAddress.State" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Postal Code</label>
+                    <input asp-for="DeliveryAddress.PostalCode" class="form-control" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Country</label>
+                    <input asp-for="DeliveryAddress.Country" class="form-control" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12 pt-3">
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">💾 Save Customer</button>
+            <a asp-action="Index" class="btn btn-outline-secondary px-4">Cancel</a>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

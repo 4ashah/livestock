@@ -1,0 +1,96 @@
+@using System.Dynamic
+@model IEnumerable<dynamic>
+@{
+    ViewData["Title"] = "Active Livestock by Type";
+    var farms = ViewData["Farms"] as List<dynamic> ?? new List<dynamic>();
+    var farmId = ViewData["FarmId"] as Guid?;
+    var selFarm = farmId.HasValue && farmId != Guid.Empty;
+    var rowList = Model?.ToList() ?? new List<dynamic>();
+    var total = 0;
+    foreach (var r in rowList)
+    {
+        total += (int)(r.Count);
+    }
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">🐑 Active Livestock by Type</h1>
+        <div class="text-muted small">Total active: <strong>@total</strong> @(selFarm ? "· filtered by farm" : "")</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">← Reports</a>
+        <a asp-action="ActiveLivestock" asp-route-format="csv" asp-route-farmId="@(farmId.HasValue ? farmId.ToString() : "")" class="btn btn-outline-success">⬇ Export CSV</a>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-3">
+        <form asp-action="ActiveLivestock" method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label small fw-semibold mb-1">Farm</label>
+                <select name="farmId" class="form-select">
+                    <option value="">All Farms</option>
+                    @foreach (var f in farms)
+                    {
+                        Guid fid = f.Id;
+                        var selected = farmId == fid;
+                        <option value="@f.Id" selected="@selected">@f.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" type="submit">🔍 Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Livestock Type</th>
+                        <th class="text-end">Active Count</th>
+                        <th class="text-end">% of Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in rowList)
+                    {
+                        var count = (int)r.Count;
+                        var pct = total > 0 ? Math.Round((count / (double)total) * 100, 1) : 0;
+                        <tr>
+                            <td class="fw-semibold">@r.Type</td>
+                            <td class="text-end fs-5 fw-bold">@count.ToString("N0")</td>
+                            <td class="text-end">
+                                <div class="d-flex align-items-center justify-content-end gap-2">
+                                    <div class="progress" style="width: 120px; height: 8px;">
+                                        <div class="progress-bar bg-success" style="width: @pct%;"></div>
+                                    </div>
+                                    <span class="small">@pct%</span>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (rowList.Count == 0)
+                    {
+                        <tr><td colspan="3" class="text-center py-5 text-muted small">No active livestock found for these filters.</td></tr>
+                    }
+                </tbody>
+                @if (rowList.Count > 0)
+                {
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td>Total</td>
+                            <td class="text-end">@total.ToString("N0")</td>
+                            <td class="text-end">100%</td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+</div>

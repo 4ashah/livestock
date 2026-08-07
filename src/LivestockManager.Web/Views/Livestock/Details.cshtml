@@ -1,0 +1,273 @@
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Application.DTOs.Livestock
+@using LivestockManager.Web.Models.LivestockViewModels
+@model LivestockDetailsViewModel
+@{
+    ViewData["Title"] = $"Livestock - {Model.LivestockId}";
+    var getStatusBadge = (Func<LivestockStatus, string>)ViewData["GetStatusBadgeClass"]!;
+    var getStatusDesc = (Func<LivestockStatus, string>)ViewData["GetStatusDescription"]!;
+    var getTypeDesc = (Func<LivestockType, string>)ViewData["GetLivestockTypeDescription"]!;
+    var canEdit = User.IsInRole("Administrator") || User.IsInRole("Manager");
+    var canDataEntry = canEdit || User.IsInRole("DataEntry");
+    var isActive = Model.Status == LivestockStatus.Active;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <a asp-action="Index" class="text-muted small text-decoration-none">&larr; Back to Livestock</a>
+        <h1 class="h2 mt-1 mb-0">🐑 @Model.LivestockId</h1>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        @if (canEdit && isActive)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">Edit</a>
+        }
+        @if (canDataEntry && isActive)
+        {
+            <a asp-action="AddWeight" asp-route-id="@Model.Id" class="btn btn-outline-success">+ Add Weight</a>
+        }
+        @if (canEdit && isActive)
+        {
+            <a asp-action="Discharge" asp-route-id="@Model.Id" class="btn btn-outline-warning">Discharge</a>
+        }
+    </div>
+</div>
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Livestock Info</h5>
+                <span class="badge @getStatusBadge(Model.Status)">@getStatusDesc(Model.Status)</span>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 col-md-3 small text-muted">Livestock ID</dt>
+                    <dd class="col-sm-8 col-md-9 fw-semibold">@Model.LivestockId</dd>
+
+                    <dt class="col-sm-4 col-md-3 small text-muted">Type</dt>
+                    <dd class="col-sm-8 col-md-9">@getTypeDesc(Model.Type)</dd>
+
+                    <dt class="col-sm-4 col-md-3 small text-muted">Farm</dt>
+                    <dd class="col-sm-8 col-md-9">@(Model.FarmName ?? "Unassigned")</dd>
+
+                    <dt class="col-sm-4 col-md-3 small text-muted">Acquisition Date</dt>
+                    <dd class="col-sm-8 col-md-9">@Model.AcquisitionDate.ToString("yyyy-MM-dd")</dd>
+
+                    <dt class="col-sm-4 col-md-3 small text-muted">Initial Weight</dt>
+                    <dd class="col-sm-8 col-md-9">@Model.InitialWeight @Model.InitialWeightUnit</dd>
+
+                    <dt class="col-sm-4 col-md-3 small text-muted">Current Weight</dt>
+                    <dd class="col-sm-8 col-md-9">
+                        @if (Model.CurrentWeight.HasValue)
+                        {
+                            <span class="fw-semibold">@Model.CurrentWeight.Value @Model.InitialWeightUnit</span>
+                            <span class="text-muted small ms-2">
+                                (as of @Model.CurrentWeightDate?.ToString("yyyy-MM-dd"))
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-4 col-md-3 small text-muted">Purchase Amount</dt>
+                    <dd class="col-sm-8 col-md-9">@Model.PurchaseAmount.ToString("N2")</dd>
+
+                    @if (Model.SoldAmount.HasValue)
+                    {
+                        <dt class="col-sm-4 col-md-3 small text-muted">Sold Amount</dt>
+                        <dd class="col-sm-8 col-md-9">@Model.SoldAmount.Value.ToString("N2")</dd>
+                    }
+
+                    @if (Model.BasicProfitLoss.HasValue)
+                    {
+                        <dt class="col-sm-4 col-md-3 small text-muted">Basic P/L</dt>
+                        <dd class="col-sm-8 col-md-9">
+                            <span class="fw-semibold @(Model.BasicProfitLoss.Value >= 0 ? "text-success" : "text-danger")">
+                                @(Model.BasicProfitLoss.Value >= 0 ? "+" : "")@Model.BasicProfitLoss.Value.ToString("N2")
+                            </span>
+                        </dd>
+                    }
+
+                    @if (Model.DischargeDate.HasValue)
+                    {
+                        <dt class="col-sm-4 col-md-3 small text-muted">Discharge Date</dt>
+                        <dd class="col-sm-8 col-md-9">@Model.DischargeDate.Value.ToString("yyyy-MM-dd")</dd>
+
+                        <dt class="col-sm-4 col-md-3 small text-muted">Discharge Condition</dt>
+                        <dd class="col-sm-8 col-md-9">@Model.DischargeCondition</dd>
+
+                        if (!string.IsNullOrWhiteSpace(Model.DischargeDetails))
+                        {
+                            <dt class="col-sm-4 col-md-3 small text-muted">Discharge Details</dt>
+                            <dd class="col-sm-8 col-md-9">@Model.DischargeDetails</dd>
+                        }
+                    }
+
+                    @if (!string.IsNullOrWhiteSpace(Model.Comments))
+                    {
+                        <dt class="col-sm-4 col-md-3 small text-muted">Comments</dt>
+                        <dd class="col-sm-8 col-md-9">
+                            <div class="bg-light p-2 rounded border small">
+                                @Model.Comments
+                            </div>
+                        </dd>
+                    }
+                </dl>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Recent Weights</h5>
+                <a asp-action="WeightHistory" asp-route-id="@Model.Id" class="small text-decoration-none">View full history &rarr;</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Weight</th>
+                                <th>Unit</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Weights.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="4" class="text-center py-3 text-muted small">
+                                        No weights recorded yet.
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var w in Model.Weights)
+                                {
+                                    <tr>
+                                        <td class="small">@w.WeighedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td class="small fw-semibold">@w.Weight</td>
+                                        <td class="small">@w.Unit</td>
+                                        <td class="small text-muted">@w.Notes</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-transparent border-bottom">
+                <h5 class="mb-0">Activity Log</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Type</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Activities.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center py-3 text-muted small">
+                                        No activities yet.
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var a in Model.Activities)
+                                {
+                                    <tr>
+                                        <td class="small text-nowrap">@a.PerformedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td class="small">
+                                            <span class="badge bg-secondary">@a.ActivityType</span>
+                                        </td>
+                                        <td class="small">@a.Description</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        @if (canDataEntry)
+        {
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-transparent border-bottom">
+                    <h5 class="mb-0">Add Comment</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-action="AddComment" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <textarea name="newComment" rows="3" maxlength="2000"
+                                  class="form-control mb-2"
+                                  placeholder="Type a note or comment..."></textarea>
+                        <button type="submit" class="btn btn-outline-primary btn-sm w-100">Post Comment</button>
+                    </form>
+                </div>
+            </div>
+        }
+
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-bottom">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                <a asp-action="WeightHistory" asp-route-id="@Model.Id"
+                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                    Weight History
+                    <span class="badge bg-secondary rounded-pill">&rarr;</span>
+                </a>
+                @if (canEdit && isActive)
+                {
+                    <a asp-action="Edit" asp-route-id="@Model.Id"
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        Edit Details
+                        <span class="badge bg-primary rounded-pill">&rarr;</span>
+                    </a>
+                }
+                @if (canDataEntry && isActive)
+                {
+                    <a asp-action="AddWeight" asp-route-id="@Model.Id"
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        Add Weight
+                        <span class="badge bg-success rounded-pill">&rarr;</span>
+                    </a>
+                }
+                @if (canEdit && isActive)
+                {
+                    <a asp-action="Discharge" asp-route-id="@Model.Id"
+                       class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                        Discharge Animal
+                        <span class="badge bg-warning text-dark rounded-pill">&rarr;</span>
+                    </a>
+                }
+            </div>
+        </div>
+    </div>
+</div>

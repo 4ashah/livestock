@@ -1,0 +1,137 @@
+@using LivestockManager.Domain.Enums
+@model LivestockManager.Application.DTOs.Payments.PaymentCreateDto
+@{
+    ViewData["Title"] = "Record Payment";
+    var customers = ViewData["Customers"] as System.Collections.IEnumerable;
+    var invId = ViewData["SelectedInvoiceId"] as Guid?;
+    var invNum = ViewData["SelectedInvoiceNumber"] as string;
+    var outAmt = ViewData["OutstandingAmount"] as decimal?;
+    var outAmtStr = outAmt.HasValue ? outAmt.Value.ToString("F2") : "0.00";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">💵 Record Payment</h1>
+        <div class="text-muted small">Apply a payment against an invoice</div>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">← Cancel</a>
+</div>
+
+@if (invId.HasValue && invId != Guid.Empty)
+{
+    <div class="alert alert-info mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong>For Invoice:</strong> @invNum <span class="ms-2">Outstanding: <strong>$@outAmtStr</strong></span>
+            </div>
+        </div>
+    </div>
+}
+
+<form asp-action="Create" method="post" class="row g-3">
+    <div asp-validation-summary="All" class="col-12 alert alert-danger"></div>
+    @if (invId.HasValue && invId != Guid.Empty)
+    {
+        <input type="hidden" name="SelectedInvoiceId" value="@invId.Value" />
+    }
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">📋 Payment Info</h6>
+            </div>
+            <div class="card-body row g-3">
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Payment Date *</label>
+                    <input asp-for="PaymentDate" type="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Payment Method *</label>
+                    <select asp-for="Method" class="form-select" required>
+                        <option value="@((int)PaymentMethod.Cash)">Cash</option>
+                        <option value="@((int)PaymentMethod.BankTransfer)">Bank Transfer</option>
+                        <option value="@((int)PaymentMethod.Card)">Card</option>
+                        <option value="@((int)PaymentMethod.Other)">Other</option>
+                    </select>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Customer *</label>
+                    <select asp-for="CustomerId" class="form-select" required>
+                        <option value="">Select customer...</option>
+                        @if (customers != null)
+                        {
+                            @foreach (var c in (IEnumerable<dynamic>)customers)
+                            {
+                                Guid cid = c.Id;
+                                <option value="@c.Id" selected="@(cid == Model.CustomerId)">@c.Name (@c.CustomerCode)</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Amount *</label>
+                    <input asp-for="Amount" type="number" step="0.01" min="0.01" class="form-control" required />
+                    <span asp-validation-for="Amount" class="text-danger small"></span>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small fw-semibold">Reference #</label>
+                    <input asp-for="Reference" class="form-control" placeholder="Check #, Transaction ID..." />
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Notes</label>
+                    <textarea asp-for="Notes" rows="3" class="form-control"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">💳 Allocation Preview</h6>
+            </div>
+            <div class="card-body">
+                @if (invId.HasValue && invId != Guid.Empty)
+                {
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Invoice</th>
+                                <th class="text-end">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>@invNum</td>
+                                <td class="text-end fw-semibold">$@Model.Amount.ToString("F2")</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <div class="text-muted small">
+                        <p>No invoice selected. If you navigated here without an invoice, the payment will not be automatically allocated.</p>
+                        <p class="text-warning"><strong>Note:</strong> In MVP, always record payments from the Invoice Details page for automatic allocation.</p>
+                    </div>
+                }
+
+                <div class="mt-4 pt-3 border-top">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-6 text-muted fw-semibold small">Payment Method</dt>
+                        <dd class="col-sm-6 text-end">@Model.Method</dd>
+                        <dt class="col-sm-6 fw-bold">Total Amount</dt>
+                        <dd class="col-sm-6 text-end fw-bold fs-4 text-success">$@Model.Amount.ToString("F2")</dd>
+                    </dl>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-top text-end">
+                <button type="submit" class="btn btn-primary px-5">✅ Post Payment</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

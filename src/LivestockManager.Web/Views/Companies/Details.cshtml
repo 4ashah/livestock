@@ -1,0 +1,11 @@
+@model int
+@{ ViewData["Title"] = "Company Details"; }
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <h1 class="h2">Company Details #@Model</h1>
+    <div><a asp-action="Edit" asp-route-id="@Model" class="btn btn-outline-primary me-2">Edit</a><a asp-action="Index" class="btn btn-outline-secondary">← Back</a></div>
+</div>
+<div class="card shadow-sm border-0"><div class="card-body p-5 text-center text-muted">
+    <div class="display-6 mb-3">📋</div>
+    <div class="h5 mb-2">Company Details Placeholder</div>
+    <div class="small">Profile, tax settings, sequence counters, users &amp; roles, branding.</div>
+</div></div>

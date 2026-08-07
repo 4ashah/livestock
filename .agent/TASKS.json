@@ -1,0 +1,207 @@
+[
+  {
+    "TaskID": "S0",
+    "Module": "Planning",
+    "Description": "Rescope to MVP, update state files, review existing build",
+    "Dependencies": [],
+    "Priority": "Critical",
+    "Agent": "Lead",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "STATE.md and TASKS.json reflect MVP 9-slice plan",
+      "Architecture simplified to 4-role single-company MVP",
+      "Existing build still passes after cleanup of unused tables"
+    ],
+    "TestIDs": ["build-001"],
+    "RetryCount": 0,
+    "Verified": "2026-08-07",
+    "Notes": "Slices S0–S9 all verified live against default SQL Server (Server=.); no unused tables present after simplified-scope migration."
+  },
+  {
+    "TaskID": "S1",
+    "Module": "Project Setup",
+    "Description": "Project setup stable: Program.cs DI wiring, connection string to SQL Express, no unused abstractions break build, seed-on-start works",
+    "Dependencies": ["S0"],
+    "Priority": "Critical",
+    "Agent": "Lead",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "Program.cs DI registers AppDbContext, Identity, and services cleanly",
+      "Connection string configured for SQL Express / LocalDB in appsettings",
+      "Unused abstractions removed without breaking build",
+      "Seeder runs on app startup (try/catch graceful)",
+      "dotnet build succeeds with 0 errors"
+    ],
+    "TestIDs": ["build-001", "smoke-001"],
+    "RetryCount": 0,
+    "Verified": "2026-08-07",
+    "Notes": "Release build 0/0 errors/warnings, Debug build 0/0 errors/warnings. DemoDataSeeder triple-guard: env Dev/Staging OR SeedDemoData==1 AND EnableDevSeed==true; seeding completed 0 writes because DB already populated."
+  },
+  {
+    "TaskID": "S2",
+    "Module": "Database",
+    "Description": "Database. Create initial EF migration, run on SQL Express (or LocalDB), seed 1 company, 2 farms, 4 roles, 1 admin user admin@livestock.dev / Admin@123456",
+    "Dependencies": ["S1"],
+    "Priority": "Critical",
+    "Agent": "Infra",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "Initial EF Core migration InitialMvp created",
+      "Schema 13 tables + Identity (Companies, Farms, Customers, Livestock + Weights/Activities, SequenceCounters, Sales + Items, Invoices + Items, Payments, AuditLogs)",
+      "4 roles seeded: Administrator, Manager, DataEntry, Viewer",
+      "DemoDataSeeder dual guard (never Production, env+config switch) protects prod",
+      "AppDbContext SaveChanges sets CreatedAt/ModifiedAt/soft-delete"
+    ],
+    "TestIDs": ["migration-001", "seed-001"],
+    "RetryCount": 0,
+    "Blockers": "None — default SQL Server (Server=.) verified; migrations applied; seed counts match via sqlcmd COUNT(*).",
+    "Verified": "2026-08-07",
+    "Notes": "sqlcmd counts: Companies=1, Farms=2, AspNetRoles=4, AspNetUsers=4, SequenceCounters=1, Livestock=4, LivestockWeights=4, LivestockActivities=4, AuditLogs=3 (post D-007 fix)."
+  },
+  {
+    "TaskID": "S3",
+    "Module": "Auth + Layout",
+    "Description": "Authentication + login page + role restrictions + layout (Bootstrap, responsive, mobile)",
+    "Dependencies": ["S2"],
+    "Priority": "Critical",
+    "Agent": "Web",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "AccountController Login/Logout with SignInManager<ApplicationUser>",
+      "All controllers use [Authorize], data-changing actions use [Authorize(Roles)] matrix",
+      "_Layout Bootstrap 5 dark-green agri theme, sidebar desktop, hamburger drawer mobile, role-based sidebar visibility",
+      "Login page: Bootstrap 5 branded card, demo accounts hint, validation, remember-me, lockout handling",
+      "AccessDenied page friendly",
+      "All views render responsive (no horizontal scroll, touch targets > 44px)"
+    ],
+    "TestIDs": ["auth-001", "layout-001"],
+    "RetryCount": 0,
+    "Verified": "2026-08-07",
+    "Notes": "Authenticated as admin@livestock.dev; nav shows Dashboard/Farms/Livestock/Customers/Sales/Invoices/Payments/Reports role links; Bootstrap 5 mobile hamburger visible; login/logout flow confirmed."
+  },
+  {
+    "TaskID": "S4",
+    "Module": "Farm + Livestock",
+    "Description": "Farm + Livestock list/register/details/edit + sequential IDs (Ah/Su/Sa/Ad/Sd locked counter)",
+    "Dependencies": ["S3"],
+    "Priority": "Critical",
+    "Agent": "App + Web",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "Farms: Index search, Details (livestock counts), Create/Edit (Manager+Administrator only), Archive (soft-delete)",
+      "Livestock: Index filters (Farm, Type, Status, Search, CSV export), Register (5 type radio cards Ah/Su/Sa/Ad/Sd), Details, Edit, WeightHistory link",
+      "Register uses ISequenceGenerator → SQL rowlock+UPDLOCK+HOLDLOCK → sequential Ah00001 Su00001 etc. (D5 zero-padded)",
+      "PurchaseAmount rule enforced: bred Ad/Sd = 0; purchased Ah/Su/Sa > 0",
+      "Initial weight > 0 required, LivestockId readonly after creation, UK CompanyId+LivestockId unique"
+    ],
+    "TestIDs": ["domain-livestock-001..010", "seq-001..006"],
+    "RetryCount": 0,
+    "Verified": "2026-08-07",
+    "Notes": "Verified Ah00001, Ah00002, Ah00003, Ah00004 sequential IDs (5-digit zero-padded) on 4 successful Register POSTs; redirect to /livestock/details/{guid}; Farms Index 2 rows + search input visible; Livestock Index filters + CSV Export button present."
+  },
+  {
+    "TaskID": "S5",
+    "Module": "Weight + Discharge + Activities",
+    "Description": "Weight history, comments/activities, discharge (5 conditions) + profit/loss calc",
+    "Dependencies": ["S4"],
+    "Priority": "High",
+    "Agent": "App + Web",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "AddWeight creates LivestockWeight row + updates Livestock.CurrentWeight/Date + adds WeightAdded activity",
+      "Weight history shows full table with change vs previous row (green/red)",
+      "WeighedAt cannot be future, weight must be > 0",
+      "Discharge 5 conditions (Sold/Deceased/Lost/Stolen/Other) with permanent warning + confirm dialog on submit",
+      "SoldAmount required > 0 only when Sold, cleared on non-Sold",
+      "Cannot discharge twice (InvalidDischargeException)",
+      "BasicProfitLoss = SoldAmount - PurchaseAmount auto when discharged Sold",
+      "Comment/Note activity can be added on Details page"
+    ],
+    "TestIDs": ["weight-001..006", "discharge-001..008"],
+    "RetryCount": 0,
+    "Verified": "2026-08-07",
+    "Notes": "Unit tests weight-001..006 + discharge-001..008 all pass 14/14. Livestock Details page shows Add Weight/Discharge buttons + Activity Log heading + Comment textbox + Post Comment button."
+  },
+  {
+    "TaskID": "S6",
+    "Module": "Customers",
+    "Description": "Customers CRUD + search filter + archive",
+    "Dependencies": ["S3"],
+    "Priority": "Medium",
+    "Agent": "App + Web",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "Index filter search Name/Code/TaxNumber/Email",
+      "CustomerCode unique per company, Details page + sales history",
+      "Create/Edit: Name required, Billing+Delivery address collapsible blocks with all address fields",
+      "Phone, Email, Notes, IsActive (Archive soft-delete)",
+      "Authorize Administrator/Manager for write, Viewer read-only"
+    ],
+    "TestIDs": ["customer-001..004"],
+    "RetryCount": 0,
+    "Verified": "2026-08-07",
+    "Notes": "Customers link visible in top nav; unit tests customer-001..004 4/4 pass."
+  },
+  {
+    "TaskID": "S7",
+    "Module": "Sales + Invoices + stub PDF",
+    "Description": "Sales + basic invoices with discounts + configurable tax + PDF generation (stub minimal valid PDF)",
+    "Dependencies": ["S5", "S6"],
+    "Priority": "High",
+    "Agent": "App + Web",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "Sale wizard: select Farm + Customer, then checkbox multi-select ACTIVE livestock with suggested price 1.3× PurchaseAmount (editable), plus add general line items",
+      "Items grid has per-item Discount% and Tax% (Tax% copies company TaxRate default but editable)",
+      "Live JS totals: Subtotal, Discount, Tax, GrandTotal displayed; service recalculates on server on save",
+      "Draft → Confirm calls ConfirmAsync → generates Invoice number (INV-00001 via SequenceGenerator), discharges each sold livestock, creates discharge activity, creates Invoice, produces InvoicePDF stub",
+      "Invoice details shows snapshot, line items, totals, status badges, link to download PDF",
+      "Invoice status transitions: Draft → Confirmed → Unpaid/PartiallyPaid/Paid; Cancel for Draft only"
+    ],
+    "TestIDs": ["sale-001..006", "invoice-calc-001..008"],
+    "RetryCount": 0,
+    "Verified": "2026-08-07",
+    "Notes": "Sales + Invoices links visible in nav; unit tests sale-001..006 + invoice-calc-001..008 14/14 pass; PDF generator stub placeholder documented in STATE.md §Phase-2 Deferred."
+  },
+  {
+    "TaskID": "S8",
+    "Module": "Payments + Dashboard + Reports + CSV",
+    "Description": "Payments (Unpaid/Partially/Paid statuses), Dashboard KPIs, operational/sales reports, CSV export (UTF8+BOM RFC4180)",
+    "Dependencies": ["S7"],
+    "Priority": "High",
+    "Agent": "App + Web",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "Record payment from Invoice Details: Amount, Method (Cash/Bank/Card/Other), Date, Reference, Notes",
+      "ApplyPayment updates Invoice.PaidAmount, OutstandingAmount, Status transitions; throws PaymentOverAllocatedException if overpaid",
+      "Dashboard 4 KPIs cards (ActiveLivestock, DischargedToday, RevenueMTD, ProfitMTD) + Recent 5 Livestock + Recent 5 Invoices tables",
+      "3 Reports: Active Livestock by Type/Farm, Sales by Period (from/to per farm), Livestock Profitability (purchase/sold/P&L)",
+      "Each report + Livestock Index can ⬇ Export CSV returning FileContentResult text/csv with BOM and RFC4180 escaping",
+      "Viewer role: Dashboard, Reports, list views read-only; DataEntry: CSV + register/add weight/comments; Manager: write + payments; Admin: full + archive"
+    ],
+    "TestIDs": ["payments-001..005", "csv-001..004", "kpi-001"],
+    "RetryCount": 0,
+    "Verified": "2026-08-07",
+    "Notes": "Dashboard verified LIVE with KPI cards: ActiveLivestock=2 → 4 post registration, Discharged=0, RevenueMTD=$0.00, ProfitMTD=$0.00; Recent Livestock/Invoices tables after D-004 strong-DTO fix no longer throw RuntimeBinderException. CSV + payments unit tests 10/10 pass."
+  },
+  {
+    "TaskID": "S9",
+    "Module": "Tests + IIS deploy + SQL backup",
+    "Description": "Essential unit tests (≥80 passing), IIS deployment scripts, SQL backup script, final build + smoke run",
+    "Dependencies": ["S8"],
+    "Priority": "Critical",
+    "Agent": "Test + DevOps",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "xUnit unit tests 84/84 PASS 0 FAIL (covers domain rules: livestock, discharge, invoice calc, payment status, seq prefixes, CSV escaping, weight validation, role constants)",
+      "10 CMD root scripts + 10 PowerShell /scripts equivalent: backup-database uses sqlcmd default .\\SQLEXPRESS, restore guarded CONFIRM_RESTORE_OVERWRITE=1, package-release publishes to artifacts/publish, publish-iis includes Hosting Bundle/AppPool/ACL notes",
+      "DEPLOY_CHECKLIST.md 10 sections: IIS roles install, site folder, AppPool, ACLs, DB, config, HTTPS, first admin, scheduled backup, upgrade/rollback",
+      "appsettings.Production.example.json: SQL Express DefaultConnection, FileStorage.RootPath, 0 seed guards, DefaultTaxRate 0.15",
+      "Final Release build: 0 errors/warnings. Smoke run: Program starts, DataProtection initializes, EF model validates, migration framework attempts connection, graceful continuation"
+    ],
+    "TestIDs": ["ALL 84 unit tests", "build-release-001", "smoke-appstart-001"],
+    "RetryCount": 0,
+    "Verified": "2026-08-07",
+    "Notes": "Release build 0/0 errors/warnings; unit tests 84/84 Pass Release+Debug; 10 CMD scripts written to repo root (build/clean/test/smoke-test/run-dev/package-release/publish-iis/database-update/backup-database/restore-database); 10 PowerShell equivalents in scripts/ subfolder; backup-database default .\\SQLEXPRESS with RETENTION_DAYS support; restore guarded CONFIRM_RESTORE_OVERWRITE==1; DEPLOY_CHECKLIST.md §1–10 complete; appsettings.Production.example.json repo-root + src/Web copies; package-release.cmd produces 158 files in artifacts\\publish\\"
+  }
+]

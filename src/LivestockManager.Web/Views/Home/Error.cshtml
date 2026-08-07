@@ -1,0 +1,40 @@
+@model ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div class="row justify-content-center align-items-center py-5">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm border-0 text-center">
+            <div class="card-body p-5">
+                <div class="display-1 mb-4 text-danger">⚠️</div>
+                <h1 class="display-5 fw-bold mb-3 text-danger">Oops!</h1>
+                <p class="lead text-muted mb-4">
+                    An unexpected error occurred while processing your request.
+                </p>
+                <p class="text-muted mb-4">
+                    The development team has been notified. Please try again in a few moments.
+                </p>
+
+                @if (Model.ShowRequestId)
+                {
+                    <div class="alert alert-light text-start mb-4" role="alert">
+                        <strong>Request ID:</strong> <code>@Model.RequestId</code>
+                        <div class="small text-muted mt-1">
+                            Provide this identifier when contacting support.
+                        </div>
+                    </div>
+                }
+
+                <div class="d-flex justify-content-center gap-2 flex-wrap">
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-primary">
+                        Return to Dashboard
+                    </a>
+                    <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
+                        Go Back
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

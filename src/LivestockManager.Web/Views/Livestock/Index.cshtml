@@ -1,0 +1,169 @@
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Web.Models.LivestockViewModels
+@model LivestockIndexViewModel
+@{
+    ViewData["Title"] = "Livestock";
+    var getStatusBadge = (Func<LivestockStatus, string>)ViewData["GetStatusBadgeClass"]!;
+    var getStatusDesc = (Func<LivestockStatus, string>)ViewData["GetStatusDescription"]!;
+    var getTypeDesc = (Func<LivestockType, string>)ViewData["GetLivestockTypeDescription"]!;
+    var canEdit = User.IsInRole("Administrator") || User.IsInRole("Manager");
+    var canDataEntry = canEdit || User.IsInRole("DataEntry");
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <h1 class="h2">🐑 Livestock</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        @if (canDataEntry)
+        {
+            <a asp-action="Register" class="btn btn-primary">
+                <span class="me-1">+</span> Register Livestock
+            </a>
+        }
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3">
+            <div class="col-md-3 col-sm-6">
+                <label asp-for="FarmId" class="form-label small fw-semibold">Farm</label>
+                <select asp-for="FarmId" asp-items="Model.FarmOptions" class="form-select">
+                    <option value="">All Farms</option>
+                </select>
+                <span asp-validation-for="FarmId" class="text-danger small"></span>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label small fw-semibold">Type</label>
+                <select asp-for="LivestockTypeId" class="form-select" asp-items="Html.GetEnumSelectList<LivestockType>()">
+                    <option value="">All Types</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <label class="form-label small fw-semibold">Status</label>
+                <select asp-for="Status" class="form-select" asp-items="Html.GetEnumSelectList<LivestockStatus>()">
+                    <option value="">All Statuses</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-sm-6">
+                <label asp-for="SearchString" class="form-label small fw-semibold">Search</label>
+                <input asp-for="SearchString" class="form-control" placeholder="Livestock ID or comment..." />
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-outline-primary">Apply Filters</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+                @if (canDataEntry)
+                {
+                    <a asp-action="ExportCsv" asp-route-farmId="@ViewData["FarmId"]"
+                       asp-route-livestockTypeId="@ViewData["LivestockTypeId"]"
+                       asp-route-status="@ViewData["Status"]"
+                       asp-route-searchString="@ViewData["SearchString"]"
+                       class="btn btn-outline-success ms-auto">
+                        📥 Export CSV
+                    </a>
+                }
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Livestock ID</th>
+                        <th>Type</th>
+                        <th>Farm</th>
+                        <th>Acquired</th>
+                        <th>Initial</th>
+                        <th>Current</th>
+                        <th>Days</th>
+                        <th>Status</th>
+                        <th>P&amp;L</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="10" class="text-center py-5 text-muted">
+                                <div class="display-6 mb-2">🐑</div>
+                                <div class="h6 mb-1">No livestock found</div>
+                                <div class="small">Try adjusting your filters or register new livestock.</div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td class="fw-semibold text-primary">@item.LivestockId</td>
+                                <td>
+                                    <span class="small" title="@getTypeDesc(item.LivestockType)">
+                                        @item.LivestockType
+                                    </span>
+                                </td>
+                                <td class="small">@item.FarmName</td>
+                                <td class="small">@item.AcquisitionDate.ToString("yyyy-MM-dd")</td>
+                                <td class="small text-muted">@item.InitialWeight</td>
+                                <td class="small fw-semibold">
+                                    @if (item.CurrentWeight.HasValue)
+                                    {
+                                        @:@item.CurrentWeight.Value
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="small">@item.DaysInHerd</td>
+                                <td>
+                                    <span class="badge @getStatusBadge(item.Status)">
+                                        @getStatusDesc(item.Status)
+                                    </span>
+                                </td>
+                                <td class="small">
+                                    @if (item.BasicProfitLoss.HasValue)
+                                    {
+                                        var pnlClass = item.BasicProfitLoss.Value >= 0 ? "text-success" : "text-danger";
+                                        <span class="@pnlClass fw-semibold">
+                                            @item.BasicProfitLoss.Value.ToString("N2")
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="Details" asp-route-id="@item.Id"
+                                           class="btn btn-outline-secondary">Details</a>
+                                        @if (canEdit && item.Status == LivestockStatus.Active)
+                                        {
+                                            <a asp-action="Edit" asp-route-id="@item.Id"
+                                               class="btn btn-outline-primary">Edit</a>
+                                        }
+                                        @if (canDataEntry && item.Status == LivestockStatus.Active)
+                                        {
+                                            <a asp-action="AddWeight" asp-route-id="@item.Id"
+                                               class="btn btn-outline-success">Weight</a>
+                                        }
+                                        @if (canEdit && item.Status == LivestockStatus.Active)
+                                        {
+                                            <a asp-action="Discharge" asp-route-id="@item.Id"
+                                               class="btn btn-outline-warning">Discharge</a>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,73 @@
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Web.Models.LivestockViewModels
+@model AddWeightViewModel
+@{
+    ViewData["Title"] = "Add Weight";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <a asp-action="Details" asp-route-id="@Model.LivestockId" class="text-muted small text-decoration-none">&larr; Back to Details</a>
+        <h1 class="h2 mt-1 mb-0">Add Weight - @Model.LivestockDisplayId</h1>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form asp-action="AddWeight" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="LivestockId" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-4"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="LivestockDisplayId" class="form-label fw-semibold"></label>
+                        <input class="form-control bg-light" value="@Model.LivestockDisplayId" readonly disabled />
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-8">
+                            <label asp-for="Weight" class="form-label fw-semibold"></label>
+                            <input asp-for="Weight" type="number" step="0.01" min="0.01" class="form-control form-control-lg"
+                                   placeholder="Enter weight..." />
+                            <span asp-validation-for="Weight" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Unit" class="form-label fw-semibold"></label>
+                            <select asp-for="Unit" class="form-select form-select-lg"
+                                    asp-items="Html.GetEnumSelectList<WeightUnit>()"></select>
+                            <span asp-validation-for="Unit" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="WeighedAt" class="form-label fw-semibold"></label>
+                        <input asp-for="WeighedAt" type="datetime-local" class="form-control"
+                               asp-format="{0:yyyy-MM-ddTHH:mm}" />
+                        <span asp-validation-for="WeighedAt" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Notes" class="form-label fw-semibold"></label>
+                        <textarea asp-for="Notes" rows="2" maxlength="500"
+                                  class="form-control" placeholder="Optional notes..."></textarea>
+                        <div class="form-text text-end small">
+                            @((500 - (Model.Notes?.Length ?? 0))) characters left
+                        </div>
+                        <span asp-validation-for="Notes" class="text-danger small"></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a asp-action="Details" asp-route-id="@Model.LivestockId" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-success">Save Weight</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

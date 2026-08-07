@@ -1,0 +1,141 @@
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Web.Models.LivestockViewModels
+@model DischargeViewModel
+@{
+    ViewData["Title"] = "Discharge Livestock";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <a asp-action="Details" asp-route-id="@Model.LivestockId" class="text-muted small text-decoration-none">&larr; Back to Details</a>
+        <h1 class="h2 mt-1 mb-0">Discharge - @Model.LivestockDisplayId</h1>
+    </div>
+</div>
+
+<div class="alert alert-warning border-warning d-flex align-items-center" role="alert">
+    <div class="me-2">&#9888;</div>
+    <div class="small">
+        <strong>Warning:</strong> Discharge is a permanent action. Once discharged, livestock status cannot be changed back to Active.
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <form asp-action="Discharge" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="LivestockId" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-4"></div>
+
+                    <div class="mb-3">
+                        <label asp-for="LivestockDisplayId" class="form-label fw-semibold"></label>
+                        <input class="form-control bg-light" value="@Model.LivestockDisplayId" readonly disabled />
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="DischargeCondition" class="form-label fw-semibold"></label>
+                        <div class="row g-2">
+                            <div class="col-md-4 col-sm-6">
+                                <div class="form-check card p-2 border h-100">
+                                    <input type="radio" asp-for="DischargeCondition" value="@DischargeCondition.Sold"
+                                           class="form-check-input" id="cSold" />
+                                    <label class="form-check-label fw-semibold" for="cSold">Sold</label>
+                                    <div class="small text-muted mt-1">Animal was sold</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 col-sm-6">
+                                <div class="form-check card p-2 border h-100">
+                                    <input type="radio" asp-for="DischargeCondition" value="@DischargeCondition.Deceased"
+                                           class="form-check-input" id="cDeceased" />
+                                    <label class="form-check-label fw-semibold" for="cDeceased">Deceased</label>
+                                    <div class="small text-muted mt-1">Animal died</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 col-sm-6">
+                                <div class="form-check card p-2 border h-100">
+                                    <input type="radio" asp-for="DischargeCondition" value="@DischargeCondition.Lost"
+                                           class="form-check-input" id="cLost" />
+                                    <label class="form-check-label fw-semibold" for="cLost">Lost</label>
+                                    <div class="small text-muted mt-1">Animal lost (missing)</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 col-sm-6">
+                                <div class="form-check card p-2 border h-100">
+                                    <input type="radio" asp-for="DischargeCondition" value="@DischargeCondition.Stolen"
+                                           class="form-check-input" id="cStolen" />
+                                    <label class="form-check-label fw-semibold" for="cStolen">Stolen</label>
+                                    <div class="small text-muted mt-1">Animal was stolen</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4 col-sm-6">
+                                <div class="form-check card p-2 border h-100">
+                                    <input type="radio" asp-for="DischargeCondition" value="@DischargeCondition.Other"
+                                           class="form-check-input" id="cOther" />
+                                    <label class="form-check-label fw-semibold" for="cOther">Other</label>
+                                    <div class="small text-muted mt-1">Other reason (specify below)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <span asp-validation-for="DischargeCondition" class="text-danger small d-block mt-1"></span>
+                    </div>
+
+                    <div id="soldAmountWrap" class="mb-3" style="display:none;">
+                        <label asp-for="SoldAmount" class="form-label fw-semibold">
+                            Sold Amount <span class="text-danger">*</span>
+                        </label>
+                        <input asp-for="SoldAmount" type="number" step="0.01" min="0.01" class="form-control form-control-lg"
+                               placeholder="Enter sale amount..." />
+                        <div class="form-text small">Required when condition is Sold.</div>
+                        <span asp-validation-for="SoldAmount" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="DischargeDate" class="form-label fw-semibold"></label>
+                        <input asp-for="DischargeDate" type="date" class="form-control" asp-format="{0:yyyy-MM-dd}" />
+                        <span asp-validation-for="DischargeDate" class="text-danger small"></span>
+                    </div>
+
+                    <div class="mb-4">
+                        <label asp-for="Details" class="form-label fw-semibold"></label>
+                        <textarea asp-for="Details" rows="3" maxlength="2000"
+                                  class="form-control" placeholder="Additional details about discharge..."></textarea>
+                        <span asp-validation-for="Details" class="text-danger small"></span>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a asp-action="Details" asp-route-id="@Model.LivestockId" class="btn btn-outline-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-warning"
+                                onclick="return confirm('Are you sure you want to discharge this animal? This action cannot be undone.');">
+                            Confirm Discharge
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var soldWrap = document.getElementById('soldAmountWrap');
+        function update() {
+            var checked = document.querySelector('input[name="DischargeCondition"]:checked');
+            if (checked && checked.value === '@nameof(DischargeCondition.Sold)') {
+                soldWrap.style.display = '';
+            } else {
+                soldWrap.style.display = 'none';
+                var inp = document.getElementById('SoldAmount');
+                if (inp) inp.value = '';
+            }
+        }
+        document.querySelectorAll('input[name="DischargeCondition"]').forEach(function (r) {
+            r.addEventListener('change', update);
+        });
+        update();
+    })();
+</script>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

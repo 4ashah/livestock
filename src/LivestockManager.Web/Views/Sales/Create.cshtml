@@ -1,0 +1,222 @@
+@using LivestockManager.Domain.Enums
+@model LivestockManager.Application.DTOs.Sales.SaleCreateDto
+@{
+    ViewData["Title"] = "New Sale";
+    var farms = ViewData["Farms"] as System.Collections.IEnumerable;
+    var customers = ViewData["Customers"] as System.Collections.IEnumerable;
+    var livestock = ViewData["ActiveLivestock"] as System.Collections.IEnumerable;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">🛒 New Sale</h1>
+        <div class="text-muted small">Create a draft sale order</div>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">← Cancel</a>
+</div>
+
+<form asp-action="Create" method="post" class="row g-3" id="saleForm">
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">📝 Sale Details</h6>
+            </div>
+            <div class="card-body row g-3">
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Farm</label>
+                    <select asp-for="FarmId" class="form-select" required>
+                        <option value="">—</option>
+                        @if (farms != null)
+                        {
+                            @foreach (var f in (IEnumerable<LivestockManager.Application.DTOs.Farms.FarmSummaryDto>)farms)
+                            {
+                                <option value="@f.Id">@f.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Customer *</label>
+                    <select asp-for="CustomerId" class="form-select" required>
+                        <option value="">Select customer...</option>
+                        @if (customers != null)
+                        {
+                            @foreach (var c in (IEnumerable<LivestockManager.Application.DTOs.Customers.CustomerSummaryDto>)customers)
+                            {
+                                <option value="@c.Id">@c.Name (@c.CustomerCode)</option>
+                            }
+                        }
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Sale Date</label>
+                    <input asp-for="Date" type="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Notes</label>
+                    <textarea asp-for="Notes" rows="2" class="form-control"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">🐑 Select Livestock (Active)</h6>
+                <span class="small text-muted">Check items to add; price editable per item</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle" id="livestockTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:40px;">
+                                    <input type="checkbox" id="selectAllLivestock" class="form-check-input" />
+                                </th>
+                                <th>Livestock ID</th>
+                                <th>Type</th>
+                                <th class="text-end">Suggested Price</th>
+                                <th style="width:160px;" class="text-end">Unit Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (livestock != null)
+                            {
+                                int li = 0;
+                                @foreach (var l in (IEnumerable<dynamic>)livestock)
+                                {
+                                    <tr data-id="@l.Id">
+                                        <td>
+                                            <input type="checkbox" name="livestockIds" value="@l.Id" class="form-check-input ls-check" data-idx="@li" />
+                                        </td>
+                                        <td><code>@l.LivestockId</code></td>
+                                        <td>@l.LivestockTypeId</td>
+                                        <td class="text-end">$@l.SuggestedPrice.ToString("F2")</td>
+                                        <td>
+                                            <input type="number" name="livestockPrices" step="0.01" value="@l.SuggestedPrice.ToString("F2")"
+                                                   class="form-control form-control-sm text-end ls-price" data-idx="@li" />
+                                        </td>
+                                    </tr>
+                                    li++;
+                                }
+                            }
+                            else
+                            {
+                                <tr><td colspan="5" class="text-center py-4 text-muted small">No active livestock available.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0 mb-3">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold">📦 Additional Line Items</h6>
+                <button type="button" class="btn btn-sm btn-outline-primary" id="addLineBtn">+ Add Row</button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle" id="linesTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Description</th>
+                                <th style="width:120px;" class="text-end">Qty</th>
+                                <th style="width:160px;" class="text-end">Unit Price</th>
+                                <th style="width:40px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="line-row">
+                                <td><input type="text" name="lineDesc" class="form-control form-control-sm" placeholder="e.g. Delivery fee" /></td>
+                                <td><input type="number" name="lineQty" value="1" step="0.01" class="form-control form-control-sm text-end line-qty" /></td>
+                                <td><input type="number" name="linePrice" value="0" step="0.01" class="form-control form-control-sm text-end line-price" /></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-line" tabindex="-1">✕</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 offset-md-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">💵 Totals</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-6 text-muted small fw-semibold">Selected Livestock Subtotal</dt>
+                    <dd class="col-sm-6 text-end" id="lsSub">$0.00</dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Line Items Subtotal</dt>
+                    <dd class="col-sm-6 text-end" id="lnSub">$0.00</dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Subtotal</dt>
+                    <dd class="col-sm-6 text-end" id="sub">$0.00</dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Discount</dt>
+                    <dd class="col-sm-6 text-end" id="disc">$0.00</dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Tax</dt>
+                    <dd class="col-sm-6 text-end" id="tax">$0.00</dd>
+                    <hr class="my-2" />
+                    <dt class="col-sm-6 fw-bold">Grand Total</dt>
+                    <dd class="col-sm-6 text-end fw-bold fs-5" id="grand">$0.00</dd>
+                </dl>
+            </div>
+            <div class="card-footer bg-transparent border-top text-end">
+                <button type="submit" class="btn btn-primary px-5">💾 Save as Draft</button>
+            </div>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            function fmt(n) { return '$' + (Number(n) || 0).toFixed(2); }
+            function recalc() {
+                var lsTotal = 0;
+                document.querySelectorAll('#livestockTable .ls-check').forEach(function (cb, i) {
+                    if (cb.checked) {
+                        var priceInput = document.querySelector('#livestockTable .ls-price[data-idx="' + cb.dataset.idx + '"]');
+                        lsTotal += parseFloat(priceInput && priceInput.value || '0');
+                    }
+                });
+                var lnTotal = 0;
+                document.querySelectorAll('.line-row').forEach(function (r) {
+                    var q = parseFloat(r.querySelector('.line-qty')?.value || '0');
+                    var p = parseFloat(r.querySelector('.line-price')?.value || '0');
+                    lnTotal += q * p;
+                });
+                var sub = lsTotal + lnTotal;
+                document.getElementById('lsSub').textContent = fmt(lsTotal);
+                document.getElementById('lnSub').textContent = fmt(lnTotal);
+                document.getElementById('sub').textContent = fmt(sub);
+                document.getElementById('grand').textContent = fmt(sub);
+            }
+            document.getElementById('selectAllLivestock')?.addEventListener('change', function (e) {
+                document.querySelectorAll('#livestockTable .ls-check').forEach(function (cb) { cb.checked = e.target.checked; });
+                recalc();
+            });
+            document.querySelectorAll('#livestockTable .ls-check, #livestockTable .ls-price').forEach(function (el) { el.addEventListener('change', recalc); el.addEventListener('input', recalc); });
+            document.querySelectorAll('.line-qty, .line-price').forEach(function (el) { el.addEventListener('change', recalc); el.addEventListener('input', recalc); });
+            document.getElementById('addLineBtn')?.addEventListener('click', function () {
+                var tbody = document.querySelector('#linesTable tbody');
+                var clone = tbody.querySelector('.line-row').cloneNode(true);
+                clone.querySelectorAll('input').forEach(function (i) { i.value = i.name === 'lineQty' ? '1' : '0'; });
+                clone.querySelector('.line-qty').addEventListener('change', recalc);
+                clone.querySelector('.line-qty').addEventListener('input', recalc);
+                clone.querySelector('.line-price').addEventListener('change', recalc);
+                clone.querySelector('.line-price').addEventListener('input', recalc);
+                clone.querySelector('.remove-line').addEventListener('click', function () { clone.remove(); recalc(); });
+                tbody.appendChild(clone);
+                recalc();
+            });
+            document.querySelectorAll('.remove-line').forEach(function (b) { b.addEventListener('click', function () { b.closest('.line-row').remove(); recalc(); }); });
+            recalc();
+        })();
+    </script>
+}

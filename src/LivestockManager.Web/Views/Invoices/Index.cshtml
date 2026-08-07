@@ -1,0 +1,134 @@
+@model IEnumerable<LivestockManager.Application.DTOs.Invoices.InvoiceSummaryDto>
+@{
+    ViewData["Title"] = "Invoices";
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+    var customers = ViewData["Customers"] as System.Collections.IEnumerable;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">📄 Invoices</h1>
+        <div class="text-muted small">Billing and receivables</div>
+    </div>
+    <a asp-controller="Sales" asp-action="Create" class="btn btn-outline-primary">+ From Sale</a>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-3">
+        <form asp-action="Index" method="get" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">From</label>
+                <input type="date" name="from" class="form-control" value="@ViewData["From"]" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">To</label>
+                <input type="date" name="to" class="form-control" value="@ViewData["To"]" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold mb-1">Customer</label>
+                <select name="customerId" class="form-select">
+                    <option value="">All</option>
+                    @if (customers != null)
+                    {
+                        @foreach (var c in (IEnumerable<dynamic>)customers)
+                        {
+                            <option value="@c.Id" selected="@((Guid?)ViewData["CustomerId"] == c.Id)">@c.Name</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold mb-1">Status</label>
+                <select name="status" class="form-select">
+                    <option value="">Any</option>
+                    @foreach (var s in Enum.GetValues<InvoiceStatus>())
+                    {
+                        <option value="@((int)s)" selected="@((InvoiceStatus?)ViewData["Status"] == s)">@s</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary w-100" type="submit">🔍 Filter</button>
+                    <a asp-action="Index" class="btn btn-outline-danger">✕</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>Date</th>
+                        <th>Due</th>
+                        <th>Customer</th>
+                        <th class="text-end">Grand Total</th>
+                        <th class="text-end">Paid</th>
+                        <th class="text-end">Outstanding</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var i in Model)
+                    {
+                        <tr>
+                            <td><code>@i.InvoiceNumber</code></td>
+                            <td>@i.InvoiceDate.ToString("yyyy-MM-dd")</td>
+                            <td>@i.DueDate.ToString("yyyy-MM-dd")</td>
+                            <td>@i.CustomerName</td>
+                            <td class="text-end fw-semibold">$@i.GrandTotal.ToString("F2")</td>
+                            <td class="text-end text-success">$@i.PaidAmount.ToString("F2")</td>
+                            <td class="text-end text-warning">$@i.OutstandingAmount.ToString("F2")</td>
+                            <td>
+                                @switch (i.Status)
+                                {
+                                    case InvoiceStatus.Draft:
+                                        <span class="badge bg-light text-dark border">Draft</span>
+                                        break;
+                                    case InvoiceStatus.Confirmed:
+                                        <span class="badge bg-info">Confirmed</span>
+                                        break;
+                                    case InvoiceStatus.Unpaid:
+                                        <span class="badge bg-warning text-dark">Unpaid</span>
+                                        break;
+                                    case InvoiceStatus.PartiallyPaid:
+                                        <span class="badge bg-primary">Partial</span>
+                                        break;
+                                    case InvoiceStatus.Paid:
+                                        <span class="badge bg-success">Paid</span>
+                                        break;
+                                    case InvoiceStatus.Overdue:
+                                        <span class="badge bg-danger">Overdue</span>
+                                        break;
+                                    case InvoiceStatus.Voided:
+                                        <span class="badge bg-secondary">Voided</span>
+                                        break;
+                                    default:
+                                        <span class="badge bg-secondary">@i.Status</span>
+                                        break;
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@i.Id" class="btn btn-sm btn-outline-primary">View</a>
+                                @if (canEdit && i.Status != InvoiceStatus.Cancelled && i.Status != InvoiceStatus.Voided)
+                                {
+                                    <a asp-action="DownloadPdf" asp-route-id="@i.Id" class="btn btn-sm btn-outline-secondary" target="_blank">PDF</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="9" class="text-center py-5 text-muted small">No invoices found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

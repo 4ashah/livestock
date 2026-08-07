@@ -1,0 +1,113 @@
+@using LivestockManager.Web.Models.FarmViewModels
+@model IEnumerable<FarmListViewModel>
+@{
+    ViewData["Title"] = "Farms";
+    var search = ViewData["Search"] as string;
+    var canEdit = User.IsInRole("Administrator") || User.IsInRole("Manager");
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <h1 class="h2">🏞️ Farms</h1>
+    @if (canEdit)
+    {
+        <a asp-action="Create" class="btn btn-primary"><span class="me-1">+</span> New Farm</a>
+    }
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        <form asp-action="Index" method="get" class="row g-3 align-items-end">
+            <div class="col-md-8 col-lg-9">
+                <label asp-for="@search" class="form-label">Search by Name or Code</label>
+                <input type="text" name="search" value="@search" class="form-control" placeholder="Enter farm name or code..." />
+            </div>
+            <div class="col-md-4 col-lg-3 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary flex-grow-1">🔍 Search</button>
+                <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>City</th>
+                        <th>Currency</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model == null || !Model.Any())
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted small">
+                                @if (!string.IsNullOrWhiteSpace(search))
+                                {
+                                    <p class="mb-1">No farms match your search.</p>
+                                    <a asp-action="Index" class="text-decoration-none">← Clear search</a>
+                                }
+                                else
+                                {
+                                    <p class="mb-1">No farms yet.</p>
+                                    if (canEdit)
+                                    {
+                                        <a asp-action="Create" class="text-decoration-none">+ Create the first farm</a>
+                                    }
+                                }
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var farm in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <code class="fw-semibold">@farm.Code</code>
+                                </td>
+                                <td>
+                                    <div class="fw-medium">@farm.Name</div>
+                                    @if (!string.IsNullOrWhiteSpace(farm.ManagerInfo))
+                                    {
+                                        <div class="small text-muted">👤 @farm.ManagerInfo</div>
+                                    }
+                                </td>
+                                <td>@farm.City</td>
+                                <td>@farm.Currency</td>
+                                <td>
+                                    @if (farm.IsActive)
+                                    {
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">Inactive</span>
+                                    }
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="Details" asp-route-id="@farm.Id" class="btn btn-outline-info">Details</a>
+                                        @if (canEdit)
+                                        {
+                                            <a asp-action="Edit" asp-route-id="@farm.Id" class="btn btn-outline-primary">Edit</a>
+                                            <form asp-action="Archive" asp-route-id="@farm.Id" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to archive this farm?');">
+                                                <button type="submit" class="btn btn-outline-danger">Archive</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

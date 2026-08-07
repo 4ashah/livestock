@@ -1,0 +1,136 @@
+# LivestockManager MVP IIS Deployment Checklist
+
+Target: Windows Server + IIS + SQL Express + ASP.NET Core 8
+
+## 1. Install Windows Server prerequisites
+- [ ] Install Windows Server roles: **Web Server (IIS)** (include Management Tools, IIS Management Console, Static Content, Default Document, HTTP Errors, HTTP Logging, Request Filtering)
+- [ ] Install **ASP.NET Core Hosting Bundle 8.x** (matches your SDK version): https://dotnet.microsoft.com/download/dotnet/8.0
+  - Hosting bundle installs the ASP.NET Core Module (ANCM / IIS AspNetCoreModuleV2) required for in-process and out-of-process hosting
+  - After install run: `iisreset /restart` or restart the World Wide Web Publishing Service (W3SVC)
+
+## 2. Create site folder and deploy published artifacts
+- [ ] Create site folder: `C:\inetpub\livestock`
+- [ ] Create App_Data folder (required for file storage and logs): `C:\inetpub\livestock\App_Data`
+- [ ] Create files folder under App_Data: `C:\inetpub\livestock\App_Data\files`
+- [ ] Run locally (on build machine): `package-release.cmd` (or `publish-iis.cmd`)
+- [ ] Copy contents of `artifacts\publish\` output folder to `C:\inetpub\livestock\` (the site root)
+  - OR copy directly to a subfolder under wwwroot depending on your layout; web.config must be at the IIS application root
+
+## 3. Create IIS Application Pool
+- [ ] Open **IIS Manager** → Application Pools → **Add Application Pool**
+  - Name: `LivestockAppPool`
+  - **.NET CLR version: No Managed Code**  ← CRITICAL (ANCM loads the .NET runtime itself)
+  - Managed pipeline mode: Integrated
+  - Start application pool immediately: Yes
+- [ ] Advanced Settings on `LivestockAppPool`:
+  - Identity: **ApplicationPoolIdentity** (default, secure) OR a custom domain account (if accessing network resources)
+  - Start Mode: `AlwaysRunning` (recommended for warm-up, avoids cold start delay)
+  - Idle Time-out (minutes): `0` (disable idle shutdown for production)
+  - Regular Time Interval (minutes): `0` (or keep > 0 but schedule off-peak; disable to prevent arbitrary recycling during active hours)
+  - Enable 32-Bit Applications: `False` (default, leave as is for x64 .NET 8 apps)
+
+## 4. Create IIS Site / Application and Configure ACLs
+- [ ] IIS Manager → Sites → **Add Website** (or right-click Default Web Site → Add Application)
+  - Site name: `Livestock`
+  - Application pool: select `LivestockAppPool` (from step 3)
+  - Physical path: `C:\inetpub\livestock`
+  - Binding: Type = http, IP = All Unassigned, Port = 80, Host name = (your domain e.g. livestock.contoso.com)
+  - Start Website immediately: Yes
+- [ ] Configure **NTFS ACLs** (file system permissions). For each folder run from Admin cmd or use Explorer → Properties → Security → Edit → Add → Locations = local machine → Type:
+  - `IIS AppPool\LivestockAppPool` (type exactly; the name matches your AppPool name from step 3)
+  - Folder: `C:\inetpub\livestock\` (site root) → Permissions: **Read & Execute, List folder contents, Read**
+  - Folder: `C:\inetpub\livestock\App_Data\` → Permissions: **Modify** (Write / Read / Delete subfolders and files)
+  - Folder: `C:\inetpub\livestock\App_Data\files\` (uploads) → Permissions: **Modify** + ADVANCED → Deny **Traverse folder / Execute file** to prevent script upload execution
+- [ ] Verify the AppPool identity shows effective Modify access on App_Data (use Effective Access tab in Advanced Security Settings)
+
+## 5. Create SQL Express Database and Apply Migrations
+- [ ] Ensure **SQL Server Express (SQLEXPRESS instance)** is installed and running (services.msc → SQL Server (SQLEXPRESS) = Running)
+- [ ] Ensure SQL Server allows the AppPool identity (or the IIS worker process identity) to connect. From an elevated cmd:
+  ```
+  sqlcmd -S .\SQLEXPRESS -Q "CREATE DATABASE [LivestockManager];"
+  ```
+- [ ] Grant SQL Login + DB access to the AppPool identity. From admin SQL prompt (replace machine name and app pool name as needed):
+  ```sql
+  USE [master];
+  CREATE LOGIN [IIS APPPOOL\LivestockAppPool] FROM WINDOWS;
+  USE [LivestockManager];
+  CREATE USER [IIS APPPOOL\LivestockAppPool] FOR LOGIN [IIS APPPOOL\LivestockAppPool];
+  EXEC sp_addrolemember 'db_owner', 'IIS APPPOOL\LivestockAppPool';
+  -- Or scoped down: db_datareader + db_datawriter + EXEC on schemas (best practice, adjust as needed)
+  ```
+- [ ] Apply Entity Framework Core migrations (from build machine or server with dotnet SDK):
+  - Run: `database-update.cmd` (or: `dotnet ef database update --project src/LivestockManager.Infrastructure --startup-project src/LivestockManager.Web`)
+  - Alternative: Generate idempotent SQL script (`dotnet ef migrations script --idempotent`) and apply via SSMS / sqlcmd
+
+## 6. Configure Application Settings / Connection Strings
+Choose ONE of the following approaches (env vars take precedence over appsettings.json by default):
+- [ ] **Option A - appsettings.Production.json**: Copy `appsettings.Production.example.json` to `appsettings.Production.json` in deployed folder and edit.
+  - Verify `ConnectionStrings:DefaultConnection` points to `.\SQLEXPRESS` and correct DB name
+  - Ensure `SeedDemoData` = `0` and `EnableDevSeed` = `false` for production
+- [ ] **Option B - IIS Configuration Editor (env vars)** (recommended for secrets, avoids file edits):
+  - IIS Manager → click on Livestock site → Configuration Editor → Section: `system.webServer/aspNetCore` → Click `...` on `environmentVariables`
+  - Add entry: `ConnectionStrings__DefaultConnection` = `Server=.\SQLEXPRESS;Database=LivestockManager;Integrated Security=True;TrustServerCertificate=True;MultipleActiveResultSets=True;`
+  - Add: `ASPNETCORE_ENVIRONMENT` = `Production`
+  - Add: `SeedDemoData` = `0`
+  - Click Apply, then **Recycle** the LivestockAppPool
+- [ ] Set `FileStorage:RootPath` = `C:\inetpub\livestock\App_Data\files` (matches folder in step 2)
+- [ ] Verify `AllowedHosts` = `*` (or your specific host names for added security)
+
+## 7. HTTPS, Firewall and Hardening
+- [ ] Bind SSL certificate: IIS → Livestock Site → Bindings → Add → Type: https, Port: 443, Host name: livestock.contoso.com, SSL certificate: select your CA-issued cert
+- [ ] Configure **HTTP → HTTPS redirect**: The app already enables HTTPS redirection middleware. For extra safety at IIS layer install URL Rewrite module and add rule in web.config, OR confirm `app.UseHttpsRedirection()` runs in Program.cs
+- [ ] Windows Firewall (wf.msc):
+  - Allow incoming TCP 443 (HTTPS) from Any (or restricted IP scopes if internal only)
+  - Allow incoming TCP 80 (HTTP) - redirect only (can remove after HTTPS confirmed)
+  - **BLOCK** incoming TCP 1433 (SQL Express default) from public networks; SQL Express should NOT be reachable from the internet
+  - Ensure SQL Server Express surface area is restricted: SQL Server Configuration Manager → Protocols for SQLEXPRESS → Disable TCP/IP unless required for remote access; if enabled bind to loopback or internal NIC only
+- [ ] Verify web.config → `<handlers>` + `<aspNetCore processPath="..." stdoutLogEnabled="false" hostingModel="inprocess">` are correct after publish
+
+## 8. First-Run Admin Account / Seed
+If no users exist in production and you need to bootstrap the first admin:
+- [ ] TEMPORARILY set `SeedDemoData` = `1` (via appsettings.Production.json or IIS env var from step 6)
+- [ ] Recycle LivestockAppPool (IIS → App Pools → right-click → Recycle)
+- [ ] Browse to https://livestock.contoso.com and wait for app to start (seeding runs on first request)
+- [ ] Log in with demo admin credentials:
+  - Email: `admin@livestock.dev`
+  - Password: `Admin@123456`
+- [ ] IMMEDIATELY change the admin password: click Profile → Change password (strong, unique, not reused)
+- [ ] Log out and back in with new password to confirm
+- [ ] RESET `SeedDemoData` back to `0` (critical - prevents demo data from re-seeding or exposing demo accounts on restart)
+- [ ] Run: `iisreset` from elevated cmd, or Recycle the AppPool in IIS
+- [ ] Verify you can still log in with the new password after recycle
+
+## 9. Backup Strategy (SQL Express)
+- [ ] Open **Task Scheduler** (taskschd.msc) → Create Basic Task
+  - Name: `Livestock Nightly DB Backup`
+  - Trigger: Daily, start time = 2:00 AM (off-peak)
+  - Action: **Start a program**
+    - Program/script: `C:\Projects\livestock\backup-database.cmd`  (or copy scripts to the server, e.g. `C:\deploy\scripts\backup-database.cmd`)
+    - Start in (optional): `C:\deploy\scripts`
+    - Add env: `SQL_SERVER=.\SQLEXPRESS` (set via `setx /M SQL_SERVER .\SQLEXPRESS` or in a wrapper)
+  - Run whether user is logged on or not, Run with highest privileges (needs SQL backup rights)
+- [ ] Configure backup retention: Add cleanup logic (e.g. add `forfiles` to the scheduled task script) to keep last **30 days** of `.bak` files and delete older ones:
+  ```cmd
+  forfiles /p "C:\Projects\livestock\artifacts\backups" /s /m *.bak /d -30 /c "cmd /c del @path"
+  ```
+- [ ] Run the task manually once to validate it produces a `.bak` in `artifacts\backups\` and completes with Last Run Result = 0x0
+- [ ] Copy backups off-server periodically (robocopy to secondary share or cloud storage)
+
+## 10. Upgrade Procedure (Subsequent Releases)
+- [ ] Run locally on build machine: `build.cmd` → `test.cmd` → `smoke-test.cmd` → `package-release.cmd`
+- [ ] Confirm build + tests pass before upload
+- [ ] On IIS server, create maintenance App_Offline page:
+  - Place `App_Offline.htm` at site root (`C:\inetpub\livestock\App_Offline.htm`) with a friendly "down for maintenance" message. IIS ANCM will automatically shut down the app and serve this file to all requests (stops file locks).
+- [ ] Wait ~10 seconds for w3wp to release app DLLs (or Recycle LivestockAppPool explicitly)
+- [ ] Replace site contents (except App_Data/ and any user uploads):
+  - Delete old `*.dll`, `*.pdb`, `web.config`, `Views/`, `wwwroot/` (static assets), etc.
+  - Copy new publish output from `artifacts\publish\` over to `C:\inetpub\livestock\`
+  - DO NOT delete or overwrite `App_Data/` (contains user uploads, logs, production SQLite if any, etc.)
+  - DO NOT overwrite production `appsettings.Production.json` or custom `web.config` tweaks (merge carefully if needed)
+- [ ] Apply new EF migrations (if any):
+  - Run: `database-update.cmd` on the server (or `dotnet ef database update` with correct connection string env)
+  - Or apply idempotent SQL script from step 5 via SSMS
+- [ ] DELETE `App_Offline.htm` from site root when ready to bring site back online
+- [ ] Verify health endpoint: Browse to `https://livestock.contoso.com/health` → returns `Healthy`
+- [ ] Smoke test: Login, click main pages, test a file upload (if applicable), verify DB writes succeed, check Windows Event Viewer and stdout logs for errors
+- [ ] Rollback plan: If upgrade fails → restore previous site files from backup + restore last `.bak` via `restore-database.cmd` (set `BACKUP_FILE_PATH` and `CONFIRM_RESTORE_OVERWRITE=1`)

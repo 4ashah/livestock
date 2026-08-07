@@ -1,0 +1,85 @@
+@model IEnumerable<dynamic>
+@{
+    ViewData["Title"] = "Sales by Period";
+    var from = ViewData["From"] as string;
+    var to = ViewData["To"] as string;
+    var rowList = Model?.ToList() ?? new List<dynamic>();
+    var totalValue = 0m;
+    var totalCount = 0;
+    foreach (var r in rowList)
+    {
+        totalCount += (int)r.SoldCount;
+        decimal v;
+        if (decimal.TryParse(Convert.ToString(r.TotalValue), out v))
+            totalValue += v;
+    }
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">💸 Sales by Period</h1>
+        <div class="text-muted small">@from → @to · <strong>@totalCount</strong> head sold, value <strong>$@totalValue.ToString("F2")</strong></div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">← Reports</a>
+        <a asp-action="SalesByPeriod" asp-route-format="csv" asp-route-from="@from" asp-route-to="@to" class="btn btn-outline-success">⬇ Export CSV</a>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-3">
+        <form asp-action="SalesByPeriod" method="get" class="row g-2 align-items-end">
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold mb-1">From</label>
+                <input type="date" name="from" class="form-control" value="@from" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold mb-1">To</label>
+                <input type="date" name="to" class="form-control" value="@to" />
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-outline-secondary w-100" type="submit">🔍 Apply</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Farm</th>
+                        <th class="text-end"># Sold</th>
+                        <th class="text-end">Total Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in rowList)
+                    {
+                        <tr>
+                            <td class="fw-semibold">@r.FarmName</td>
+                            <td class="text-end">@((int)r.SoldCount).ToString("N0")</td>
+                            <td class="text-end fw-semibold text-success">$@r.TotalValue</td>
+                        </tr>
+                    }
+                    @if (rowList.Count == 0)
+                    {
+                        <tr><td colspan="3" class="text-center py-5 text-muted small">No sales data for this period.</td></tr>
+                    }
+                </tbody>
+                @if (rowList.Count > 0)
+                {
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td>TOTAL</td>
+                            <td class="text-end">@totalCount.ToString("N0")</td>
+                            <td class="text-end">$@totalValue.ToString("F2")</td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+</div>

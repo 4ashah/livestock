@@ -1,0 +1,138 @@
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Web.Models.LivestockViewModels
+@model LivestockRegisterViewModel
+@{
+    ViewData["Title"] = "Register Livestock";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <h1 class="h2">🐑 Register Livestock</h1>
+    <div>
+        <a asp-action="Index" class="btn btn-outline-secondary">&larr; Back to List</a>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+        <form asp-action="Register" method="post">
+            @Html.AntiForgeryToken()
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-4"></div>
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label asp-for="FarmId" class="form-label fw-semibold"></label>
+                    <select asp-for="FarmId" asp-items="Model.FarmOptions" class="form-select"></select>
+                    <span asp-validation-for="FarmId" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="AcquisitionDate" class="form-label fw-semibold"></label>
+                    <input asp-for="AcquisitionDate" type="date" class="form-control" asp-format="{0:yyyy-MM-dd}" />
+                    <span asp-validation-for="AcquisitionDate" class="text-danger small"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="LivestockTypeId" class="form-label fw-semibold"></label>
+                    <div class="row g-2">
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check card p-2 border h-100">
+                                <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Ah" class="form-check-input" id="tAh" />
+                                <label class="form-check-label fw-semibold" for="tAh">Ah</label>
+                                <div class="small text-muted mt-1">Purchased castrated ram</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check card p-2 border h-100">
+                                <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Su" class="form-check-input" id="tSu" />
+                                <label class="form-check-label fw-semibold" for="tSu">Su</label>
+                                <div class="small text-muted mt-1">Uncastrated ram</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check card p-2 border h-100">
+                                <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Sa" class="form-check-input" id="tSa" />
+                                <label class="form-check-label fw-semibold" for="tSa">Sa</label>
+                                <div class="small text-muted mt-1">Purchased ewe</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check card p-2 border h-100">
+                                <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Ad" class="form-check-input" id="tAd" />
+                                <label class="form-check-label fw-semibold" for="tAd">Ad</label>
+                                <div class="small text-muted mt-1">Bred castrated ram</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check card p-2 border h-100">
+                                <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Sd" class="form-check-input" id="tSd" />
+                                <label class="form-check-label fw-semibold" for="tSd">Sd</label>
+                                <div class="small text-muted mt-1">Bred ewe</div>
+                            </div>
+                        </div>
+                    </div>
+                    <span asp-validation-for="LivestockTypeId" class="text-danger small d-block mt-1"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="InitialWeight" class="form-label fw-semibold"></label>
+                    <input asp-for="InitialWeight" type="number" step="0.01" min="0.01" class="form-control" />
+                    <span asp-validation-for="InitialWeight" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="WeightUnit" class="form-label fw-semibold"></label>
+                    <select asp-for="WeightUnit" class="form-select" asp-items="Html.GetEnumSelectList<WeightUnit>()"></select>
+                    <span asp-validation-for="WeightUnit" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="PurchaseAmount" class="form-label fw-semibold"></label>
+                    <input asp-for="PurchaseAmount" type="number" step="0.01" min="0" class="form-control" id="purchaseAmount" />
+                    <div id="purchaseHint" class="form-text small"></div>
+                    <span asp-validation-for="PurchaseAmount" class="text-danger small"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="Comments" class="form-label fw-semibold"></label>
+                    <textarea asp-for="Comments" rows="3" class="form-control" placeholder="Optional notes or comments..."></textarea>
+                    <span asp-validation-for="Comments" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row mt-5">
+                <div class="col-12 text-end">
+                    <a asp-action="Index" class="btn btn-outline-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Register Livestock</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    (function () {
+        var hintEl = document.getElementById('purchaseHint');
+        var input = document.getElementById('purchaseAmount');
+        function update() {
+            var val = document.querySelector('input[name="LivestockTypeId"]:checked');
+            if (!val) { hintEl.textContent = ''; return; }
+            var v = val.value;
+            if (v === 'Ad' || v === 'Sd') {
+                hintEl.textContent = 'Must be 0 for Bred types (Ad/Sd).';
+                input.value = '0';
+            } else if (v === 'Ah' || v === 'Su' || v === 'Sa') {
+                hintEl.textContent = 'Must be > 0 for Purchased types.';
+            } else {
+                hintEl.textContent = '';
+            }
+        }
+        document.querySelectorAll('input[name="LivestockTypeId"]').forEach(function (r) {
+            r.addEventListener('change', update);
+        });
+        update();
+    })();
+</script>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
