@@ -31,7 +31,8 @@ Applied (2026-08-07 — Server=. default instance).
 - 13 business tables + Identity tables present (sys.tables count ≥ 13).
 
 ## Last Valid Git Commit
-Not committed yet (git init + stable commit pending next action in this cycle; update hash after commit completes).
+aae9e29019124d05a73958d1dcc6965f22759dee (2026-08-07)
+Message: "MVP v1: 84/84 tests pass, SQL default Server=. seeded, Dashboard/Farms/Livestock/Register/SequentialIDs/AuditLogs verified, 10+10 deploy scripts"
 
 ## Resume Instructions
 ```
