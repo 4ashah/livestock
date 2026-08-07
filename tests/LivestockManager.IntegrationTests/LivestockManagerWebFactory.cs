@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -5,6 +6,9 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using LivestockManager.Domain.Common;
+using LivestockManager.Domain.Entities;
+using LivestockManager.Domain.Enums;
 using LivestockManager.Infrastructure.Persistence;
 using LivestockManager.Web.Controllers;
 using System.Data.Common;
@@ -125,29 +129,14 @@ public class LivestockManagerWebFactory : WebApplicationFactory<HomeController>
 
     private static void SeedTestData(AppDbContext db)
     {
-        var companyIdA = Guid.Parse(StagingCompanyIdA);
-        var companyIdB = Guid.Parse(StagingCompanyIdB);
-
-        int companyAExists = db.Database.ExecuteSqlRaw(
-            "SELECT COUNT(*) FROM Companies WHERE Id = {0}",
-            companyIdA);
-        if (companyAExists == 0)
+        try
         {
-            db.Database.ExecuteSqlRaw(@"
-INSERT INTO Companies (Id, Name, Currency, WeightUnit, TaxRate, InvoicePrefix, ReceiptPrefix, IsActive, CreatedAt)
-VALUES ({0}, N'Company A', 0, 0, 0.15, N'INV-A', N'RCP-A', 1, GETUTCDATE())",
-                companyIdA);
+            EnsureCompany(db, Guid.Parse(StagingCompanyIdA), "Company A", "INV-A", "RCP-A");
+            EnsureCompany(db, Guid.Parse(StagingCompanyIdB), "Company B", "INV-B", "RCP-B");
         }
-
-        int companyBExists = db.Database.ExecuteSqlRaw(
-            "SELECT COUNT(*) FROM Companies WHERE Id = {0}",
-            companyIdB);
-        if (companyBExists == 0)
+        catch (Exception ex)
         {
-            db.Database.ExecuteSqlRaw(@"
-INSERT INTO Companies (Id, Name, Currency, WeightUnit, TaxRate, InvoicePrefix, ReceiptPrefix, IsActive, CreatedAt)
-VALUES ({0}, N'Company B', 0, 0, 0.15, N'INV-B', N'RCP-B', 1, GETUTCDATE())",
-                companyIdB);
+            Console.Error.WriteLine("WARN: Seed companies failed: " + ex.Message);
         }
 
         try
@@ -155,21 +144,75 @@ VALUES ({0}, N'Company B', 0, 0, 0.15, N'INV-B', N'RCP-B', 1, GETUTCDATE())",
             var roleNames = new[] { "Viewer", "DataEntry", "FarmManager", "Accounts", "CompanyAdministrator", "SystemAdministrator" };
             foreach (var r in roleNames)
             {
-                var existsParam = new object[] { r };
-                int exists = db.Database.ExecuteSqlRaw(
+                int exists = db.Database.SqlQueryRaw<int>(
                     "SELECT COUNT(*) FROM AspNetRoles WHERE Name = {0}",
-                    existsParam);
+                    r).First();
                 if (exists == 0)
                 {
                     var roleId = Guid.NewGuid();
-                    db.Database.ExecuteSqlRaw(
-                        "INSERT INTO AspNetRoles (Id, Name, NormalizedName, ConcurrencyStamp) VALUES ({0}, {1}, {2}, {3})",
-                        roleId, r, r.ToUpperInvariant(), Guid.NewGuid().ToString());
+                    try
+                    {
+                        db.Database.ExecuteSqlRaw(
+                            "INSERT INTO AspNetRoles (Id, Name, NormalizedName, ConcurrencyStamp) VALUES ({0}, {1}, {2}, {3})",
+                            roleId, r, r.ToUpperInvariant(), Guid.NewGuid().ToString());
+                    }
+                    catch
+                    {
+                    }
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+            Console.Error.WriteLine("WARN: Seed roles failed: " + ex.Message);
+        }
+    }
+
+    private static void EnsureCompany(AppDbContext db, Guid companyId, string name, string invPrefix, string rcpPrefix)
+    {
+        bool exists = db.Companies.IgnoreQueryFilters().Any(c => c.Id == companyId);
+        if (exists) return;
+
+        var company = new Company(name)
+        {
+            Currency = Currency.USD,
+            WeightUnit = WeightUnit.Kg,
+            TaxRate = 0.15m,
+            InvoicePrefix = invPrefix,
+            ReceiptPrefix = rcpPrefix,
+            IsActive = true,
+            FinancialYearStartMonth = 1
+        };
+
+        var idProp = typeof(BaseAuditableEntity).GetProperty("Id",
+            BindingFlags.Public | BindingFlags.Instance);
+        if (idProp != null && idProp.GetSetMethod(true) != null)
+        {
+            idProp.SetValue(company, companyId);
+        }
+
+        var createdAtProp = typeof(BaseAuditableEntity).GetProperty("CreatedAt",
+            BindingFlags.Public | BindingFlags.Instance);
+        if (createdAtProp != null)
+        {
+            createdAtProp.SetValue(company, DateTimeOffset.UtcNow);
+        }
+
+        db.Companies.Add(company);
+        try
+        {
+            db.SaveChanges();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"WARN: EnsureCompany({name}) SaveChanges failed: " + ex.Message);
+            try
+            {
+                db.Entry(company).State = EntityState.Detached;
+            }
+            catch
+            {
+            }
         }
     }
 

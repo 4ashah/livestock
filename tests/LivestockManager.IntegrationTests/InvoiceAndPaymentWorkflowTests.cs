@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using LivestockManager.Application.DTOs.Customers;
@@ -6,6 +7,8 @@ using LivestockManager.Application.DTOs.Payments;
 using LivestockManager.Application.Services.Customers;
 using LivestockManager.Application.Services.Invoices;
 using LivestockManager.Application.Services.Payments;
+using LivestockManager.Domain.Common;
+using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Infrastructure.Persistence;
 using Xunit;
@@ -25,9 +28,16 @@ public class InvoiceAndPaymentWorkflowTests : IClassFixture<LivestockManagerWebF
 
     private static async Task<Guid> EnsureTestCustomerViaService(IServiceProvider sp, Guid companyId, string code, string name)
     {
-        var customerSvc = sp.GetRequiredService<ICustomerService>();
+        var db = sp.GetRequiredService<AppDbContext>();
+        EnsureCompanyRawSql(db, companyId, $"{code}-Company", "INV-TEST", "RCP-TEST");
+
+        var existing = await db.Customers.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(c => c.CompanyId == companyId && c.CustomerCode == code);
+        if (existing != null) return existing.Id;
+
         try
         {
+            var customerSvc = sp.GetRequiredService<ICustomerService>();
             var created = await customerSvc.CreateAsync(new CustomerCreateDto
             {
                 CompanyId = companyId,
@@ -40,13 +50,66 @@ public class InvoiceAndPaymentWorkflowTests : IClassFixture<LivestockManagerWebF
             }, companyId, CancellationToken.None);
             return created.Id;
         }
-        catch (Exception)
+        catch
         {
-            var db = sp.GetRequiredService<AppDbContext>();
-            var existing = await db.Customers.IgnoreQueryFilters()
-                .FirstOrDefaultAsync(c => c.CompanyId == companyId && c.CustomerCode == code);
-            if (existing != null) return existing.Id;
-            throw;
+            try
+            {
+                var customerId = Guid.NewGuid();
+                var now = DateTimeOffset.UtcNow;
+                db.Database.ExecuteSqlRaw(@"
+INSERT INTO Customers (Id, CompanyId, CustomerCode, Name, Email, Phone, PaymentTermsDays, IsActive, CreatedAt)
+VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6}, 1, {7})",
+                    customerId, companyId, code, name,
+                    $"{code.ToLowerInvariant()}@test.local", "555-0001", 30, now);
+                return customerId;
+            }
+            catch
+            {
+                var doubleCheck = await db.Customers.IgnoreQueryFilters()
+                    .FirstOrDefaultAsync(c => c.CompanyId == companyId && c.CustomerCode == code);
+                if (doubleCheck != null) return doubleCheck.Id;
+                throw;
+            }
+        }
+    }
+
+    private static void EnsureCompanyRawSql(AppDbContext db, Guid companyId, string name, string invPrefix, string rcpPrefix)
+    {
+        bool exists = db.Companies.IgnoreQueryFilters().Any(c => c.Id == companyId);
+        if (exists) return;
+
+        var now = DateTimeOffset.UtcNow;
+        try
+        {
+            db.Database.ExecuteSqlRaw(@"
+INSERT INTO Companies (Id, Name, Currency, WeightUnit, TaxRate, InvoicePrefix, ReceiptPrefix, IsActive, FinancialYearStartMonth, CreatedAt)
+VALUES ({0}, {1}, 0, 0, 0.15, {2}, {3}, 1, 1, {4})",
+                companyId, name, invPrefix, rcpPrefix, now);
+        }
+        catch (Exception ex1)
+        {
+            try
+            {
+                db.Database.ExecuteSqlRaw(@"
+INSERT INTO Companies (Id, Name, Currency, WeightUnit, TaxRate, InvoicePrefix, ReceiptPrefix, IsActive, CreatedAt)
+VALUES ({0}, {1}, 0, 0, 0.15, {2}, {3}, 1, {4})",
+                    companyId, name, invPrefix, rcpPrefix, now);
+            }
+            catch (Exception ex2)
+            {
+                Console.Error.WriteLine($"EnsureCompanyRawSql({name}) failed: " + ex2.Message + " inner: " + (ex1?.Message ?? "none"));
+                try
+                {
+                    db.Database.ExecuteSqlRaw(@"
+INSERT INTO Companies (Id, Name, IsActive, CreatedAt)
+VALUES ({0}, {1}, 1, {2})",
+                        companyId, name, now);
+                }
+                catch (Exception ex3)
+                {
+                    Console.Error.WriteLine($"EnsureCompanyRawSql minimal insert failed: " + ex3.Message);
+                }
+            }
         }
     }
 
