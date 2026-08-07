@@ -3,6 +3,7 @@ using LivestockManager.Application.DTOs.Farms;
 using LivestockManager.Domain.Abstractions;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Exceptions;
+using LivestockManager.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace LivestockManager.Application.Services.Farms;
@@ -20,14 +21,14 @@ public class FarmService : IFarmService
         _dateTime = dateTime;
     }
 
-    public async Task<FarmDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<FarmDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
         var entity = await _db.Farms
-            .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted, ct)
-            ?? throw new DomainException($"Farm {id} not found.");
+            .FirstOrDefaultAsync(f => f.Id == id && f.CompanyId == companyId && !f.IsDeleted, ct)
+            ?? throw new DomainException("Farm not found.");
 
         var livestockCounts = await _db.Livestock
-            .Where(l => l.FarmId == id && !l.IsDeleted)
+            .Where(l => l.FarmId == id && l.CompanyId == companyId && !l.IsDeleted)
             .GroupBy(l => 1)
             .Select(g => new
             {
@@ -77,9 +78,11 @@ public class FarmService : IFarmService
             .ToListAsync(ct);
     }
 
-    public async Task<FarmDetailDto> CreateAsync(FarmCreateDto dto, CancellationToken ct)
+    public async Task<FarmDetailDto> CreateAsync(FarmCreateDto dto, Guid companyId, CancellationToken ct)
     {
-        var farm = new Farm(dto.CompanyId, dto.Name, dto.Code)
+        var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+
+        var farm = new Farm(resolvedCompanyId, dto.Name, dto.Code)
         {
             Address = dto.Address,
             ManagerUserId = dto.ManagerUserId,
@@ -94,11 +97,11 @@ public class FarmService : IFarmService
         return MapToDetail(farm);
     }
 
-    public async Task<FarmDetailDto> UpdateAsync(Guid id, FarmUpdateDto dto, CancellationToken ct)
+    public async Task<FarmDetailDto> UpdateAsync(Guid id, FarmUpdateDto dto, Guid companyId, CancellationToken ct)
     {
         var entity = await _db.Farms
-            .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted, ct)
-            ?? throw new DomainException($"Farm {id} not found.");
+            .FirstOrDefaultAsync(f => f.Id == id && f.CompanyId == companyId && !f.IsDeleted, ct)
+            ?? throw new DomainException("Farm not found.");
 
         entity.Name = dto.Name;
         entity.Code = dto.Code;
@@ -113,11 +116,11 @@ public class FarmService : IFarmService
         return MapToDetail(entity);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken ct)
+    public async Task DeleteAsync(Guid id, Guid companyId, CancellationToken ct)
     {
         var entity = await _db.Farms
-            .FirstOrDefaultAsync(f => f.Id == id && !f.IsDeleted, ct)
-            ?? throw new DomainException($"Farm {id} not found.");
+            .FirstOrDefaultAsync(f => f.Id == id && f.CompanyId == companyId && !f.IsDeleted, ct)
+            ?? throw new DomainException("Farm not found.");
         entity.IsDeleted = true;
         entity.ModifiedAt = _dateTime.Now;
         await _db.SaveChangesAsync(ct);

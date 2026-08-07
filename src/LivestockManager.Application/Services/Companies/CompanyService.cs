@@ -27,10 +27,10 @@ public class CompanyService : ICompanyService
         return MapToDetail(entity);
     }
 
-    public async Task<CompanyDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<CompanyDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var entity = await _db.Companies.FirstOrDefaultAsync(c => c.Id == id, ct)
-            ?? throw new DomainException($"Company {id} not found.");
+        var entity = await _db.Companies.FirstOrDefaultAsync(c => c.Id == id && c.Id == companyId, ct)
+            ?? throw new DomainException("Company not found.");
         return MapToDetail(entity);
     }
 
@@ -39,10 +39,10 @@ public class CompanyService : ICompanyService
         return await _db.Companies.AsQueryable().Select(MapToSummary).AsQueryable().ToListAsync(ct);
     }
 
-    public async Task<CompanyDetailDto> UpdateAsync(Guid id, CompanyUpdateDto dto, CancellationToken ct)
+    public async Task<CompanyDetailDto> UpdateAsync(Guid id, CompanyUpdateDto dto, Guid companyId, CancellationToken ct)
     {
-        var entity = await _db.Companies.FirstOrDefaultAsync(c => c.Id == id, ct)
-            ?? throw new DomainException($"Company {id} not found.");
+        var entity = await _db.Companies.FirstOrDefaultAsync(c => c.Id == id && c.Id == companyId, ct)
+            ?? throw new DomainException("Company not found.");
 
         entity.Name = dto.Name;
         entity.RegistrationNumber = dto.RegistrationNumber;

@@ -27,12 +27,24 @@ public class PaymentService : IPaymentService
         _pdfGenerator = pdfGenerator;
     }
 
-    public async Task<PaymentDetailDto> PostAsync(PaymentCreateDto dto, CancellationToken ct)
+    public async Task<PaymentDetailDto> PostAsync(PaymentCreateDto dto, Guid companyId, CancellationToken ct)
     {
         using var tx = await _db.BeginTransactionAsync(ct);
         try
         {
-            var payment = new Payment(dto.CompanyId, dto.CustomerId, dto.PaymentDate, dto.Method, dto.Amount)
+            var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+
+            foreach (var allocDto in dto.Allocations)
+            {
+                var _ = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == allocDto.InvoiceId && i.CompanyId == resolvedCompanyId, ct)
+                    ?? throw new DomainException("Invoice not found.");
+            }
+
+            var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == dto.CustomerId && c.CompanyId == resolvedCompanyId, ct);
+            if (customer == null)
+                throw new DomainException("Customer not found.");
+
+            var payment = new Payment(resolvedCompanyId, dto.CustomerId, dto.PaymentDate, dto.Method, dto.Amount)
             {
                 Reference = dto.Reference,
                 Notes = dto.Notes
@@ -48,9 +60,7 @@ public class PaymentService : IPaymentService
 
             foreach (var allocDto in dto.Allocations)
             {
-                var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == allocDto.InvoiceId, ct)
-                    ?? throw new DomainException($"Invoice {allocDto.InvoiceId} not found.");
-
+                var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == allocDto.InvoiceId && i.CompanyId == resolvedCompanyId, ct)!;
                 var invPayments = await _db.Payments.Where(p => p.InvoiceId == allocDto.InvoiceId).ToListAsync(ct);
                 invoice.Payments = invPayments;
                 invoice.RecalculatePaidAmountFromPayments();
@@ -60,7 +70,7 @@ public class PaymentService : IPaymentService
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            return await GetByIdAsync(payment.Id, ct);
+            return await GetByIdAsync(payment.Id, resolvedCompanyId, ct);
         }
         catch
         {
@@ -69,13 +79,13 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task ReverseAsync(Guid paymentId, string reason, CancellationToken ct)
+    public async Task ReverseAsync(Guid paymentId, string reason, Guid companyId, CancellationToken ct)
     {
         using var tx = await _db.BeginTransactionAsync(ct);
         try
         {
-            var payment = await _db.Payments.FirstOrDefaultAsync(p => p.Id == paymentId, ct)
-                ?? throw new DomainException($"Payment {paymentId} not found.");
+            var payment = await _db.Payments.FirstOrDefaultAsync(p => p.Id == paymentId && p.CompanyId == companyId, ct)
+                ?? throw new DomainException("Payment not found.");
 
             if (payment.IsReversed)
                 throw new DomainException("Payment is already reversed.");
@@ -83,7 +93,7 @@ public class PaymentService : IPaymentService
             decimal invoiceGrandTotal = 0m;
             if (payment.InvoiceId.HasValue)
             {
-                var invoiceForGrandTotal = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == payment.InvoiceId.Value, ct);
+                var invoiceForGrandTotal = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == payment.InvoiceId.Value && i.CompanyId == companyId, ct);
                 invoiceGrandTotal = invoiceForGrandTotal?.GrandTotal ?? 0m;
             }
 
@@ -93,7 +103,7 @@ public class PaymentService : IPaymentService
 
             if (payment.InvoiceId.HasValue)
             {
-                var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == payment.InvoiceId.Value, ct);
+                var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == payment.InvoiceId.Value && i.CompanyId == companyId, ct);
                 if (invoice != null)
                 {
                     var invPayments = await _db.Payments.Where(p => p.InvoiceId == payment.InvoiceId.Value).ToListAsync(ct);
@@ -143,17 +153,17 @@ public class PaymentService : IPaymentService
         return await query.ToListAsync(ct);
     }
 
-    public async Task<PaymentDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<PaymentDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var payment = await _db.Payments.FirstOrDefaultAsync(p => p.Id == id, ct)
-            ?? throw new DomainException($"Payment {id} not found.");
+        var payment = await _db.Payments.FirstOrDefaultAsync(p => p.Id == id && p.CompanyId == companyId, ct)
+            ?? throw new DomainException("Payment not found.");
 
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == payment.CustomerId, ct);
 
         var allocations = new List<PaymentAllocationDto>();
         if (payment.InvoiceId.HasValue)
         {
-            var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == payment.InvoiceId.Value, ct);
+            var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == payment.InvoiceId.Value && i.CompanyId == companyId, ct);
             allocations.Add(new PaymentAllocationDto
             {
                 PaymentId = payment.Id,

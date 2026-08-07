@@ -24,10 +24,10 @@ public class PurchaseService : IPurchaseService
         _sequenceGenerator = sequenceGenerator;
     }
 
-    public async Task<PurchaseDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<PurchaseDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == id, ct)
-            ?? throw new DomainException($"Purchase {id} not found.");
+        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == id && p.CompanyId == companyId, ct)
+            ?? throw new DomainException("Purchase not found.");
 
         var items = await _db.PurchaseItems.Where(i => i.PurchaseId == id).ToListAsync(ct);
 
@@ -80,15 +80,16 @@ public class PurchaseService : IPurchaseService
         return result;
     }
 
-    public async Task<PurchaseDetailDto> CreateDraftAsync(PurchaseCreateDto dto, CancellationToken ct)
+    public async Task<PurchaseDetailDto> CreateDraftAsync(PurchaseCreateDto dto, Guid companyId, CancellationToken ct)
     {
-        if (dto.CompanyId == Guid.Empty)
+        var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+        if (resolvedCompanyId == Guid.Empty)
             throw new DomainException("CompanyId is required.");
 
-        var supplier = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == dto.SupplierId, ct)
-            ?? throw new DomainException($"Supplier {dto.SupplierId} not found.");
+        var supplier = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == dto.SupplierId && s.CompanyId == resolvedCompanyId, ct)
+            ?? throw new DomainException("Supplier not found.");
 
-        var purchase = new DE.Purchase(dto.CompanyId, dto.FarmId, dto.SupplierId, dto.PurchaseDate)
+        var purchase = new DE.Purchase(resolvedCompanyId, dto.FarmId, dto.SupplierId, dto.PurchaseDate)
         {
             SupplierReference = dto.SupplierReference,
             Currency = dto.Currency ?? Currency.USD,
@@ -128,13 +129,13 @@ public class PurchaseService : IPurchaseService
         purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(purchase.Id, ct);
+        return await GetByIdAsync(purchase.Id, resolvedCompanyId, ct);
     }
 
-    public async Task<PurchaseDetailDto> AddItemAsync(Guid purchaseId, PurchaseItemCreateDto itemDto, CancellationToken ct)
+    public async Task<PurchaseDetailDto> AddItemAsync(Guid purchaseId, PurchaseItemCreateDto itemDto, Guid companyId, CancellationToken ct)
     {
-        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == purchaseId, ct)
-            ?? throw new DomainException($"Purchase {purchaseId} not found.");
+        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == purchaseId && p.CompanyId == companyId, ct)
+            ?? throw new DomainException("Purchase not found.");
 
         if (purchase.Status != PurchaseStatus.Draft)
             throw new DomainException("Only draft purchases can be modified.");
@@ -161,19 +162,19 @@ public class PurchaseService : IPurchaseService
         purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(purchaseId, ct);
+        return await GetByIdAsync(purchaseId, companyId, ct);
     }
 
-    public async Task<PurchaseDetailDto> RemoveItemAsync(Guid purchaseId, Guid purchaseItemId, CancellationToken ct)
+    public async Task<PurchaseDetailDto> RemoveItemAsync(Guid purchaseId, Guid purchaseItemId, Guid companyId, CancellationToken ct)
     {
-        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == purchaseId, ct)
-            ?? throw new DomainException($"Purchase {purchaseId} not found.");
+        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == purchaseId && p.CompanyId == companyId, ct)
+            ?? throw new DomainException("Purchase not found.");
 
         if (purchase.Status != PurchaseStatus.Draft)
             throw new DomainException("Only draft purchases can be modified.");
 
         var item = await _db.PurchaseItems.FirstOrDefaultAsync(i => i.Id == purchaseItemId && i.PurchaseId == purchaseId, ct)
-            ?? throw new DomainException($"Purchase item {purchaseItemId} not found.");
+            ?? throw new DomainException("Purchase item not found.");
 
         _db.PurchaseItems.Remove(item);
         await _db.SaveChangesAsync(ct);
@@ -184,13 +185,13 @@ public class PurchaseService : IPurchaseService
         purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(purchaseId, ct);
+        return await GetByIdAsync(purchaseId, companyId, ct);
     }
 
-    public async Task<PurchaseDetailDto> UpdateTotalsAsync(Guid purchaseId, CancellationToken ct)
+    public async Task<PurchaseDetailDto> UpdateTotalsAsync(Guid purchaseId, Guid companyId, CancellationToken ct)
     {
-        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == purchaseId, ct)
-            ?? throw new DomainException($"Purchase {purchaseId} not found.");
+        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == purchaseId && p.CompanyId == companyId, ct)
+            ?? throw new DomainException("Purchase not found.");
 
         var items = await _db.PurchaseItems.Where(i => i.PurchaseId == purchaseId).ToListAsync(ct);
 
@@ -202,16 +203,16 @@ public class PurchaseService : IPurchaseService
         purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(purchaseId, ct);
+        return await GetByIdAsync(purchaseId, companyId, ct);
     }
 
-    public async Task<PurchaseDetailDto> PostPurchaseAsync(PurchasePostDto dto, CancellationToken ct)
+    public async Task<PurchaseDetailDto> PostPurchaseAsync(PurchasePostDto dto, Guid companyId, CancellationToken ct)
     {
         using var tx = await _db.BeginTransactionAsync(ct);
         try
         {
-            var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == dto.Id, ct)
-                ?? throw new DomainException($"Purchase {dto.Id} not found.");
+            var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == dto.Id && p.CompanyId == companyId, ct)
+                ?? throw new DomainException("Purchase not found.");
 
             if (purchase.Status != PurchaseStatus.Draft)
                 throw new DomainException("Only draft purchases can be posted.");
@@ -269,7 +270,7 @@ public class PurchaseService : IPurchaseService
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            return await GetByIdAsync(dto.Id, ct);
+            return await GetByIdAsync(dto.Id, companyId, ct);
         }
         catch
         {
@@ -278,10 +279,10 @@ public class PurchaseService : IPurchaseService
         }
     }
 
-    public async Task<PurchaseDetailDto> VoidPurchaseAsync(Guid id, string reason, CancellationToken ct)
+    public async Task<PurchaseDetailDto> VoidPurchaseAsync(Guid id, string reason, Guid companyId, CancellationToken ct)
     {
-        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == id, ct)
-            ?? throw new DomainException($"Purchase {id} not found.");
+        var purchase = await _db.Purchases.FirstOrDefaultAsync(p => p.Id == id && p.CompanyId == companyId, ct)
+            ?? throw new DomainException("Purchase not found.");
 
         if (purchase.Status != PurchaseStatus.Posted)
             throw new DomainException("Only posted purchases can be voided.");
@@ -296,7 +297,7 @@ public class PurchaseService : IPurchaseService
 
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(id, ct);
+        return await GetByIdAsync(id, companyId, ct);
     }
 
     private static void CalculateItemTotals(DE.PurchaseItem item)

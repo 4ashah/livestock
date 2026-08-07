@@ -24,10 +24,10 @@ public class ReceiptService : IReceiptService
         _sequenceGenerator = sequenceGenerator;
     }
 
-    public async Task<ReceiptDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<ReceiptDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var receipt = await _db.Receipts.FirstOrDefaultAsync(r => r.Id == id, ct)
-            ?? throw new DomainException($"Receipt {id} not found.");
+        var receipt = await _db.Receipts.FirstOrDefaultAsync(r => r.Id == id && r.CompanyId == companyId, ct)
+            ?? throw new DomainException("Receipt not found.");
 
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == receipt.CustomerId, ct);
 
@@ -36,7 +36,7 @@ public class ReceiptService : IReceiptService
         {
             var payment = await _db.Payments
                 .Include(p => p.Invoice)
-                .FirstOrDefaultAsync(p => p.Id == receipt.PaymentId, ct);
+                .FirstOrDefaultAsync(p => p.Id == receipt.PaymentId && p.CompanyId == companyId, ct);
             invoiceNumber = payment?.Invoice?.InvoiceNumber;
         }
 
@@ -66,6 +66,10 @@ public class ReceiptService : IReceiptService
 
     public async Task<IList<ReceiptSummaryDto>> ListForCustomerAsync(Guid companyId, Guid customerId, CancellationToken ct)
     {
+        var customer = await _db.Customers
+            .FirstOrDefaultAsync(c => c.Id == customerId && c.CompanyId == companyId, ct)
+            ?? throw new DomainException("Customer not found.");
+
         var query = from r in _db.Receipts
                     join c in _db.Customers on r.CustomerId equals c.Id into cs
                     from c in cs.DefaultIfEmpty()
@@ -88,7 +92,7 @@ public class ReceiptService : IReceiptService
         return await query.ToListAsync(ct);
     }
 
-    public async Task<ReceiptDetailDto> GenerateForPaymentAsync(Guid paymentId, string? notes, CancellationToken ct)
+    public async Task<ReceiptDetailDto> GenerateForPaymentAsync(Guid paymentId, string? notes, Guid companyId, CancellationToken ct)
     {
         using var tx = await _db.BeginTransactionAsync(ct);
         try
@@ -96,8 +100,8 @@ public class ReceiptService : IReceiptService
             var payment = await _db.Payments
                 .Include(p => p.Customer)
                 .Include(p => p.Invoice)
-                .FirstOrDefaultAsync(p => p.Id == paymentId, ct)
-                ?? throw new DomainException($"Payment {paymentId} not found.");
+                .FirstOrDefaultAsync(p => p.Id == paymentId && p.CompanyId == companyId, ct)
+                ?? throw new DomainException("Payment not found.");
 
             if (payment.IsReversed)
                 throw new DomainException("Cannot generate receipt for a reversed payment.");
@@ -138,7 +142,7 @@ public class ReceiptService : IReceiptService
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            return await GetByIdAsync(receipt.Id, ct);
+            return await GetByIdAsync(receipt.Id, companyId, ct);
         }
         catch
         {
@@ -147,7 +151,7 @@ public class ReceiptService : IReceiptService
         }
     }
 
-    public async Task<ReceiptDetailDto> ReverseReceiptAsync(Guid receiptId, string reason, Guid reversedByUserId, CancellationToken ct)
+    public async Task<ReceiptDetailDto> ReverseReceiptAsync(Guid receiptId, string reason, Guid reversedByUserId, Guid companyId, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Reversal reason cannot be empty or whitespace.", nameof(reason));
@@ -157,8 +161,8 @@ public class ReceiptService : IReceiptService
         {
             var receipt = await _db.Receipts
                 .Include(r => r.Payment)
-                .FirstOrDefaultAsync(r => r.Id == receiptId, ct)
-                ?? throw new DomainException($"Receipt {receiptId} not found.");
+                .FirstOrDefaultAsync(r => r.Id == receiptId && r.CompanyId == companyId, ct)
+                ?? throw new DomainException("Receipt not found.");
 
             if (receipt.Status != ReceiptStatus.Issued)
                 throw new DomainException($"Receipt must be in Issued status to reverse. Current status: {receipt.Status}");
@@ -175,7 +179,7 @@ public class ReceiptService : IReceiptService
                 if (receipt.Payment.InvoiceId.HasValue)
                 {
                     invoice = await _db.Invoices
-                        .FirstOrDefaultAsync(i => i.Id == receipt.Payment.InvoiceId.Value, ct);
+                        .FirstOrDefaultAsync(i => i.Id == receipt.Payment.InvoiceId.Value && i.CompanyId == companyId, ct);
                     invoiceGrandTotal = invoice?.GrandTotal ?? 0m;
                 }
 
@@ -195,7 +199,7 @@ public class ReceiptService : IReceiptService
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            return await GetByIdAsync(receipt.Id, ct);
+            return await GetByIdAsync(receipt.Id, companyId, ct);
         }
         catch
         {

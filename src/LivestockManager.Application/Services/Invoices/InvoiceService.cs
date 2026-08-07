@@ -27,10 +27,10 @@ public class InvoiceService : IInvoiceService
         _pdfGenerator = pdfGenerator;
     }
 
-    public async Task<InvoiceDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<InvoiceDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == id, ct)
-            ?? throw new DomainException($"Invoice {id} not found.");
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == id && i.CompanyId == companyId, ct)
+            ?? throw new DomainException("Invoice not found.");
 
         var items = await _db.InvoiceItems.Where(it => it.InvoiceId == id).ToListAsync(ct);
         var payments = await _db.Payments.Where(p => p.InvoiceId == id).ToListAsync(ct);
@@ -43,10 +43,10 @@ public class InvoiceService : IInvoiceService
         return MapToDetail(invoice, items, customer?.Name);
     }
 
-    public async Task<InvoiceDetailDto> ConfirmAsync(InvoiceConfirmDto dto, CancellationToken ct)
+    public async Task<InvoiceDetailDto> ConfirmAsync(InvoiceConfirmDto dto, Guid companyId, CancellationToken ct)
     {
-        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == dto.InvoiceId, ct)
-            ?? throw new DomainException($"Invoice {dto.InvoiceId} not found.");
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == dto.InvoiceId && i.CompanyId == companyId, ct)
+            ?? throw new DomainException("Invoice not found.");
 
         if (invoice.Status != InvoiceStatus.Draft)
             throw new DomainException("Only draft invoices can be confirmed.");
@@ -67,13 +67,13 @@ public class InvoiceService : IInvoiceService
 
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(invoice.Id, ct);
+        return await GetByIdAsync(invoice.Id, companyId, ct);
     }
 
-    public async Task CancelOrVoidAsync(Guid invoiceId, string reason, bool voidIfPaidExists, CancellationToken ct)
+    public async Task CancelOrVoidAsync(Guid invoiceId, string reason, bool voidIfPaidExists, Guid companyId, CancellationToken ct)
     {
-        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId, ct)
-            ?? throw new DomainException($"Invoice {invoiceId} not found.");
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId && i.CompanyId == companyId, ct)
+            ?? throw new DomainException("Invoice not found.");
 
         var paidPayments = await _db.Payments
             .Where(p => p.InvoiceId == invoiceId && !p.IsReversed)
@@ -91,10 +91,10 @@ public class InvoiceService : IInvoiceService
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task RecalculateTotalsAsync(Guid invoiceId, CancellationToken ct)
+    public async Task RecalculateTotalsAsync(Guid invoiceId, Guid companyId, CancellationToken ct)
     {
-        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId, ct)
-            ?? throw new DomainException($"Invoice {invoiceId} not found.");
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId && i.CompanyId == companyId, ct)
+            ?? throw new DomainException("Invoice not found.");
 
         if (invoice.Status != InvoiceStatus.Draft)
             throw new DomainException("Can only recalculate draft invoices.");
@@ -109,13 +109,13 @@ public class InvoiceService : IInvoiceService
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task<byte[]> GetPdfAsync(Guid invoiceId, CancellationToken ct)
+    public async Task<byte[]> GetPdfAsync(Guid invoiceId, Guid companyId, CancellationToken ct)
     {
-        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId, ct)
-            ?? throw new DomainException($"Invoice {invoiceId} not found.");
+        var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == invoiceId && i.CompanyId == companyId, ct)
+            ?? throw new DomainException("Invoice not found.");
 
         var company = await _db.Companies.FirstOrDefaultAsync(c => c.Id == invoice.CompanyId, ct)
-            ?? throw new DomainException($"Company {invoice.CompanyId} not found.");
+            ?? throw new DomainException("Company not found.");
 
         return await _pdfGenerator.GenerateInvoicePdfAsync(invoice, company);
     }

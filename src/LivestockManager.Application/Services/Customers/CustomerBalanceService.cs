@@ -25,7 +25,7 @@ public class CustomerBalanceService : ICustomerBalanceService
     {
         var customer = await _db.Customers
             .FirstOrDefaultAsync(c => c.Id == customerId && c.CompanyId == companyId, ct)
-            ?? throw new DomainException($"Customer {customerId} not found.");
+            ?? throw new DomainException("Customer not found.");
 
         var invoiceStatusesToExclude = new[] { InvoiceStatus.Cancelled, InvoiceStatus.Voided };
 
@@ -154,7 +154,7 @@ public class CustomerBalanceService : ICustomerBalanceService
     {
         var customer = await _db.Customers
             .FirstOrDefaultAsync(c => c.Id == customerId && c.CompanyId == companyId, ct)
-            ?? throw new DomainException($"Customer {customerId} not found.");
+            ?? throw new DomainException("Customer not found.");
 
         var invoiceStatusesToExclude = new[] { InvoiceStatus.Cancelled, InvoiceStatus.Voided };
 
@@ -306,7 +306,7 @@ public class CustomerBalanceService : ICustomerBalanceService
     {
         var customer = await _db.Customers
             .FirstOrDefaultAsync(c => c.Id == customerId && c.CompanyId == companyId, ct)
-            ?? throw new DomainException($"Customer {customerId} not found.");
+            ?? throw new DomainException("Customer not found.");
 
         var invoiceStatusesToExclude = new[] { InvoiceStatus.Cancelled, InvoiceStatus.Voided };
         var today = _dateTime.Now;

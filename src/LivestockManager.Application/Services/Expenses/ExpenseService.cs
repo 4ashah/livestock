@@ -17,10 +17,10 @@ public class ExpenseService : IExpenseService
         _dateTime = dateTime;
     }
 
-    public async Task<ExpenseDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<ExpenseDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted, ct)
-            ?? throw new DomainException($"Expense {id} not found.");
+        var expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && e.CompanyId == companyId && !e.IsDeleted, ct)
+            ?? throw new DomainException("Expense not found.");
 
         return MapToDetail(expense);
     }
@@ -88,9 +88,10 @@ public class ExpenseService : IExpenseService
         return result;
     }
 
-    public async Task<ExpenseDetailDto> CreateAsync(ExpenseCreateDto dto, CancellationToken ct)
+    public async Task<ExpenseDetailDto> CreateAsync(ExpenseCreateDto dto, Guid companyId, CancellationToken ct)
     {
-        if (dto.CompanyId == Guid.Empty)
+        var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+        if (resolvedCompanyId == Guid.Empty)
             throw new DomainException("CompanyId is required.");
 
         if (dto.Amount <= 0)
@@ -100,7 +101,7 @@ public class ExpenseService : IExpenseService
         var taxAmount = Math.Round(dto.Amount * taxRate, 2, MidpointRounding.AwayFromZero);
         var total = dto.Amount + taxAmount;
 
-        var expense = new DE.Expense(dto.CompanyId, dto.Category, dto.ExpenseDate, dto.Amount)
+        var expense = new DE.Expense(resolvedCompanyId, dto.Category, dto.ExpenseDate, dto.Amount)
         {
             FarmId = dto.FarmId,
             SupplierId = dto.SupplierId,
@@ -122,10 +123,10 @@ public class ExpenseService : IExpenseService
         return MapToDetail(expense);
     }
 
-    public async Task<ExpenseDetailDto> UpdateAsync(Guid id, ExpenseUpdateDto dto, CancellationToken ct)
+    public async Task<ExpenseDetailDto> UpdateAsync(Guid id, ExpenseUpdateDto dto, Guid companyId, CancellationToken ct)
     {
-        var expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted, ct)
-            ?? throw new DomainException($"Expense {id} not found.");
+        var expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && e.CompanyId == companyId && !e.IsDeleted, ct)
+            ?? throw new DomainException("Expense not found.");
 
         if (dto.Amount <= 0)
             throw new DomainException("Amount must be greater than zero.");
@@ -156,10 +157,10 @@ public class ExpenseService : IExpenseService
         return MapToDetail(expense);
     }
 
-    public async Task DeleteAsync(Guid id, string reason, CancellationToken ct)
+    public async Task DeleteAsync(Guid id, string reason, Guid companyId, CancellationToken ct)
     {
-        var expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && !e.IsDeleted, ct)
-            ?? throw new DomainException($"Expense {id} not found.");
+        var expense = await _db.Expenses.FirstOrDefaultAsync(e => e.Id == id && e.CompanyId == companyId && !e.IsDeleted, ct)
+            ?? throw new DomainException("Expense not found.");
 
         if (string.IsNullOrWhiteSpace(reason))
             throw new DomainException("A reason is required to delete an expense.");

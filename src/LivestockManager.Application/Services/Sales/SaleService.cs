@@ -25,8 +25,11 @@ public class SaleService : ISaleService
         _sequenceGenerator = sequenceGenerator;
     }
 
-    public async Task<SaleDetailDto> CreateDraftAsync(SaleCreateDto dto, CancellationToken ct)
+    public async Task<SaleDetailDto> CreateDraftAsync(SaleCreateDto dto, Guid companyId, CancellationToken ct)
     {
+        if (dto.CompanyId != companyId)
+            dto.CompanyId = companyId;
+
         var sale = new Sale(dto.CompanyId, dto.CustomerId, dto.Date)
         {
             FarmId = dto.FarmId,
@@ -56,16 +59,16 @@ public class SaleService : ISaleService
         RecalculateSaleTotals(sale);
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(sale.Id, ct);
+        return await GetByIdAsync(sale.Id, companyId, ct);
     }
 
-    public async Task<SaleDetailDto> ConfirmAsync(Guid saleId, SaleConfirmDto dto, CancellationToken ct)
+    public async Task<SaleDetailDto> ConfirmAsync(Guid saleId, SaleConfirmDto dto, Guid companyId, CancellationToken ct)
     {
         using var tx = await _db.BeginTransactionAsync(ct);
         try
         {
-            var sale = await _db.Sales.FirstOrDefaultAsync(s => s.Id == saleId, ct)
-                ?? throw new DomainException($"Sale {saleId} not found.");
+            var sale = await _db.Sales.FirstOrDefaultAsync(s => s.Id == saleId && s.CompanyId == companyId, ct)
+                ?? throw new DomainException("Sale not found.");
 
             if (sale.Status != SaleStatus.Draft)
                 throw new DomainException("Only draft sales can be confirmed.");
@@ -106,7 +109,7 @@ public class SaleService : ISaleService
 
                 if (item.LivestockId.HasValue)
                 {
-                    var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == item.LivestockId.Value, ct);
+                    var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == item.LivestockId.Value && l.CompanyId == companyId, ct);
                     if (livestock != null && livestock.Status == LivestockStatus.Active)
                     {
                         livestock.Status = LivestockStatus.DischargedSold;
@@ -134,7 +137,7 @@ public class SaleService : ISaleService
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
-            return await GetByIdAsync(saleId, ct);
+            return await GetByIdAsync(saleId, companyId, ct);
         }
         catch
         {
@@ -143,10 +146,10 @@ public class SaleService : ISaleService
         }
     }
 
-    public async Task CancelAsync(Guid saleId, string reason, CancellationToken ct)
+    public async Task CancelAsync(Guid saleId, string reason, Guid companyId, CancellationToken ct)
     {
-        var sale = await _db.Sales.FirstOrDefaultAsync(s => s.Id == saleId, ct)
-            ?? throw new DomainException($"Sale {saleId} not found.");
+        var sale = await _db.Sales.FirstOrDefaultAsync(s => s.Id == saleId && s.CompanyId == companyId, ct)
+            ?? throw new DomainException("Sale not found.");
 
         if (sale.Status != SaleStatus.Draft)
             throw new DomainException("Only draft sales can be cancelled.");
@@ -157,10 +160,10 @@ public class SaleService : ISaleService
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task<SaleDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<SaleDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var sale = await _db.Sales.FirstOrDefaultAsync(s => s.Id == id, ct)
-            ?? throw new DomainException($"Sale {id} not found.");
+        var sale = await _db.Sales.FirstOrDefaultAsync(s => s.Id == id && s.CompanyId == companyId, ct)
+            ?? throw new DomainException("Sale not found.");
         var items = await _db.SaleItems.Where(i => i.SaleId == id).ToListAsync(ct);
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == sale.CustomerId, ct);
 

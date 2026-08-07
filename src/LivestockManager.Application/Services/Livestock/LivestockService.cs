@@ -25,7 +25,7 @@ public class LivestockService : ILivestockService
         _sequenceGenerator = sequenceGenerator;
     }
 
-    public async Task<LivestockDetailDto> RegisterAsync(LivestockRegisterDto dto, CancellationToken ct)
+    public async Task<LivestockDetailDto> RegisterAsync(LivestockRegisterDto dto, Guid companyId, CancellationToken ct)
     {
         if (dto.LivestockType == LivestockType.Ad || dto.LivestockType == LivestockType.Sd)
         {
@@ -38,13 +38,17 @@ public class LivestockService : ILivestockService
                 throw new DomainException("Purchased livestock (Ah/Su/Sa) must have PurchaseAmount > 0.");
         }
 
-        var defaultCompany = await _db.Companies.FirstAsync(ct);
-        var companyId = dto.CompanyId == Guid.Empty ? defaultCompany.Id : dto.CompanyId;
+        var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+        if (resolvedCompanyId == Guid.Empty)
+        {
+            var defaultCompany = await _db.Companies.FirstAsync(ct);
+            resolvedCompanyId = defaultCompany.Id;
+        }
 
-        var livestockId = await _sequenceGenerator.GenerateLivestockIdAsync(companyId, dto.LivestockType);
+        var livestockId = await _sequenceGenerator.GenerateLivestockIdAsync(resolvedCompanyId, dto.LivestockType);
 
         var livestock = new LivestockManager.Domain.Entities.Livestock(
-            companyId,
+            resolvedCompanyId,
             livestockId,
             dto.LivestockType,
             dto.AcquisitionDate,
@@ -71,13 +75,13 @@ public class LivestockService : ILivestockService
 
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(livestock.Id, ct);
+        return await GetByIdAsync(livestock.Id, resolvedCompanyId, ct);
     }
 
-    public async Task<LivestockDetailDto> UpdateAsync(Guid livestockId, LivestockEditDto dto, CancellationToken ct)
+    public async Task<LivestockDetailDto> UpdateAsync(Guid livestockId, LivestockEditDto dto, Guid companyId, CancellationToken ct)
     {
-        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId, ct)
-            ?? throw new DomainException($"Livestock {livestockId} not found.");
+        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId && l.CompanyId == companyId, ct)
+            ?? throw new DomainException("Livestock not found.");
 
         livestock.FarmId = dto.FarmId;
         livestock.AcquisitionDate = dto.AcquisitionDate;
@@ -88,13 +92,13 @@ public class LivestockService : ILivestockService
 
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(livestockId, ct);
+        return await GetByIdAsync(livestockId, companyId, ct);
     }
 
-    public async Task AddWeightAsync(Guid livestockId, LivestockWeightAddDto dto, CancellationToken ct)
+    public async Task AddWeightAsync(Guid livestockId, LivestockWeightAddDto dto, Guid companyId, CancellationToken ct)
     {
-        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId, ct)
-            ?? throw new DomainException($"Livestock {livestockId} not found.");
+        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId && l.CompanyId == companyId, ct)
+            ?? throw new DomainException("Livestock not found.");
 
         if (livestock.Status != LivestockStatus.Active)
             throw new InvalidDischargeException("Cannot add weight to discharged livestock.");
@@ -118,10 +122,10 @@ public class LivestockService : ILivestockService
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task<LivestockDetailDto> DischargeAsync(Guid livestockId, LivestockDischargeDto dto, CancellationToken ct)
+    public async Task<LivestockDetailDto> DischargeAsync(Guid livestockId, LivestockDischargeDto dto, Guid companyId, CancellationToken ct)
     {
-        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId, ct)
-            ?? throw new DomainException($"Livestock {livestockId} not found.");
+        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId && l.CompanyId == companyId, ct)
+            ?? throw new DomainException("Livestock not found.");
 
         if (livestock.Status != LivestockStatus.Active)
             throw new LivestockAlreadySoldException("Livestock has already been discharged.");
@@ -155,13 +159,13 @@ public class LivestockService : ILivestockService
 
         await _db.SaveChangesAsync(ct);
 
-        return await GetByIdAsync(livestockId, ct);
+        return await GetByIdAsync(livestockId, companyId, ct);
     }
 
-    public async Task<decimal> CalculateCompleteProfitLossAsync(Guid livestockId, CancellationToken ct)
+    public async Task<decimal> CalculateCompleteProfitLossAsync(Guid livestockId, Guid companyId, CancellationToken ct)
     {
-        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId, ct)
-            ?? throw new DomainException($"Livestock {livestockId} not found.");
+        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId && l.CompanyId == companyId, ct)
+            ?? throw new DomainException("Livestock not found.");
 
         if (!livestock.BasicProfitLoss.HasValue)
             return 0m;
@@ -169,9 +173,9 @@ public class LivestockService : ILivestockService
         return livestock.BasicProfitLoss.Value;
     }
 
-    public async Task<IList<LivestockSummaryDto>> SearchAsync(string farmId, string type, string status, string keyword, CancellationToken ct)
+    public async Task<IList<LivestockSummaryDto>> SearchAsync(string farmId, string type, string status, string keyword, Guid companyId, CancellationToken ct)
     {
-        var query = _db.Livestock.AsQueryable();
+        var query = _db.Livestock.Where(l => l.CompanyId == companyId);
 
         if (!string.IsNullOrWhiteSpace(farmId) && Guid.TryParse(farmId, out var farmGuid))
         {
@@ -212,8 +216,11 @@ public class LivestockService : ILivestockService
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
 
-    public async Task<IList<LivestockWeightHistoryDto>> GetWeightHistoryAsync(Guid livestockId, CancellationToken ct)
+    public async Task<IList<LivestockWeightHistoryDto>> GetWeightHistoryAsync(Guid livestockId, Guid companyId, CancellationToken ct)
     {
+        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId && l.CompanyId == companyId, ct)
+            ?? throw new DomainException("Livestock not found.");
+
         return await _db.LivestockWeights
             .Where(w => w.LivestockId == livestockId)
             .OrderBy(w => w.WeighedAt)
@@ -229,10 +236,10 @@ public class LivestockService : ILivestockService
             .ToListAsync(ct);
     }
 
-    public async Task AddActivityAsync(Guid livestockId, LivestockActivityDto dto, CancellationToken ct)
+    public async Task AddActivityAsync(Guid livestockId, LivestockActivityDto dto, Guid companyId, CancellationToken ct)
     {
-        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId, ct)
-            ?? throw new DomainException($"Livestock {livestockId} not found.");
+        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == livestockId && l.CompanyId == companyId, ct)
+            ?? throw new DomainException("Livestock not found.");
 
         var activity = new LivestockActivity(livestockId, dto.ActivityType, dto.PerformedAt, dto.Description)
         {
@@ -244,17 +251,17 @@ public class LivestockService : ILivestockService
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task<LivestockDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<LivestockDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == id, ct)
-            ?? throw new DomainException($"Livestock {id} not found.");
+        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == id && l.CompanyId == companyId, ct)
+            ?? throw new DomainException("Livestock not found.");
 
-        var farm = livestock.FarmId.HasValue ? await _db.Farms.FirstOrDefaultAsync(f => f.Id == livestock.FarmId, ct) : null;
+        var farm = livestock.FarmId.HasValue ? await _db.Farms.FirstOrDefaultAsync(f => f.Id == livestock.FarmId && f.CompanyId == companyId, ct) : null;
         var weights = await _db.LivestockWeights.Where(w => w.LivestockId == id).OrderBy(w => w.WeighedAt).ToListAsync(ct);
         var activities = await _db.LivestockActivities.Where(a => a.LivestockId == id).OrderByDescending(a => a.PerformedAt).ToListAsync(ct);
 
         var completeProfitLoss = livestock.BasicProfitLoss.HasValue
-            ? await CalculateCompleteProfitLossAsync(id, ct)
+            ? await CalculateCompleteProfitLossAsync(id, companyId, ct)
             : null as decimal?;
 
         return new LivestockDetailDto

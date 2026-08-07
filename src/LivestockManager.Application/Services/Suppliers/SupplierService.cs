@@ -23,12 +23,10 @@ public class SupplierService : ISupplierService
 
     public async Task<IList<SupplierSummaryDto>> ListAsync(Guid companyId, CancellationToken ct)
     {
-        return await _db.Suppliers
+        var entities = await _db.Suppliers
             .Where(s => s.CompanyId == companyId)
-            .AsQueryable()
-            .Select(MapToSummary)
-            .AsQueryable()
             .ToListAsync(ct);
+        return entities.Select(MapToSummary).ToList();
     }
 
     public async Task<IList<SupplierSummaryDto>> SearchAsync(Guid companyId, string keyword, bool? onlyActive, CancellationToken ct)
@@ -50,27 +48,30 @@ public class SupplierService : ISupplierService
             query = query.Where(s => s.IsActive == onlyActive.Value);
         }
 
-        return await query.AsQueryable().Select(MapToSummary).AsQueryable().ToListAsync(ct);
+        var entities = await query.ToListAsync(ct);
+        return entities.Select(MapToSummary).ToList();
     }
 
-    public async Task<SupplierDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<SupplierDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var entity = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == id, ct)
-            ?? throw new DomainException($"Supplier {id} not found.");
+        var entity = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == id && s.CompanyId == companyId, ct)
+            ?? throw new DomainException("Supplier not found.");
         return MapToDetail(entity);
     }
 
-    public async Task<SupplierDetailDto> CreateAsync(SupplierCreateDto dto, CancellationToken ct)
+    public async Task<SupplierDetailDto> CreateAsync(SupplierCreateDto dto, Guid companyId, CancellationToken ct)
     {
+        var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+
         var duplicate = await _db.Suppliers
             .IgnoreQueryFilters()
-            .AnyAsync(s => s.CompanyId == dto.CompanyId && s.Code == dto.Code && !s.IsDeleted, ct);
+            .AnyAsync(s => s.CompanyId == resolvedCompanyId && s.Code == dto.Code && !s.IsDeleted, ct);
         if (duplicate)
         {
             throw new DomainException($"Supplier code '{dto.Code}' already exists within the company.");
         }
 
-        var supplier = new Supplier(dto.CompanyId, dto.Name)
+        var supplier = new Supplier(resolvedCompanyId, dto.Name)
         {
             Code = dto.Code,
             LegalName = dto.LegalName,
@@ -91,10 +92,10 @@ public class SupplierService : ISupplierService
         return MapToDetail(supplier);
     }
 
-    public async Task<SupplierDetailDto> UpdateAsync(Guid id, SupplierUpdateDto dto, CancellationToken ct)
+    public async Task<SupplierDetailDto> UpdateAsync(Guid id, SupplierUpdateDto dto, Guid companyId, CancellationToken ct)
     {
-        var entity = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == id, ct)
-            ?? throw new DomainException($"Supplier {id} not found.");
+        var entity = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == id && s.CompanyId == companyId, ct)
+            ?? throw new DomainException("Supplier not found.");
 
         if (!string.IsNullOrWhiteSpace(dto.Code) && dto.Code != entity.Code)
         {
@@ -125,10 +126,10 @@ public class SupplierService : ISupplierService
         return MapToDetail(entity);
     }
 
-    public async Task ArchiveAsync(Guid id, CancellationToken ct)
+    public async Task ArchiveAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var entity = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == id, ct)
-            ?? throw new DomainException($"Supplier {id} not found.");
+        var entity = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == id && s.CompanyId == companyId, ct)
+            ?? throw new DomainException("Supplier not found.");
 
         entity.IsActive = false;
         entity.IsDeleted = true;

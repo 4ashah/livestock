@@ -20,16 +20,17 @@ public class CustomerService : ICustomerService
         _dateTime = dateTime;
     }
 
-    public async Task<CustomerDetailDto> GetByIdAsync(Guid id, CancellationToken ct)
+    public async Task<CustomerDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var entity = await _db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct)
-            ?? throw new DomainException($"Customer {id} not found.");
+        var entity = await _db.Customers.FirstOrDefaultAsync(c => c.Id == id && c.CompanyId == companyId, ct)
+            ?? throw new DomainException("Customer not found.");
         return MapToDetail(entity);
     }
 
     public async Task<IList<CustomerSummaryDto>> ListAsync(Guid companyId, CancellationToken ct)
     {
-        return await _db.Customers.Where(c => c.CompanyId == companyId).AsQueryable().Select(MapToSummary).AsQueryable().ToListAsync(ct);
+        var entities = await _db.Customers.Where(c => c.CompanyId == companyId).ToListAsync(ct);
+        return entities.Select(MapToSummary).ToList();
     }
 
     public async Task<IList<CustomerSummaryDto>> SearchAsync(Guid companyId, string keyword, CancellationToken ct)
@@ -44,12 +45,15 @@ public class CustomerService : ICustomerService
                 (c.Email != null && c.Email.Contains(keyword)) ||
                 (c.Phone != null && c.Phone.Contains(keyword)));
         }
-        return await query.AsQueryable().Select(MapToSummary).AsQueryable().ToListAsync(ct);
+        var entities = await query.ToListAsync(ct);
+        return entities.Select(MapToSummary).ToList();
     }
 
-    public async Task<CustomerDetailDto> CreateAsync(CustomerCreateDto dto, CancellationToken ct)
+    public async Task<CustomerDetailDto> CreateAsync(CustomerCreateDto dto, Guid companyId, CancellationToken ct)
     {
-        var customer = new Customer(dto.CompanyId, dto.CustomerCode, dto.Name)
+        var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+
+        var customer = new Customer(resolvedCompanyId, dto.CustomerCode, dto.Name)
         {
             IsBusiness = dto.IsBusiness,
             TaxNumber = dto.TaxNumber,
@@ -70,10 +74,10 @@ public class CustomerService : ICustomerService
         return MapToDetail(customer);
     }
 
-    public async Task<CustomerDetailDto> UpdateAsync(Guid id, CustomerUpdateDto dto, CancellationToken ct)
+    public async Task<CustomerDetailDto> UpdateAsync(Guid id, CustomerUpdateDto dto, Guid companyId, CancellationToken ct)
     {
-        var entity = await _db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct)
-            ?? throw new DomainException($"Customer {id} not found.");
+        var entity = await _db.Customers.FirstOrDefaultAsync(c => c.Id == id && c.CompanyId == companyId, ct)
+            ?? throw new DomainException("Customer not found.");
 
         entity.Name = dto.Name;
         entity.CustomerCode = dto.CustomerCode;
@@ -93,10 +97,10 @@ public class CustomerService : ICustomerService
         return MapToDetail(entity);
     }
 
-    public async Task DeleteAsync(Guid id, CancellationToken ct)
+    public async Task DeleteAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var entity = await _db.Customers.FirstOrDefaultAsync(c => c.Id == id, ct)
-            ?? throw new DomainException($"Customer {id} not found.");
+        var entity = await _db.Customers.FirstOrDefaultAsync(c => c.Id == id && c.CompanyId == companyId, ct)
+            ?? throw new DomainException("Customer not found.");
         entity.IsDeleted = true;
         entity.ModifiedAt = _dateTime.Now;
         await _db.SaveChangesAsync(ct);
