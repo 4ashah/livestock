@@ -672,22 +672,22 @@ public class TestIsolationClock : IDateTime
 
 public class TestIsolationSequenceGenerator : ISequenceGenerator
 {
-    public Task<string> GenerateLivestockIdAsync(Guid companyId, LivestockType type)
+    public Task<string> GenerateLivestockIdAsync(Guid companyId, LivestockType type, CancellationToken ct = default)
     {
         return Task.FromResult($"LS{Guid.NewGuid().ToString("N").Substring(0, 5).ToUpperInvariant()}");
     }
 
-    public Task<string> GenerateInvoiceNumberAsync(Guid companyId)
+    public Task<string> GenerateInvoiceNumberAsync(Guid companyId, CancellationToken ct = default)
     {
         return Task.FromResult($"INV-{DateTime.UtcNow.Year}-{Guid.NewGuid().ToString("N").Substring(0, 5).ToUpperInvariant()}");
     }
 
-    public Task<string> GenerateReceiptNumberAsync(Guid companyId)
+    public Task<string> GenerateReceiptNumberAsync(Guid companyId, CancellationToken ct = default)
     {
-        return Task.FromResult($"RCT-{DateTime.UtcNow.Year}-{Guid.NewGuid().ToString("N").Substring(0, 5).ToUpperInvariant()}");
+        return Task.FromResult($"RCP-{DateTime.UtcNow.Year}-{Guid.NewGuid().ToString("N").Substring(0, 5).ToUpperInvariant()}");
     }
 
-    public Task<string> GenerateDocumentNumberAsync(Guid companyId, string prefix)
+    public Task<string> GenerateDocumentNumberAsync(Guid companyId, string prefix, CancellationToken ct = default)
     {
         return Task.FromResult($"{prefix}{Guid.NewGuid().ToString("N").Substring(0, 6).ToUpperInvariant()}");
     }

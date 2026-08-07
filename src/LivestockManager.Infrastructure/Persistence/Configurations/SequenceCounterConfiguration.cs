@@ -9,7 +9,7 @@ public class SequenceCounterConfiguration : IEntityTypeConfiguration<SequenceCou
     public void Configure(EntityTypeBuilder<SequenceCounter> builder)
     {
         builder.Property(sc => sc.Prefix)
-            .HasMaxLength(20)
+            .HasMaxLength(100)
             .IsRequired();
 
         builder.HasIndex(sc => new { sc.CompanyId, sc.Prefix })

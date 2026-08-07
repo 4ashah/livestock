@@ -9,7 +9,7 @@ public class SequenceCounter : BaseAuditableEntity
     public Guid CompanyId { get; set; }
 
     [Required]
-    [MaxLength(20)]
+    [MaxLength(100)]
     public string Prefix { get; set; } = string.Empty;
 
     public long LastValue { get; set; } = 0;

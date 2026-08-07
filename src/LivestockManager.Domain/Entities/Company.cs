@@ -37,7 +37,7 @@ public class Company : BaseAuditableEntity
     public string InvoicePrefix { get; set; } = "INV";
 
     [MaxLength(10)]
-    public string ReceiptPrefix { get; set; } = "RCT";
+    public string ReceiptPrefix { get; set; } = "RCP";
 
     public TaxSettings? TaxSettings { get; set; }
 

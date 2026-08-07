@@ -70,7 +70,7 @@ public class ExpenseServiceTests
             Notes = "Monthly feed order"
         };
 
-        var result = await service.CreateAsync(dto, CancellationToken.None);
+        var result = await service.CreateAsync(dto, companyId, CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal(100m, result.Amount);
@@ -104,7 +104,7 @@ public class ExpenseServiceTests
             PaymentMethod = PaymentMethod.Cash
         };
 
-        var ex = await Assert.ThrowsAsync<DomainException>(() => service.CreateAsync(dto, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<DomainException>(() => service.CreateAsync(dto, companyId, CancellationToken.None));
         Assert.Contains("Amount must be greater than zero", ex.Message);
     }
 
@@ -123,7 +123,7 @@ public class ExpenseServiceTests
             TaxRate = 0.10m,
             PaymentMethod = PaymentMethod.BankTransfer
         };
-        var created = await service.CreateAsync(createDto, CancellationToken.None);
+        var created = await service.CreateAsync(createDto, companyId, CancellationToken.None);
         Assert.Equal(20m, created.TaxAmount);
         Assert.Equal(220m, created.Total);
 
@@ -138,7 +138,7 @@ public class ExpenseServiceTests
             Description = "Updated desc"
         };
 
-        var updated = await service.UpdateAsync(created.Id, updateDto, CancellationToken.None);
+        var updated = await service.UpdateAsync(created.Id, updateDto, companyId, CancellationToken.None);
 
         Assert.Equal(300m, updated.Amount);
         Assert.Equal(0.20m, updated.TaxRate);
@@ -165,9 +165,9 @@ public class ExpenseServiceTests
             PaymentMethod = PaymentMethod.Cash,
             Notes = "Original note"
         };
-        var created = await service.CreateAsync(createDto, CancellationToken.None);
+        var created = await service.CreateAsync(createDto, companyId, CancellationToken.None);
 
-        await service.DeleteAsync(created.Id, "Duplicate entry", CancellationToken.None);
+        await service.DeleteAsync(created.Id, "Duplicate entry", companyId, CancellationToken.None);
 
         var entity = await db.Expenses.IgnoreQueryFilters().FirstOrDefaultAsync(e => e.Id == created.Id);
         Assert.NotNull(entity);
@@ -176,7 +176,7 @@ public class ExpenseServiceTests
         Assert.Contains("Duplicate entry", entity.Notes);
         Assert.Contains("Deleted:", entity.Notes);
 
-        await Assert.ThrowsAsync<DomainException>(() => service.GetByIdAsync(created.Id, CancellationToken.None));
+        await Assert.ThrowsAsync<DomainException>(() => service.GetByIdAsync(created.Id, companyId, CancellationToken.None));
     }
 
     [Fact]
@@ -193,12 +193,12 @@ public class ExpenseServiceTests
             Amount = 120m,
             PaymentMethod = PaymentMethod.BankTransfer
         };
-        var created = await service.CreateAsync(createDto, CancellationToken.None);
+        var created = await service.CreateAsync(createDto, companyId, CancellationToken.None);
 
-        var ex1 = await Assert.ThrowsAsync<DomainException>(() => service.DeleteAsync(created.Id, null!, CancellationToken.None));
+        var ex1 = await Assert.ThrowsAsync<DomainException>(() => service.DeleteAsync(created.Id, null!, companyId, CancellationToken.None));
         Assert.Contains("reason is required", ex1.Message, StringComparison.OrdinalIgnoreCase);
 
-        var ex2 = await Assert.ThrowsAsync<DomainException>(() => service.DeleteAsync(created.Id, "   ", CancellationToken.None));
+        var ex2 = await Assert.ThrowsAsync<DomainException>(() => service.DeleteAsync(created.Id, "   ", companyId, CancellationToken.None));
         Assert.Contains("reason is required", ex2.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -219,7 +219,7 @@ public class ExpenseServiceTests
                 TaxRate = 0,
                 PaymentMethod = PaymentMethod.Cash
             };
-            var c = await service.CreateAsync(dto, CancellationToken.None);
+            var c = await service.CreateAsync(dto, companyId, CancellationToken.None);
             return c.Id;
         }
 
@@ -282,7 +282,7 @@ public class ExpenseServiceTests
                 TaxRate = 0,
                 PaymentMethod = PaymentMethod.Cash
             };
-            var c = await service.CreateAsync(dto, CancellationToken.None);
+            var c = await service.CreateAsync(dto, companyId, CancellationToken.None);
             return c.Id;
         }
 
@@ -330,7 +330,7 @@ public class ExpenseServiceTests
                 Amount = e.Amt,
                 TaxRate = e.Tax,
                 PaymentMethod = PaymentMethod.Cash
-            }, CancellationToken.None);
+            }, companyId, CancellationToken.None);
         }
 
         var summary = await service.CategorySummaryAsync(companyId, null, null, CancellationToken.None);
@@ -377,7 +377,7 @@ public class ExpenseServiceTests
             Description = "Alfalfa hay",
             Reference = "REF-123"
         };
-        await service.CreateAsync(dto, CancellationToken.None);
+        await service.CreateAsync(dto, companyId, CancellationToken.None);
 
         var bytes = await service.ExportCsvAsync(companyId, null, null, null, null, null, null, CancellationToken.None);
 
@@ -417,7 +417,7 @@ public class ExpenseServiceTests
             TaxRate = 1.50m,
             PaymentMethod = PaymentMethod.Cash
         };
-        var resultHigh = await service.CreateAsync(dtoHigh, CancellationToken.None);
+        var resultHigh = await service.CreateAsync(dtoHigh, companyId, CancellationToken.None);
         Assert.Equal(1m, resultHigh.TaxRate);
         Assert.Equal(200m, resultHigh.TaxAmount);
         Assert.Equal(400m, resultHigh.Total);
@@ -431,7 +431,7 @@ public class ExpenseServiceTests
             TaxRate = -0.05m,
             PaymentMethod = PaymentMethod.Cash
         };
-        var resultLow = await service.CreateAsync(dtoLow, CancellationToken.None);
+        var resultLow = await service.CreateAsync(dtoLow, companyId, CancellationToken.None);
         Assert.Equal(0m, resultLow.TaxRate);
         Assert.Equal(0m, resultLow.TaxAmount);
         Assert.Equal(200m, resultLow.Total);
@@ -445,7 +445,7 @@ public class ExpenseServiceTests
             TaxRate = 5m,
             PaymentMethod = PaymentMethod.Cash
         };
-        var updated = await service.UpdateAsync(resultHigh.Id, updateDto, CancellationToken.None);
+        var updated = await service.UpdateAsync(resultHigh.Id, updateDto, companyId, CancellationToken.None);
         Assert.Equal(1m, updated.TaxRate);
         Assert.Equal(100m, updated.TaxAmount);
         Assert.Equal(200m, updated.Total);

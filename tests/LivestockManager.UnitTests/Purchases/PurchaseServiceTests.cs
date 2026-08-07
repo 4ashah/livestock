@@ -53,7 +53,7 @@ public class PurchaseServiceTests
             PurchaseDate = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero)
         };
 
-        var result = await service.CreateDraftAsync(dto, CancellationToken.None);
+        var result = await service.CreateDraftAsync(dto, companyId, CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal(PurchaseStatus.Draft, result.Status);
@@ -82,7 +82,7 @@ public class PurchaseServiceTests
             }
         };
 
-        var result = await service.CreateDraftAsync(dto, CancellationToken.None);
+        var result = await service.CreateDraftAsync(dto, companyId, CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal(3, result.Items.Count);
@@ -133,7 +133,7 @@ public class PurchaseServiceTests
                 new() { LineNo = 1, ItemType = PurchaseItemType.Feed, Description = "Item A", Quantity = 1, UnitCost = 100m, DiscountPct = 0, TaxRate = 0 }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
         Assert.Equal(100m, created.GrandTotal);
 
         var newItem = new PurchaseItemCreateDto
@@ -146,7 +146,7 @@ public class PurchaseServiceTests
             TaxRate = 0
         };
 
-        var updated = await service.AddItemAsync(created.Id, newItem, CancellationToken.None);
+        var updated = await service.AddItemAsync(created.Id, newItem, companyId, CancellationToken.None);
 
         Assert.Equal(2, updated.Items.Count);
         Assert.Contains(updated.Items, i => i.Description == "Item B");
@@ -171,11 +171,11 @@ public class PurchaseServiceTests
                 new() { LineNo = 2, ItemType = PurchaseItemType.Feed, Description = "Item B", Quantity = 1, UnitCost = 75m, DiscountPct = 0, TaxRate = 0 }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
         Assert.Equal(175m, created.GrandTotal);
         var itemToRemove = created.Items.First(i => i.Description == "Item B");
 
-        var updated = await service.RemoveItemAsync(created.Id, itemToRemove.Id, CancellationToken.None);
+        var updated = await service.RemoveItemAsync(created.Id, itemToRemove.Id, companyId, CancellationToken.None);
 
         Assert.Single(updated.Items);
         Assert.DoesNotContain(updated.Items, i => i.Description == "Item B");
@@ -195,11 +195,11 @@ public class PurchaseServiceTests
             SupplierId = supplierId,
             PurchaseDate = new DateTimeOffset(2026, 1, 15, 0, 0, 0, TimeSpan.Zero)
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
 
         var postDto = new PurchasePostDto { Id = created.Id };
 
-        var ex = await Assert.ThrowsAsync<DomainException>(() => service.PostPurchaseAsync(postDto, CancellationToken.None));
+        var ex = await Assert.ThrowsAsync<DomainException>(() => service.PostPurchaseAsync(postDto, companyId, CancellationToken.None));
         Assert.Contains("at least one item", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -221,11 +221,11 @@ public class PurchaseServiceTests
                 new() { LineNo = 1, ItemType = PurchaseItemType.Feed, Description = "Item", Quantity = 1, UnitCost = 100m, DiscountPct = 0, TaxRate = 0 }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
-        await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
+        await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None);
 
         var ex = await Assert.ThrowsAsync<DomainException>(() =>
-            service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, CancellationToken.None));
+            service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None));
         Assert.Contains("Only draft", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -248,8 +248,8 @@ public class PurchaseServiceTests
                 new() { LineNo = 1, ItemType = PurchaseItemType.Feed, Description = "Item", Quantity = 1, UnitCost = 100m, DiscountPct = 0, TaxRate = 0 }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
-        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
+        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None);
 
         Assert.Equal("PUR-2026-00007", posted.PurchaseNumber);
         Assert.Equal(PurchaseStatus.Posted, posted.Status);
@@ -275,10 +275,10 @@ public class PurchaseServiceTests
                 new() { LineNo = 1, ItemType = PurchaseItemType.Livestock, Description = "Ram A", Quantity = 1, UnitCost = 500m, DiscountPct = 0, TaxRate = 0, UnitWeight = 60m, WeightUnit = WeightUnit.Kg }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
         Assert.Empty(db.Livestock.ToList());
 
-        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, CancellationToken.None);
+        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None);
 
         var livestockList = db.Livestock.ToList();
         Assert.Single(livestockList);
@@ -312,8 +312,8 @@ public class PurchaseServiceTests
                 new() { LineNo = 2, ItemType = PurchaseItemType.Equipment, Description = "Trough", Quantity = 1, UnitCost = 200m, DiscountPct = 0, TaxRate = 0 }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
-        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
+        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None);
 
         Assert.Empty(db.Livestock.ToList());
         Assert.All(posted.Items, i => Assert.Null(i.LivestockId));
@@ -339,8 +339,8 @@ public class PurchaseServiceTests
                 new() { LineNo = 1, ItemType = PurchaseItemType.Livestock, Description = "Ram W", Quantity = 1, UnitCost = 800m, DiscountPct = 0, TaxRate = 0, UnitWeight = 75.5m, WeightUnit = WeightUnit.Kg }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
-        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
+        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None);
 
         var livestock = db.Livestock.Single();
         Assert.Equal(75.5m, livestock.InitialWeight);
@@ -370,10 +370,10 @@ public class PurchaseServiceTests
                 new() { LineNo = 1, ItemType = PurchaseItemType.Feed, Description = "Item", Quantity = 1, UnitCost = 100m, DiscountPct = 0, TaxRate = 0 }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
 
         var ex = await Assert.ThrowsAsync<DomainException>(() =>
-            service.VoidPurchaseAsync(created.Id, "Duplicate order", CancellationToken.None));
+            service.VoidPurchaseAsync(created.Id, "Duplicate order", companyId, CancellationToken.None));
         Assert.Contains("Only posted", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -396,11 +396,11 @@ public class PurchaseServiceTests
                 new() { LineNo = 1, ItemType = PurchaseItemType.Feed, Description = "Item", Quantity = 1, UnitCost = 100m, DiscountPct = 0, TaxRate = 0 }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
-        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
+        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None);
         Assert.Equal(PurchaseStatus.Posted, posted.Status);
 
-        var voided = await service.VoidPurchaseAsync(created.Id, "Returned by supplier", CancellationToken.None);
+        var voided = await service.VoidPurchaseAsync(created.Id, "Returned by supplier", companyId, CancellationToken.None);
 
         Assert.Equal(PurchaseStatus.Voided, voided.Status);
         Assert.Contains("Returned by supplier", voided.Notes);
@@ -425,11 +425,11 @@ public class PurchaseServiceTests
                 new() { LineNo = 1, ItemType = PurchaseItemType.Feed, Description = "Item", Quantity = 1, UnitCost = 100m, DiscountPct = 0, TaxRate = 0 }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
-        await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
+        await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None);
 
         var ex = await Assert.ThrowsAsync<DomainException>(() =>
-            service.VoidPurchaseAsync(created.Id, "   ", CancellationToken.None));
+            service.VoidPurchaseAsync(created.Id, "   ", companyId, CancellationToken.None));
         Assert.Contains("reason is required", ex.Message, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -454,11 +454,11 @@ public class PurchaseServiceTests
                     new() { ItemType = PurchaseItemType.Feed, Description = desc, Quantity = 1, UnitCost = 50m }
                 }
             };
-            var c = await service.CreateDraftAsync(dto, CancellationToken.None);
+            var c = await service.CreateDraftAsync(dto, companyId, CancellationToken.None);
             if (finalStatus == PurchaseStatus.Posted)
             {
                 seq.SetNextDocumentNumber("PUR:2026", db.Purchases.Count() + 1);
-                await service.PostPurchaseAsync(new PurchasePostDto { Id = c.Id }, CancellationToken.None);
+                await service.PostPurchaseAsync(new PurchasePostDto { Id = c.Id }, companyId, CancellationToken.None);
             }
             return c.Id;
         }
@@ -499,9 +499,9 @@ public class PurchaseServiceTests
                 new() { LineNo = 2, ItemType = PurchaseItemType.Medication, Description = "Dewormer", Quantity = 2, UnitCost = 30m, DiscountPct = 0, TaxRate = 0 }
             }
         };
-        var created = await service.CreateDraftAsync(createDto, CancellationToken.None);
+        var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
 
-        var fetched = await service.GetByIdAsync(created.Id, CancellationToken.None);
+        var fetched = await service.GetByIdAsync(created.Id, companyId, CancellationToken.None);
 
         Assert.Equal(created.Id, fetched.Id);
         Assert.Equal(Currency.EUR, fetched.Currency);
@@ -564,24 +564,24 @@ public class TestSequenceGenerator : ISequenceGenerator
         _livestockIds.Enqueue(nextId);
     }
 
-    public Task<string> GenerateLivestockIdAsync(Guid companyId, LivestockType type)
+    public Task<string> GenerateLivestockIdAsync(Guid companyId, LivestockType type, CancellationToken ct = default)
     {
         if (_livestockIds.Count > 0)
             return Task.FromResult(_livestockIds.Dequeue());
         return Task.FromResult($"LS{1:D5}");
     }
 
-    public Task<string> GenerateInvoiceNumberAsync(Guid companyId)
+    public Task<string> GenerateInvoiceNumberAsync(Guid companyId, CancellationToken ct = default)
     {
         return Task.FromResult($"INV-{DateTime.UtcNow.Year}-00001");
     }
 
-    public Task<string> GenerateReceiptNumberAsync(Guid companyId)
+    public Task<string> GenerateReceiptNumberAsync(Guid companyId, CancellationToken ct = default)
     {
-        return Task.FromResult($"RCT-{DateTime.UtcNow.Year}-00001");
+        return Task.FromResult($"RCP-{DateTime.UtcNow.Year}-00001");
     }
 
-    public Task<string> GenerateDocumentNumberAsync(Guid companyId, string prefix)
+    public Task<string> GenerateDocumentNumberAsync(Guid companyId, string prefix, CancellationToken ct = default)
     {
         if (_documentCounters.TryGetValue(prefix, out var n))
         {

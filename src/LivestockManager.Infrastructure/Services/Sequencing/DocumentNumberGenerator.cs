@@ -16,51 +16,51 @@ public class DocumentNumberGenerator
         _dbContext = dbContext;
     }
 
-    public async Task<string> GeneratePurchaseNumberAsync(Guid companyId)
+    public async Task<string> GeneratePurchaseNumberAsync(Guid companyId, CancellationToken ct = default)
     {
         var year = DateTimeOffset.UtcNow.Year.ToString();
         var scopedKey = $"PUR:{year}";
-        var raw = await _sequenceGenerator.GenerateDocumentNumberAsync(companyId, scopedKey);
+        var raw = await _sequenceGenerator.GenerateDocumentNumberAsync(companyId, scopedKey, ct);
         var number = ExtractNumericSuffix(raw, scopedKey);
         return $"PUR-{year}-{number:D5}";
     }
 
-    public async Task<string> GeneratePaymentNumberAsync(Guid companyId)
+    public async Task<string> GeneratePaymentNumberAsync(Guid companyId, CancellationToken ct = default)
     {
         var year = DateTimeOffset.UtcNow.Year.ToString();
         var scopedKey = $"PAY:{year}";
-        var raw = await _sequenceGenerator.GenerateDocumentNumberAsync(companyId, scopedKey);
+        var raw = await _sequenceGenerator.GenerateDocumentNumberAsync(companyId, scopedKey, ct);
         var number = ExtractNumericSuffix(raw, scopedKey);
         return $"PAY-{year}-{number:D5}";
     }
 
-    public async Task<string> GenerateInvoiceNumberYearScopedAsync(Guid companyId)
+    public async Task<string> GenerateInvoiceNumberYearScopedAsync(Guid companyId, CancellationToken ct = default)
     {
         var year = DateTimeOffset.UtcNow.Year.ToString();
-        var prefix = await GetInvoicePrefixSafeAsync(companyId);
+        var prefix = await GetInvoicePrefixSafeAsync(companyId, ct);
         var scopedKey = $"{prefix}:{year}";
-        var raw = await _sequenceGenerator.GenerateDocumentNumberAsync(companyId, scopedKey);
+        var raw = await _sequenceGenerator.GenerateDocumentNumberAsync(companyId, scopedKey, ct);
         var number = ExtractNumericSuffix(raw, scopedKey);
         return $"{prefix}-{year}-{number:D5}";
     }
 
-    public async Task<string> GenerateReceiptNumberYearScopedAsync(Guid companyId)
+    public async Task<string> GenerateReceiptNumberYearScopedAsync(Guid companyId, CancellationToken ct = default)
     {
         var year = DateTimeOffset.UtcNow.Year.ToString();
-        var prefix = await GetReceiptPrefixSafeAsync(companyId);
+        var prefix = await GetReceiptPrefixSafeAsync(companyId, ct);
         var scopedKey = $"{prefix}:{year}";
-        var raw = await _sequenceGenerator.GenerateDocumentNumberAsync(companyId, scopedKey);
+        var raw = await _sequenceGenerator.GenerateDocumentNumberAsync(companyId, scopedKey, ct);
         var number = ExtractNumericSuffix(raw, scopedKey);
         return $"{prefix}-{year}-{number:D5}";
     }
 
-    private async Task<string> GetInvoicePrefixSafeAsync(Guid companyId)
+    private async Task<string> GetInvoicePrefixSafeAsync(Guid companyId, CancellationToken ct)
     {
         try
         {
             var company = await _dbContext.Set<Domain.Entities.Company>()
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == companyId);
+                .FirstOrDefaultAsync(c => c.Id == companyId, ct);
 
             if (company == null)
                 throw new SequenceGenerationFailedException("Company not found for invoice prefix lookup.");
@@ -78,18 +78,18 @@ public class DocumentNumberGenerator
         }
     }
 
-    private async Task<string> GetReceiptPrefixSafeAsync(Guid companyId)
+    private async Task<string> GetReceiptPrefixSafeAsync(Guid companyId, CancellationToken ct)
     {
         try
         {
             var company = await _dbContext.Set<Domain.Entities.Company>()
                 .AsNoTracking()
-                .FirstOrDefaultAsync(c => c.Id == companyId);
+                .FirstOrDefaultAsync(c => c.Id == companyId, ct);
 
             if (company == null)
                 throw new SequenceGenerationFailedException("Company not found for receipt prefix lookup.");
 
-            var prefix = string.IsNullOrWhiteSpace(company.ReceiptPrefix) ? "RCT" : company.ReceiptPrefix.Trim();
+            var prefix = string.IsNullOrWhiteSpace(company.ReceiptPrefix) ? "RCP" : company.ReceiptPrefix.Trim();
             return prefix.Length > 10 ? prefix[..10] : prefix;
         }
         catch (SequenceGenerationFailedException)
@@ -98,7 +98,7 @@ public class DocumentNumberGenerator
         }
         catch
         {
-            return "RCT";
+            return "RCP";
         }
     }
 

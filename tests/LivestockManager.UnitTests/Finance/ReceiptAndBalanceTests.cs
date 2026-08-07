@@ -54,7 +54,7 @@ public class ReceiptAndBalanceTests
             invoice.UpdateStatusFromBalances(new DateTimeOffset(2026, 6, 15, 0, 0, 0, TimeSpan.Zero));
             await db.SaveChangesAsync();
 
-            var result = await receiptService.GenerateForPaymentAsync(payment.Id, "Payment received in cash", CancellationToken.None);
+            var result = await receiptService.GenerateForPaymentAsync(payment.Id, "Payment received in cash", companyId, CancellationToken.None);
 
             Assert.NotNull(result);
             Assert.StartsWith("RCP-2026-", result.ReceiptNumber);
@@ -85,7 +85,7 @@ public class ReceiptAndBalanceTests
             await db.SaveChangesAsync();
 
             var ex = await Assert.ThrowsAsync<DomainException>(() =>
-                receiptService.GenerateForPaymentAsync(payment.Id, null, CancellationToken.None));
+                receiptService.GenerateForPaymentAsync(payment.Id, null, companyId, CancellationToken.None));
             Assert.Contains("reversed payment", ex.Message, StringComparison.OrdinalIgnoreCase);
         }
     }
@@ -119,7 +119,7 @@ public class ReceiptAndBalanceTests
             invoice.UpdateStatusFromBalances(fixedNow);
             await db.SaveChangesAsync();
 
-            var receiptResult = await receiptService.GenerateForPaymentAsync(payment.Id, null, CancellationToken.None);
+            var receiptResult = await receiptService.GenerateForPaymentAsync(payment.Id, null, companyId, CancellationToken.None);
             var receiptId = receiptResult.Id;
 
             invoice = await db.Invoices.FirstAsync(i => i.Id == invoice.Id);
@@ -127,7 +127,7 @@ public class ReceiptAndBalanceTests
 
             var reversedBy = Guid.NewGuid();
             var beforeReverse = DateTimeOffset.UtcNow;
-            var reversedResult = await receiptService.ReverseReceiptAsync(receiptId, "Customer returned goods", reversedBy, CancellationToken.None);
+            var reversedResult = await receiptService.ReverseReceiptAsync(receiptId, "Customer returned goods", reversedBy, companyId, CancellationToken.None);
             var afterReverse = DateTimeOffset.UtcNow;
 
             Assert.Equal(ReceiptStatus.Reversed, reversedResult.Status);
@@ -172,14 +172,14 @@ public class ReceiptAndBalanceTests
             invoice.RecalculatePaidAmountFromPayments();
             await db.SaveChangesAsync();
 
-            var receipt = await receiptService.GenerateForPaymentAsync(payment.Id, null, CancellationToken.None);
+            var receipt = await receiptService.GenerateForPaymentAsync(payment.Id, null, companyId, CancellationToken.None);
 
             var ex1 = await Assert.ThrowsAsync<ArgumentException>(() =>
-                receiptService.ReverseReceiptAsync(receipt.Id, "", Guid.NewGuid(), CancellationToken.None));
+                receiptService.ReverseReceiptAsync(receipt.Id, "", Guid.NewGuid(), companyId, CancellationToken.None));
             Assert.Contains("reason", ex1.Message, StringComparison.OrdinalIgnoreCase);
 
             var ex2 = await Assert.ThrowsAsync<ArgumentException>(() =>
-                receiptService.ReverseReceiptAsync(receipt.Id, "   ", Guid.NewGuid(), CancellationToken.None));
+                receiptService.ReverseReceiptAsync(receipt.Id, "   ", Guid.NewGuid(), companyId, CancellationToken.None));
             Assert.Contains("reason", ex2.Message, StringComparison.OrdinalIgnoreCase);
         }
     }
@@ -588,22 +588,22 @@ public class MockSequenceGenerator : ISequenceGenerator
 {
     private readonly ConcurrentDictionary<string, long> _counters = new();
 
-    public Task<string> GenerateLivestockIdAsync(Guid companyId, LivestockType type)
+    public Task<string> GenerateLivestockIdAsync(Guid companyId, LivestockType type, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }
 
-    public Task<string> GenerateInvoiceNumberAsync(Guid companyId)
+    public Task<string> GenerateInvoiceNumberAsync(Guid companyId, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }
 
-    public Task<string> GenerateReceiptNumberAsync(Guid companyId)
+    public Task<string> GenerateReceiptNumberAsync(Guid companyId, CancellationToken ct = default)
     {
         throw new NotImplementedException();
     }
 
-    public Task<string> GenerateDocumentNumberAsync(Guid companyId, string prefix)
+    public Task<string> GenerateDocumentNumberAsync(Guid companyId, string prefix, CancellationToken ct = default)
     {
         var key = $"{companyId}-{prefix}";
         var next = _counters.AddOrUpdate(key, 1, (_, old) => old + 1);
