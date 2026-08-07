@@ -13,7 +13,7 @@ using LivestockManager.Web.Models.DocumentViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewOperationalData")]
 public class DocumentsController : Controller
 {
     private readonly IProtectedDocumentStorage _storage;
@@ -58,6 +58,8 @@ public class DocumentsController : Controller
         return $"{number:n1} {suffixes[counter]}";
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public IActionResult Upload(string entityType, Guid? entityId)
     {
         var vm = new UploadDocumentViewModel
@@ -69,7 +71,7 @@ public class DocumentsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{RoleNames.CompanyAdministrator},{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = "CanViewFinancialData")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(UploadDocumentViewModel vm, CancellationToken ct)
     {
@@ -137,6 +139,8 @@ public class DocumentsController : Controller
         return RedirectToAction(nameof(List), new { entityType = vm.EntityTypeStr, entityId = parsedEntityId });
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> List(string entityType, Guid? entityId, CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();
@@ -194,21 +198,30 @@ public class DocumentsController : Controller
         return View(vm);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();
 
-        var (fileStream, metadata) = await _storage.DownloadAsync(id, companyId, ct);
+        try
+        {
+            var (fileStream, metadata) = await _storage.DownloadAsync(id, companyId, ct);
 
-        var sanitizedName = string.IsNullOrWhiteSpace(metadata.DisplayName)
-            ? $"document_{id:N}"
-            : metadata.DisplayName;
+            var sanitizedName = string.IsNullOrWhiteSpace(metadata.DisplayName)
+                ? $"document_{id:N}"
+                : metadata.DisplayName;
 
-        return File(fileStream, metadata.ContentType ?? "application/octet-stream", fileDownloadName: sanitizedName);
+            return File(fileStream, metadata.ContentType ?? "application/octet-stream", fileDownloadName: sanitizedName);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = "CanManageCompany")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken ct)
     {

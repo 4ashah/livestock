@@ -6,12 +6,14 @@ using LivestockManager.Application.Common;
 using LivestockManager.Application.DTOs.Invoices;
 using LivestockManager.Application.Services.Customers;
 using LivestockManager.Application.Services.Invoices;
+using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
+using LivestockManager.Domain.Exceptions;
 using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewFinancialData")]
 public class InvoicesController : Controller
 {
     private readonly IInvoiceService _invoiceService;
@@ -37,8 +39,12 @@ public class InvoicesController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
-    private bool CanEdit => User.IsInRole("Administrator") || User.IsInRole("Manager");
+    private bool CanEdit => User.IsInRole(RoleNames.Accounts)
+        || User.IsInRole(RoleNames.CompanyAdministrator)
+        || User.IsInRole(RoleNames.SystemAdministrator);
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, InvoiceStatus? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -68,10 +74,21 @@ public class InvoicesController : Controller
         return View(invoices);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var invoice = await _invoiceService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync();
+        InvoiceDetailDto invoice;
+        try
+        {
+            invoice = await _invoiceService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
 
         var payments = await _db.Payments
             .Where(p => p.InvoiceId == id && !p.IsReversed)
@@ -92,20 +109,39 @@ public class InvoicesController : Controller
         return View(invoice);
     }
 
-    [Authorize(Roles = "Administrator,Manager")]
+    [HttpGet]
+    [Authorize(Policy = "CanManageAccounting")]
     public async Task<IActionResult> Confirm(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
+        var companyId = await GetCompanyIdAsync();
         var dto = new InvoiceConfirmDto { InvoiceId = id };
-        await _invoiceService.ConfirmAsync(dto, ct);
+        try
+        {
+            await _invoiceService.ConfirmAsync(dto, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    [Authorize(Roles = "Administrator,Manager")]
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var bytes = await _invoiceService.GetPdfAsync(id, ct);
+        var companyId = await GetCompanyIdAsync();
+        byte[] bytes;
+        try
+        {
+            bytes = await _invoiceService.GetPdfAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         return File(bytes, "application/pdf", $"Invoice_{id:N}.pdf");
     }
 }

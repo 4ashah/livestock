@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using LivestockManager.Application;
+using LivestockManager.Domain.Common;
 using LivestockManager.Infrastructure;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Infrastructure.Persistence;
@@ -33,6 +34,30 @@ builder.Services.AddRazorPages();
 builder.Services.Configure<RouteOptions>(options =>
 {
     options.LowercaseUrls = true;
+});
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("CanViewOperationalData", policy =>
+        policy.RequireRole(RoleNames.Viewer, RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy("CanManageLivestock", policy =>
+        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy("CanManageSales", policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy("CanManageAccounting", policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy("CanManageCompany", policy =>
+        policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy("CanManageSystem", policy =>
+        policy.RequireRole(RoleNames.SystemAdministrator));
+
+    options.AddPolicy("CanViewFinancialData", policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.FarmManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 });
 
 var app = builder.Build();

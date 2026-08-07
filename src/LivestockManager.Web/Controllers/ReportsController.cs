@@ -8,7 +8,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewOperationalData")]
 public class ReportsController : Controller
 {
     private readonly IReportService _reportService;
@@ -31,11 +31,15 @@ public class ReportsController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public IActionResult Index()
     {
         return View();
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> ActiveLivestock(Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -58,6 +62,8 @@ public class ReportsController : Controller
         return View(rows);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> SalesByPeriod(DateTime? from, DateTime? to, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -91,6 +97,8 @@ public class ReportsController : Controller
         return View(rows);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> LivestockProfitability(Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();

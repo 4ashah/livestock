@@ -14,7 +14,7 @@ using LivestockManager.Web.Models;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewOperationalData")]
 public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
@@ -40,6 +40,8 @@ public class HomeController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -93,6 +95,8 @@ public class HomeController : Controller
         return View(kpis);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public IActionResult Privacy()
     {
         return View();

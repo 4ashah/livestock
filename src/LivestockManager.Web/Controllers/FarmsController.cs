@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using LivestockManager.Application.DTOs.Farms;
 using LivestockManager.Application.Services.Farms;
+using LivestockManager.Domain.Exceptions;
 using LivestockManager.Domain.ValueObjects;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models.FarmViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewOperationalData")]
 public class FarmsController : Controller
 {
     private readonly IFarmService _farmService;
@@ -24,6 +25,7 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Index(string? search, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -67,9 +69,22 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
-        var dto = await _farmService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        if (companyId == null)
+            return Challenge();
+
+        FarmDetailDto dto;
+        try
+        {
+            dto = await _farmService.GetByIdAsync(id, companyId.Value, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
 
         string? managerInfo = null;
         if (dto.ManagerUserId.HasValue)
@@ -102,7 +117,7 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Policy = "CanManageCompany")]
     public IActionResult Create()
     {
         var vm = new FarmCreateEditViewModel();
@@ -110,7 +125,7 @@ public class FarmsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Policy = "CanManageCompany")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(FarmCreateEditViewModel vm, CancellationToken ct)
     {
@@ -131,15 +146,27 @@ public class FarmsController : Controller
             WeightUnit = vm.WeightUnit
         };
 
-        var created = await _farmService.CreateAsync(dto, ct);
+        var created = await _farmService.CreateAsync(dto, companyId.Value, ct);
         return RedirectToAction(nameof(Index));
     }
 
     [HttpGet]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Policy = "CanManageCompany")]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
-        var dto = await _farmService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        if (companyId == null)
+            return Challenge();
+
+        FarmDetailDto dto;
+        try
+        {
+            dto = await _farmService.GetByIdAsync(id, companyId.Value, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
 
         var vm = new FarmCreateEditViewModel
         {
@@ -161,7 +188,7 @@ public class FarmsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Policy = "CanManageCompany")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(Guid id, FarmCreateEditViewModel vm, CancellationToken ct)
     {
@@ -170,6 +197,10 @@ public class FarmsController : Controller
 
         if (!ModelState.IsValid)
             return View(vm);
+
+        var companyId = await GetCompanyIdAsync(ct);
+        if (companyId == null)
+            return Challenge();
 
         var updateDto = new FarmUpdateDto
         {
@@ -181,16 +212,34 @@ public class FarmsController : Controller
             IsActive = vm.IsActive
         };
 
-        await _farmService.UpdateAsync(id, updateDto, ct);
+        try
+        {
+            await _farmService.UpdateAsync(id, updateDto, companyId.Value, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         return RedirectToAction(nameof(Details), new { id });
     }
 
     [HttpPost]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Policy = "CanManageCompany")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
-        await _farmService.DeleteAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        if (companyId == null)
+            return Challenge();
+
+        try
+        {
+            await _farmService.DeleteAsync(id, companyId.Value, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         return RedirectToAction(nameof(Index));
     }
 

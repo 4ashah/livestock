@@ -1,4 +1,5 @@
 @using Microsoft.AspNetCore.Identity
+@using LivestockManager.Domain.Common
 @inject SignInManager<ApplicationUser> SignInManager
 <!DOCTYPE html>
 <html lang="en">
@@ -143,29 +144,35 @@
         <div class="py-2">
             @if (SignInManager.IsSignedIn(User))
             {
-                var isViewer = User.IsInRole("Viewer");
-                var isDataEntry = User.IsInRole("DataEntry");
-                var isFarmManager = User.IsInRole("FarmManager") || User.IsInRole("Manager");
-                var isAccounts = User.IsInRole("Accounts");
-                var isCompanyAdmin = User.IsInRole("CompanyAdministrator") || User.IsInRole("Administrator");
-                var isSystemAdmin = User.IsInRole("SystemAdministrator");
-                var isAdmin = isCompanyAdmin || isSystemAdmin;
-                var isManager = isFarmManager || isAdmin;
-                var canWrite = isAdmin || isManager || isDataEntry || isAccounts;
-                var canFinance = isAdmin || isAccounts || isFarmManager;
+                var isViewer = User.IsInRole(RoleNames.Viewer);
+                var isDataEntry = User.IsInRole(RoleNames.DataEntry);
+                var isFarmManager = User.IsInRole(RoleNames.FarmManager);
+                var isAccounts = User.IsInRole(RoleNames.Accounts);
+                var isCompanyAdmin = User.IsInRole(RoleNames.CompanyAdministrator);
+                var isSystemAdmin = User.IsInRole(RoleNames.SystemAdministrator);
+                var canViewOperational = isViewer || isDataEntry || isFarmManager || isAccounts || isCompanyAdmin || isSystemAdmin;
+                var canManageLivestock = isDataEntry || isFarmManager || isCompanyAdmin || isSystemAdmin;
+                var canManageSales = isFarmManager || isAccounts || isCompanyAdmin || isSystemAdmin;
+                var canManageAccounting = isAccounts || isCompanyAdmin || isSystemAdmin;
+                var canManageCompany = isCompanyAdmin || isSystemAdmin;
+                var canViewFinancial = isAccounts || isFarmManager || isCompanyAdmin || isSystemAdmin;
+                var canWrite = canManageLivestock || canManageAccounting || canManageCompany;
 
                 <div class="nav-section-title">Main</div>
                 <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">
-                            <span>&#128202;</span><span>Dashboard</span>
-                        </a>
-                    </li>
+                    @if (canViewOperational)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">
+                                <span>&#128202;</span><span>Dashboard</span>
+                            </a>
+                        </li>
+                    }
                 </ul>
 
                 <div class="nav-section-title">Operations</div>
                 <ul class="nav flex-column">
-                    @if (isAdmin || isFarmManager)
+                    @if (canManageCompany)
                     {
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Farms" asp-action="Index">
@@ -173,11 +180,14 @@
                             </a>
                         </li>
                     }
-                    <li class="nav-item">
-                        <a class="nav-link" asp-area="" asp-controller="Livestock" asp-action="Index">
-                            <span>&#128017;</span><span>Livestock</span>
-                        </a>
-                    </li>
+                    @if (canViewOperational)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Livestock" asp-action="Index">
+                                <span>&#128017;</span><span>Livestock</span>
+                            </a>
+                        </li>
+                    }
                     @if (!isViewer)
                     {
                         <li class="nav-item">
@@ -185,6 +195,9 @@
                                 <span>&#128101;</span><span>Customers</span>
                             </a>
                         </li>
+                    }
+                    @if (canManageAccounting)
+                    {
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Suppliers" asp-action="Index">
                                 <span>&#127973;</span><span>Suppliers</span>
@@ -193,15 +206,18 @@
                     }
                 </ul>
 
-                @if (!isViewer)
+                @if (canViewFinancial)
                 {
                     <div class="nav-section-title">Finance</div>
                     <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Sales" asp-action="Index">
-                                <span>&#128176;</span><span>Sales</span>
-                            </a>
-                        </li>
+                        @if (canManageSales || canViewFinancial)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="" asp-controller="Sales" asp-action="Index">
+                                    <span>&#128176;</span><span>Sales</span>
+                                </a>
+                            </li>
+                        }
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Invoices" asp-action="Index">
                                 <span>&#128196;</span><span>Invoices</span>
@@ -217,14 +233,17 @@
 
                 <div class="nav-section-title">Reporting</div>
                 <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" asp-area="" asp-controller="Reports" asp-action="Index">
-                            <span>&#128200;</span><span>Reports</span>
-                        </a>
-                    </li>
+                    @if (canViewOperational)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Reports" asp-action="Index">
+                                <span>&#128200;</span><span>Reports</span>
+                            </a>
+                        </li>
+                    }
                 </ul>
 
-                @if (isAdmin)
+                @if (canManageCompany)
                 {
                     <div class="nav-section-title">Administration</div>
                     <ul class="nav flex-column">

@@ -9,12 +9,14 @@ using LivestockManager.Application.Services.Farms;
 using LivestockManager.Application.Services.Invoices;
 using LivestockManager.Application.Services.Livestock;
 using LivestockManager.Application.Services.Sales;
+using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
+using LivestockManager.Domain.Exceptions;
 using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewFinancialData")]
 public class SalesController : Controller
 {
     private readonly ISaleService _saleService;
@@ -49,8 +51,13 @@ public class SalesController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
-    private bool CanEdit => User.IsInRole("Administrator") || User.IsInRole("Manager");
+    private bool CanEdit => User.IsInRole(RoleNames.Accounts)
+        || User.IsInRole(RoleNames.FarmManager)
+        || User.IsInRole(RoleNames.CompanyAdministrator)
+        || User.IsInRole(RoleNames.SystemAdministrator);
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, SaleStatus? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -80,10 +87,21 @@ public class SalesController : Controller
         return View(sales);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var sale = await _saleService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync();
+        SaleDetailDto sale;
+        try
+        {
+            sale = await _saleService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         ViewData["CanEdit"] = CanEdit;
 
         var invoiceId = await _db.Invoices
@@ -94,7 +112,8 @@ public class SalesController : Controller
         return View(sale);
     }
 
-    [Authorize(Roles = "Administrator,Manager")]
+    [HttpGet]
+    [Authorize(Policy = "CanManageSales")]
     public async Task<IActionResult> Create(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -118,7 +137,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Policy = "CanManageSales")]
     public async Task<IActionResult> Create(SaleCreateDto dto, Guid[] livestockIds, decimal[] livestockPrices, string[] lineDesc, decimal[] lineQty, decimal[] linePrice, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -163,37 +182,77 @@ public class SalesController : Controller
             }
         }
 
-        var sale = await _saleService.CreateDraftAsync(dto, ct);
+        SaleDetailDto sale;
+        try
+        {
+            sale = await _saleService.CreateDraftAsync(dto, companyId, ct);
+        }
+        catch (DomainException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+            ViewData["Customers"] = await _customerService.ListAsync(companyId, ct);
+            ViewData["ActiveLivestock"] = await _db.Livestock
+                .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
+                .Select(l => new
+                {
+                    l.Id,
+                    l.LivestockId,
+                    l.LivestockTypeId,
+                    l.FarmId,
+                    l.PurchaseAmount,
+                    Display = l.LivestockId + " (" + l.LivestockTypeId + ")",
+                    SuggestedPrice = l.PurchaseAmount * 1.3m
+                })
+                .ToListAsync(ct);
+            return View();
+        }
         return RedirectToAction(nameof(Details), new { id = sale.Id });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Policy = "CanManageSales")]
     public async Task<IActionResult> Confirm(Guid id, SaleConfirmDto dto, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var sale = await _saleService.ConfirmAsync(id, dto ?? new SaleConfirmDto(), ct);
-
-        var invoice = await _db.Invoices
-            .FirstOrDefaultAsync(i => i.SaleId == id, ct);
-
-        if (invoice != null)
+        var companyId = await GetCompanyIdAsync();
+        try
         {
-            var confirmDto = new Application.DTOs.Invoices.InvoiceConfirmDto { InvoiceId = invoice.Id };
-            await _invoiceService.ConfirmAsync(confirmDto, ct);
-        }
+            var sale = await _saleService.ConfirmAsync(id, dto ?? new SaleConfirmDto(), companyId, ct);
 
-        return RedirectToAction(nameof(Details), new { id });
+            var invoice = await _db.Invoices
+                .FirstOrDefaultAsync(i => i.SaleId == id, ct);
+
+            if (invoice != null)
+            {
+                var confirmDto = new Application.DTOs.Invoices.InvoiceConfirmDto { InvoiceId = invoice.Id };
+                await _invoiceService.ConfirmAsync(confirmDto, companyId, ct);
+            }
+
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Policy = "CanManageSales")]
     public async Task<IActionResult> Cancel(Guid id, string reason, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        await _saleService.CancelAsync(id, reason ?? "User cancelled", ct);
+        var companyId = await GetCompanyIdAsync();
+        try
+        {
+            await _saleService.CancelAsync(id, reason ?? "User cancelled", companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         return RedirectToAction(nameof(Details), new { id });
     }
 }

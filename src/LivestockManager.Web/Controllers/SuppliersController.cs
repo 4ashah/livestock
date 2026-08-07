@@ -10,7 +10,7 @@ using LivestockManager.Web.Models.SupplierViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewFinancialData")]
 public class SuppliersController : Controller
 {
     private readonly ISupplierService _supplierService;
@@ -34,6 +34,8 @@ public class SuppliersController : Controller
         || User.IsInRole(RoleNames.CompanyAdministrator)
         || User.IsInRole(RoleNames.SystemAdministrator);
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> Index([FromQuery] string search, [FromQuery] bool? onlyActive, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -59,15 +61,20 @@ public class SuppliersController : Controller
         return View(viewModel);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var supplier = await _supplierService.GetByIdAsync(id, ct);
-
         var companyId = await GetCompanyIdAsync();
-        if (supplier.CompanyId != companyId)
+        SupplierDetailDto supplier;
+        try
         {
-            throw new DomainException("Supplier does not belong to your company.");
+            supplier = await _supplierService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
         }
 
         var vm = new SupplierDetailsViewModel
@@ -95,7 +102,8 @@ public class SuppliersController : Controller
         return View(vm);
     }
 
-    [Authorize(Roles = RoleNames.Accounts + "," + RoleNames.CompanyAdministrator + "," + RoleNames.SystemAdministrator)]
+    [HttpGet]
+    [Authorize(Policy = "CanManageAccounting")]
     public IActionResult Create()
     {
         var vm = new SupplierCreateEditViewModel();
@@ -104,7 +112,7 @@ public class SuppliersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = RoleNames.Accounts + "," + RoleNames.CompanyAdministrator + "," + RoleNames.SystemAdministrator)]
+    [Authorize(Policy = "CanManageAccounting")]
     public async Task<IActionResult> Create(SupplierCreateEditViewModel vm, CancellationToken ct)
     {
         if (!ModelState.IsValid) return View(vm);
@@ -129,7 +137,7 @@ public class SuppliersController : Controller
 
         try
         {
-            var result = await _supplierService.CreateAsync(dto, ct);
+            var result = await _supplierService.CreateAsync(dto, companyId, ct);
             return RedirectToAction(nameof(Details), new { id = result.Id });
         }
         catch (DomainException ex)
@@ -139,16 +147,20 @@ public class SuppliersController : Controller
         }
     }
 
-    [Authorize(Roles = RoleNames.Accounts + "," + RoleNames.CompanyAdministrator + "," + RoleNames.SystemAdministrator)]
+    [HttpGet]
+    [Authorize(Policy = "CanManageAccounting")]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var s = await _supplierService.GetByIdAsync(id, ct);
-
         var companyId = await GetCompanyIdAsync();
-        if (s.CompanyId != companyId)
+        SupplierDetailDto s;
+        try
         {
-            throw new DomainException("Supplier does not belong to your company.");
+            s = await _supplierService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
         }
 
         var vm = new SupplierCreateEditViewModel
@@ -173,7 +185,7 @@ public class SuppliersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = RoleNames.Accounts + "," + RoleNames.CompanyAdministrator + "," + RoleNames.SystemAdministrator)]
+    [Authorize(Policy = "CanManageAccounting")]
     public async Task<IActionResult> Edit(Guid id, SupplierCreateEditViewModel vm, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -183,11 +195,14 @@ public class SuppliersController : Controller
             return View(vm);
         }
 
-        var existing = await _supplierService.GetByIdAsync(id, ct);
         var companyId = await GetCompanyIdAsync();
-        if (existing.CompanyId != companyId)
+        try
         {
-            throw new DomainException("Supplier does not belong to your company.");
+            _ = await _supplierService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
         }
 
         var dto = new SupplierUpdateDto
@@ -210,7 +225,7 @@ public class SuppliersController : Controller
 
         try
         {
-            await _supplierService.UpdateAsync(id, dto, ct);
+            await _supplierService.UpdateAsync(id, dto, companyId, ct);
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (DomainException ex)
@@ -223,19 +238,29 @@ public class SuppliersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = RoleNames.Accounts + "," + RoleNames.CompanyAdministrator + "," + RoleNames.SystemAdministrator)]
+    [Authorize(Policy = "CanManageAccounting")]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
 
-        var existing = await _supplierService.GetByIdAsync(id, ct);
         var companyId = await GetCompanyIdAsync();
-        if (existing.CompanyId != companyId)
+        try
         {
-            throw new DomainException("Supplier does not belong to your company.");
+            _ = await _supplierService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
         }
 
-        await _supplierService.ArchiveAsync(id, ct);
+        try
+        {
+            await _supplierService.ArchiveAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         return RedirectToAction(nameof(Index));
     }
 }

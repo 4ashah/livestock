@@ -4,15 +4,18 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LivestockManager.Application.Common;
 using LivestockManager.Application.DTOs.Payments;
+using LivestockManager.Application.DTOs.Invoices;
 using LivestockManager.Application.Services.Customers;
 using LivestockManager.Application.Services.Invoices;
 using LivestockManager.Application.Services.Payments;
+using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
+using LivestockManager.Domain.Exceptions;
 using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewFinancialData")]
 public class PaymentsController : Controller
 {
     private readonly IPaymentService _paymentService;
@@ -41,8 +44,12 @@ public class PaymentsController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
-    private bool CanEdit => User.IsInRole("Administrator") || User.IsInRole("Manager");
+    private bool CanEdit => User.IsInRole(RoleNames.Accounts)
+        || User.IsInRole(RoleNames.CompanyAdministrator)
+        || User.IsInRole(RoleNames.SystemAdministrator);
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, PaymentMethod? method, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -71,14 +78,26 @@ public class PaymentsController : Controller
         return View(payments);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var payment = await _paymentService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync();
+        PaymentDetailDto payment;
+        try
+        {
+            payment = await _paymentService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         return View(payment);
     }
 
-    [Authorize(Roles = "Administrator,Manager")]
+    [HttpGet]
+    [Authorize(Policy = "CanManageAccounting")]
     public async Task<IActionResult> Create(Guid? invoiceId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -94,7 +113,15 @@ public class PaymentsController : Controller
 
         if (invoiceId.HasValue)
         {
-            var invoice = await _invoiceService.GetByIdAsync(invoiceId.Value, ct);
+            InvoiceDetailDto invoice;
+            try
+            {
+                invoice = await _invoiceService.GetByIdAsync(invoiceId.Value, companyId, ct);
+            }
+            catch (DomainException)
+            {
+                return NotFound();
+            }
             model.CustomerId = invoice.CustomerId;
             model.Amount = invoice.OutstandingAmount;
             model.Allocations = new List<PaymentAllocationDto>
@@ -111,7 +138,7 @@ public class PaymentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Policy = "CanManageAccounting")]
     public async Task<IActionResult> Create(PaymentCreateDto dto, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -140,7 +167,18 @@ public class PaymentsController : Controller
             return View(dto);
         }
 
-        var payment = await _paymentService.PostAsync(dto, ct);
+        PaymentDetailDto payment;
+        try
+        {
+            payment = await _paymentService.PostAsync(dto, companyId, ct);
+        }
+        catch (DomainException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            ViewData["Customers"] = await _customerService.ListAsync(companyId, ct);
+            ViewData["Invoices"] = await _invoiceService.ListAsync(companyId, ct);
+            return View(dto);
+        }
         return RedirectToAction(nameof(Details), new { id = payment.Id });
     }
 }

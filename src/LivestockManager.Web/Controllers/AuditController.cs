@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LivestockManager.Application.Common;
 using LivestockManager.Domain.Common;
+using LivestockManager.Domain.Entities;
+using LivestockManager.Domain.Exceptions;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models.AuditViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Roles = RoleNames.SystemAdministrator + "," + RoleNames.CompanyAdministrator)]
+[Authorize(Policy = "CanManageCompany")]
 public class AuditController : Controller
 {
     private readonly IAppDbContext _db;
@@ -29,6 +31,8 @@ public class AuditController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanManageCompany")]
     public async Task<IActionResult> Index(
         string? entityType,
         string? entityId,
@@ -129,6 +133,8 @@ public class AuditController : Controller
         return View(vm);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanManageCompany")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct = default)
     {
         if (id == Guid.Empty) return NotFound();
@@ -136,15 +142,23 @@ public class AuditController : Controller
         var companyId = await GetCompanyIdAsync();
         var isSystemAdmin = User.IsInRole(RoleNames.SystemAdministrator);
 
-        var audit = await _db.AuditLogs
-            .AsNoTracking()
-            .FirstOrDefaultAsync(a => a.Id == id, ct);
+        AuditLog? audit;
+        try
+        {
+            audit = await _db.AuditLogs
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == id, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
 
         if (audit == null) return NotFound();
 
         if (!isSystemAdmin && audit.CompanyId != companyId)
         {
-            return Forbid();
+            return NotFound();
         }
 
         var vm = new AuditDetailsViewModel

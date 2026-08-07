@@ -9,7 +9,7 @@ using LivestockManager.Web.Models.SettingsViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Roles = RoleNames.CompanyAdministrator + "," + RoleNames.SystemAdministrator)]
+[Authorize(Policy = "CanManageCompany")]
 public class SettingsController : Controller
 {
     private readonly IAppDbContext _db;
@@ -32,6 +32,8 @@ public class SettingsController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanManageCompany")]
     public async Task<IActionResult> Index(Guid? companyId, CancellationToken ct = default)
     {
         var currentUser = await _userManager.GetUserAsync(User);
@@ -88,6 +90,7 @@ public class SettingsController : Controller
     }
 
     [HttpPost]
+    [Authorize(Policy = "CanManageCompany")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(SettingsViewModel vm, CancellationToken ct = default)
     {

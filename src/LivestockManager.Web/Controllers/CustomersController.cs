@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using LivestockManager.Application.DTOs.Customers;
 using LivestockManager.Application.Services.Customers;
+using LivestockManager.Domain.Common;
+using LivestockManager.Domain.Exceptions;
 using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewOperationalData")]
 public class CustomersController : Controller
 {
     private readonly ICustomerService _customerService;
@@ -27,8 +29,13 @@ public class CustomersController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
-    private bool CanEdit => User.IsInRole("Administrator") || User.IsInRole("Manager");
+    private bool CanEdit => User.IsInRole(RoleNames.Accounts)
+        || User.IsInRole(RoleNames.CompanyAdministrator)
+        || User.IsInRole(RoleNames.SystemAdministrator)
+        || User.IsInRole(RoleNames.FarmManager);
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Index(string searchString, CancellationToken ct)
     {
         ViewData["CurrentFilter"] = searchString;
@@ -48,15 +55,27 @@ public class CustomersController : Controller
         return View(customers);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var customer = await _customerService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync();
+        CustomerDetailDto customer;
+        try
+        {
+            customer = await _customerService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         ViewData["CanEdit"] = CanEdit;
         return View(customer);
     }
 
-    [Authorize(Roles = "Administrator,Manager")]
+    [HttpGet]
+    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     public IActionResult Create()
     {
         return View();
@@ -64,20 +83,30 @@ public class CustomersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     public async Task<IActionResult> Create(CustomerCreateDto dto, CancellationToken ct)
     {
         if (!ModelState.IsValid) return View(dto);
-        dto.CompanyId = await GetCompanyIdAsync();
-        var result = await _customerService.CreateAsync(dto, ct);
+        var companyId = await GetCompanyIdAsync();
+        var result = await _customerService.CreateAsync(dto, companyId, ct);
         return RedirectToAction(nameof(Details), new { id = result.Id });
     }
 
-    [Authorize(Roles = "Administrator,Manager")]
+    [HttpGet]
+    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var c = await _customerService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync();
+        CustomerDetailDto c;
+        try
+        {
+            c = await _customerService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         var dto = new CustomerUpdateDto
         {
             Name = c.Name,
@@ -99,7 +128,7 @@ public class CustomersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     public async Task<IActionResult> Edit(Guid id, CustomerUpdateDto dto, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -108,17 +137,34 @@ public class CustomersController : Controller
             ViewData["CustomerId"] = id;
             return View(dto);
         }
-        await _customerService.UpdateAsync(id, dto, ct);
+        var companyId = await GetCompanyIdAsync();
+        try
+        {
+            await _customerService.UpdateAsync(id, dto, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         return RedirectToAction(nameof(Details), new { id });
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
-        var c = await _customerService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync();
+        CustomerDetailDto c;
+        try
+        {
+            c = await _customerService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         var dto = new CustomerUpdateDto
         {
             Name = c.Name,
@@ -134,7 +180,14 @@ public class CustomersController : Controller
             Notes = c.Notes,
             IsActive = !c.IsActive
         };
-        await _customerService.UpdateAsync(id, dto, ct);
+        try
+        {
+            await _customerService.UpdateAsync(id, dto, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         return RedirectToAction(nameof(Details), new { id });
     }
 }

@@ -1,42 +1,45 @@
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LivestockManager.Application.Common;
 using LivestockManager.Application.DTOs.Livestock;
 using LivestockManager.Application.Services.Livestock;
 using LivestockManager.Application.Services.Farms;
+using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
+using LivestockManager.Domain.Exceptions;
+using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models.LivestockViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize]
+[Authorize(Policy = "CanViewOperationalData")]
 public class LivestockController : Controller
 {
     private readonly ILivestockService _livestockService;
     private readonly IFarmService _farmService;
     private readonly IAppDbContext _db;
+    private readonly UserManager<ApplicationUser> _userManager;
 
     public LivestockController(
         ILivestockService livestockService,
         IFarmService farmService,
-        IAppDbContext db)
+        IAppDbContext db,
+        UserManager<ApplicationUser> userManager)
     {
         _livestockService = livestockService;
         _farmService = farmService;
         _db = db;
+        _userManager = userManager;
     }
 
     private async Task<Guid> GetCompanyIdAsync(CancellationToken ct)
     {
-        var companyClaim = User.FindFirstValue("CompanyId");
-        if (!string.IsNullOrWhiteSpace(companyClaim) && Guid.TryParse(companyClaim, out var cid))
-            return cid;
-
-        var defaultCompany = await _db.Companies.FirstOrDefaultAsync(ct);
-        return defaultCompany?.Id ?? Guid.Empty;
+        var user = await _userManager.GetUserAsync(User);
+        return user?.CompanyId ?? Guid.Empty;
     }
 
     private async Task<Microsoft.AspNetCore.Mvc.Rendering.SelectList> GetFarmSelectListAsync(Guid? selectedFarmId, CancellationToken ct)
@@ -85,6 +88,8 @@ public class LivestockController : Controller
         };
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Index(
         Guid? farmId,
         LivestockType? livestockTypeId,
@@ -159,9 +164,20 @@ public class LivestockController : Controller
         return View(vm);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
-        var detail = await _livestockService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        LivestockDetailDto detail;
+        try
+        {
+            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
 
         var vm = new LivestockDetailsViewModel
         {
@@ -205,7 +221,8 @@ public class LivestockController : Controller
         return View(vm);
     }
 
-    [Authorize(Roles = "Administrator,Manager,DataEntry")]
+    [HttpGet]
+    [Authorize(Policy = "CanManageLivestock")]
     public async Task<IActionResult> Register(CancellationToken ct)
     {
         var vm = new LivestockRegisterViewModel
@@ -216,7 +233,7 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = "Administrator,Manager,DataEntry")]
+    [Authorize(Policy = "CanManageLivestock")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(LivestockRegisterViewModel vm, CancellationToken ct)
     {
@@ -242,7 +259,7 @@ public class LivestockController : Controller
 
         try
         {
-            var result = await _livestockService.RegisterAsync(dto, ct);
+            var result = await _livestockService.RegisterAsync(dto, companyId, ct);
             return RedirectToAction(nameof(Details), new { id = result.Id });
         }
         catch (Exception ex)
@@ -253,10 +270,20 @@ public class LivestockController : Controller
         }
     }
 
-    [Authorize(Roles = "Administrator,Manager")]
+    [HttpGet]
+    [Authorize(Roles = $"{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
-        var detail = await _livestockService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        LivestockDetailDto detail;
+        try
+        {
+            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
 
         var vm = new LivestockEditViewModel
         {
@@ -276,16 +303,26 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Roles = $"{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(Guid id, LivestockEditViewModel vm, CancellationToken ct)
     {
         if (id != vm.Id)
             return NotFound();
 
+        var companyId = await GetCompanyIdAsync(ct);
+
         if (!ModelState.IsValid)
         {
-            var detail = await _livestockService.GetByIdAsync(id, ct);
+            LivestockDetailDto detail;
+            try
+            {
+                detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+            }
+            catch (DomainException)
+            {
+                return NotFound();
+            }
             vm.LivestockId = detail.LivestockId;
             vm.LivestockTypeId = detail.LivestockTypeId;
             vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
@@ -304,13 +341,25 @@ public class LivestockController : Controller
 
         try
         {
-            await _livestockService.UpdateAsync(id, dto, ct);
+            await _livestockService.UpdateAsync(id, dto, companyId, ct);
             return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (DomainException)
+        {
+            return NotFound();
         }
         catch (Exception ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            var detail = await _livestockService.GetByIdAsync(id, ct);
+            LivestockDetailDto detail;
+            try
+            {
+                detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+            }
+            catch (DomainException)
+            {
+                return NotFound();
+            }
             vm.LivestockId = detail.LivestockId;
             vm.LivestockTypeId = detail.LivestockTypeId;
             vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
@@ -319,10 +368,20 @@ public class LivestockController : Controller
         }
     }
 
-    [Authorize(Roles = "Administrator,Manager,DataEntry")]
+    [HttpGet]
+    [Authorize(Policy = "CanManageLivestock")]
     public async Task<IActionResult> AddWeight(Guid id, CancellationToken ct)
     {
-        var detail = await _livestockService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        LivestockDetailDto detail;
+        try
+        {
+            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
 
         if (detail.Status != LivestockStatus.Active)
         {
@@ -342,14 +401,23 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = "Administrator,Manager,DataEntry")]
+    [Authorize(Policy = "CanManageLivestock")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddWeight(Guid id, AddWeightViewModel vm, CancellationToken ct)
     {
         if (id != vm.LivestockId)
             return NotFound();
 
-        var detail = await _livestockService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        LivestockDetailDto detail;
+        try
+        {
+            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         vm.LivestockDisplayId = detail.LivestockId;
 
         if (!ModelState.IsValid)
@@ -365,8 +433,12 @@ public class LivestockController : Controller
 
         try
         {
-            await _livestockService.AddWeightAsync(id, dto, ct);
+            await _livestockService.AddWeightAsync(id, dto, companyId, ct);
             return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (DomainException)
+        {
+            return NotFound();
         }
         catch (Exception ex)
         {
@@ -375,10 +447,21 @@ public class LivestockController : Controller
         }
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> WeightHistory(Guid id, CancellationToken ct)
     {
-        var detail = await _livestockService.GetByIdAsync(id, ct);
-        var weights = await _livestockService.GetWeightHistoryAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        LivestockDetailDto detail;
+        try
+        {
+            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
+        var weights = await _livestockService.GetWeightHistoryAsync(id, companyId, ct);
 
         var vm = new List<LivestockWeightHistoryItem>();
         foreach (var w in weights.OrderByDescending(w => w.WeighedAt))
@@ -398,10 +481,20 @@ public class LivestockController : Controller
         return View(vm);
     }
 
-    [Authorize(Roles = "Administrator,Manager")]
+    [HttpGet]
+    [Authorize(Roles = $"{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     public async Task<IActionResult> Discharge(Guid id, CancellationToken ct)
     {
-        var detail = await _livestockService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        LivestockDetailDto detail;
+        try
+        {
+            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
 
         if (detail.Status != LivestockStatus.Active)
         {
@@ -420,14 +513,23 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = "Administrator,Manager")]
+    [Authorize(Roles = $"{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Discharge(Guid id, DischargeViewModel vm, CancellationToken ct)
     {
         if (id != vm.LivestockId)
             return NotFound();
 
-        var detail = await _livestockService.GetByIdAsync(id, ct);
+        var companyId = await GetCompanyIdAsync(ct);
+        LivestockDetailDto detail;
+        try
+        {
+            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
         vm.LivestockDisplayId = detail.LivestockId;
 
         if (!ModelState.IsValid)
@@ -443,8 +545,12 @@ public class LivestockController : Controller
 
         try
         {
-            await _livestockService.DischargeAsync(id, dto, ct);
+            await _livestockService.DischargeAsync(id, dto, companyId, ct);
             return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (DomainException)
+        {
+            return NotFound();
         }
         catch (Exception ex)
         {
@@ -455,7 +561,7 @@ public class LivestockController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Administrator,Manager,DataEntry")]
+    [Authorize(Policy = "CanManageLivestock")]
     public async Task<IActionResult> AddComment(Guid id, string newComment, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(newComment))
@@ -463,6 +569,8 @@ public class LivestockController : Controller
             TempData["Error"] = "Comment cannot be empty.";
             return RedirectToAction(nameof(Details), new { id });
         }
+
+        var companyId = await GetCompanyIdAsync(ct);
 
         var activityDto = new LivestockActivityDto
         {
@@ -473,7 +581,11 @@ public class LivestockController : Controller
 
         try
         {
-            await _livestockService.AddActivityAsync(id, activityDto, ct);
+            await _livestockService.AddActivityAsync(id, activityDto, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
         }
         catch (Exception ex)
         {
@@ -483,7 +595,8 @@ public class LivestockController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
-    [Authorize(Roles = "Administrator,Manager,DataEntry")]
+    [HttpGet]
+    [Authorize(Policy = "CanManageLivestock")]
     public async Task<FileContentResult> ExportCsv(
         Guid? farmId,
         LivestockType? livestockTypeId,
