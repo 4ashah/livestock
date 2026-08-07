@@ -1,0 +1,116 @@
+@using LivestockManager.Web.Models.DocumentViewModels
+@model DocumentListViewModel
+@{
+    ViewData["Title"] = "Documents";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <h1 class="h2">📎 Documents</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        @if (Model.CanUpload)
+        {
+            <a asp-action="Upload" asp-route-entityType="@Model.EntityType"
+               asp-route-entityId="@Model.EntityId"
+               class="btn btn-primary">
+                <span class="me-1">+</span> Upload Documents
+            </a>
+        }
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.EntityType))
+{
+    <div class="alert alert-info small mb-4">
+        <strong>Filtered:</strong> @Model.EntityType
+        @if (Model.EntityId.HasValue)
+        {
+            <span class="text-muted ms-2">(Record: @Model.EntityId.Value.ToString("N").Substring(0, 8)...)</span>
+        }
+        <a asp-action="List" class="ms-2 small">Clear filter</a>
+    </div>
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success mb-4">@TempData["Success"]</div>
+}
+
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger mb-4">@TempData["Error"]</div>
+}
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Filename</th>
+                        <th>Type</th>
+                        <th>Size</th>
+                        <th>Uploaded At</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Items.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                <div class="display-6 mb-2">📎</div>
+                                <div class="h6 mb-1">No documents found</div>
+                                <div class="small">
+                                    @if (Model.CanUpload)
+                                    {
+                                        <text>Upload your first document using the button above.</text>
+                                    }
+                                    else
+                                    {
+                                        <text>Contact your administrator to upload documents.</text>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var item in Model.Items)
+                        {
+                            <tr>
+                                <td class="fw-semibold">
+                                    <a asp-action="Download" asp-route-id="@item.Id"
+                                       class="text-decoration-none text-primary">
+                                        @item.DisplayName
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark border">@item.DocumentType</span>
+                                </td>
+                                <td class="small">@item.SizeFriendly</td>
+                                <td class="small">@item.UploadedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="Download" asp-route-id="@item.Id"
+                                           class="btn btn-outline-secondary">Download</a>
+                                        @if (Model.CanDelete)
+                                        {
+                                            <form asp-action="Delete" method="post" class="d-inline"
+                                                  onsubmit="return confirm('Delete this document? It will be retained for audit purposes.');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <input type="hidden" name="returnUrl"
+                                                       value="@Url.Action("List", new { entityType = Model.EntityType, entityId = Model.EntityId })" />
+                                                <button type="submit" class="btn btn-outline-danger">Delete</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

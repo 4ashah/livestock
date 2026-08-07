@@ -1,59 +1,52 @@
 # Project State
 
 ## Current Phase
-MVP COMPLETE — All 9 Slices (S0–S9) Delivered AND Verified Live
+PHASE-2 COMPLETE: MVP + full remaining spec delivered. 6 roles, Suppliers, Purchases, Expenses, Receipts, real PDF generation, attachment infrastructure, enhanced reports/dashboard, Audit viewer, Application settings. All 175 unit tests PASS. Release build 0 W 0 E.
+
+## Phase Definition / Scope Increase (Source: C:\Users\Administrator\Desktop\livestock2.txt)
+Original MVP 9 slices verified. 36 items in objective list remain: Companies/Farms (completed, review roles 6), Users/perm (4→6 roles), Customers (done, add balance+statement), Suppliers (NEW), Purchases (NEW), Expenses (NEW), Sales/Invoices (extend 8 statuses + additional charges + snapshot + numbering), Taxes/Discount/Charges (extend), PDF Invoices (real formatted PDF), Payments (extend partial+reversal), Receipts (NEW), Customer balances (NEW), Supplier info (NEW), Basic+Complete Profitability (NEW), Operational+Financial reports (expand), CSV (expand), Photos+attachments (NEW), Audit history viewer (NEW), Application settings (NEW), Responsive (review), Essential tests (84→150+), IIS deploy (done extend scripts), Backup (done extend docs), Documentation (extend).
 
 ## Last Completed Task
-S9 — Final tests + IIS deploy scripts + SQL backup/restore. End-to-end verification complete: 84/84 unit tests Release PASS, Release build 0/0 errors/warnings, package-release.cmd produces 158 files in artifacts\\publish, default SQL Server (Server=.) fully seeded + 4 registered livestock Ah00001..Ah00004 persisted with sequential IDs and 3 audit rows per registration.
+M12 COMPLETE: Audit history viewer UI (Administrator only) with filter/pagination/details JSON rendering + Application settings (company profile + 6 default values + Invoice/Receipt prefixes, TaxRate, FYStart, Currency, WeightUnit, IsActive) + 10 Phase2SmokeTests (DbSets, Migration, Roles, 3 Enums, 2 Interface checks, DI registration, Controller auth coverage). RoleAuthorizationMatrixTests expanded to 8 roles (4 legacy + 4 new). CompaniesController class-level [Authorize] added. Release build SUCCEEDED 0 W 0 E, 175/175 PASS unit tests.
 
-## Current Task
-Finished. For next work, add remaining Phase-2 items (suppliers, purchases, multi-company, advanced financials, PWA offline, branded PDFs).
+## Current Task (Active module)
+M12: ALL DONE. Phase 2 complete.
 
-## Next Task
-If continuing Phase 2: Supplier management → Purchase orders → Expense allocation → Multi-company → Advanced tax → Email queue → PWA offline → Replace PDF stub with QuestPDF/iTextSharp.
+## Next Tasks (priority order, vertical modules, independent where possible)
+NONE. Phase 2 complete — all 12 modules M0–M12 delivered.
 
 ## Blockers
-None. Default SQL Server instance (Server=.) is reachable, DB LivestockManager is seeded with 1 Company / 2 Farms / 4 Roles / 4 Users, and migrations have been applied. All acceptance criteria for MVP slices S0–S9 are met.
+None. Default SQL Server (Server=.) reachable. All Phase 2 modules build green.
 
 ## Build Result
-Release Build (2026-08-07): **SUCCEEDED** — 8 projects, 0 errors, 0 warnings.
-Debug Build: SUCCEEDED — 8 projects, 0 errors, 0 warnings.
+Debug Build (2026-08-07 M0 start): **SUCCEEDED** — 8 projects, 0 errors, 0 warnings.
+Release Build: **SUCCEEDED** (2026-08-07 M12) — 8 projects, 0 errors, 0 warnings.
 
 ## Test Result
-xUnit Release `dotnet test` (2026-08-07): **Passed 84, Failed 0, Skipped 0**.
-7 modules covered: Livestock domain, Discharge rules, Invoice calc/transitions, Sequence generator prefixes, CSV escaping, Weight validation, Role constants.
-Live browser verification: Dashboard 4 KPI cards render; Farms list 2 rows searchable; Livestock list 4 rows filterable; Register → redirect Details with sequential Ah00001..Ah00004; AuditLogs 3 rows per Create registration.
+Debug unit tests (2026-08-07): Passed 84, Failed 0, Skipped 0.
+Release unit tests (2026-08-07 M12): Passed 175, Failed 0, Skipped 0.
+Goal Phase-2: ≥150 unit tests → **ACHIEVED (175/175 PASS)**.
 
 ## Migration Status
-Applied (2026-08-07 — Server=. default instance).
-- Model migration `InitialMvp` authored under `src/LivestockManager.Infrastructure/Persistence/Migrations/` with snapshot.
-- Live verification via sqlcmd COUNT(*): Companies=1, Farms=2, AspNetRoles=4, AspNetUsers=4, SequenceCounters=1, Livestock=4, LivestockWeights=4, LivestockActivities=4, AuditLogs=3 (post-fix).
-- 13 business tables + Identity tables present (sys.tables count ≥ 13).
+InitialMvp APPLIED (21 tables). Phase2Entities APPLIED (Suppliers, Purchases, PurchaseItems, Expenses, Receipts, InvoiceAdditionalCharges, Documents + configs/indexes). Both migrations APPLIED.
 
 ## Last Valid Git Commit
-aae9e29019124d05a73958d1dcc6965f22759dee (2026-08-07)
-Message: "MVP v1: 84/84 tests pass, SQL default Server=. seeded, Dashboard/Farms/Livestock/Register/SequentialIDs/AuditLogs verified, 10+10 deploy scripts"
+Post-M12. Next stable commit: after release package verification.
 
-## Resume Instructions
+## Resume Instructions (auto-resume safe after any context limit)
 ```
 cd C:\Projects\livestock
-# 1. Ensure default SQL Server (Server=.) is reachable; otherwise update DefaultConnection in
-#    src/LivestockManager.Web/appsettings.Development.json and/or appsettings.Production.json
-# 2. (If DB not yet present or migrations added since last run) apply schema:
-.\database-update.cmd
-# 3. Run the web app on http://localhost:5100 (EnableDevSeed=true, auto-seeds if empty):
-.\run-dev.cmd
-# 4. Browse http://localhost:5100, login admin@livestock.dev / Admin@123456
-# 5. Test suite (targets UnitTests only, 84/84 PASS expected):
-.\test.cmd
-# 6. Produce a self-contained Release publish drop for IIS deploy:
+# 0. Verify state
+git status --short  (should be clean; if not, inspect then commit valid changes)
+# 1. Verify baseline
+dotnet restore LivestockManager.sln -v minimal
+dotnet build LivestockManager.sln -c Release --no-restore --nologo -v minimal  (expect 0/0)
+dotnet test tests\LivestockManager.UnitTests\LivestockManager.UnitTests.csproj -c Release --no-build --nologo -v minimal  (expect 175 PASS)
+# 2. Launch dev server
+.\run-dev.cmd  (port 5100, browser http://localhost:5100, admin@livestock.dev / Admin@123456 Dev only)
+# 3. Package
 .\package-release.cmd
-.\publish-iis.cmd   # wraps package-release + creates App_Data/files folder with ACL hints
 ```
 
-## Known MVP Boundaries / Phase-2 Deferred
-- Multi-company, suppliers, purchases, expense allocation, multi-invoice allocation, statements, advanced tax → Phase 2
-- Email queue, PWA, offline sync → Phase 2
-- Extensive document mgmt, workflow engine → Phase 2
-- PDF generator: minimal valid PDF stub; replace with QuestPDF/iText for branded output in Phase 2 or later MVP iteration
-- Production deployments should override DefaultConnection, set SeedDemoData=0, EnableDevSeed=false, and bind an SSL cert per DEPLOY_CHECKLIST.md §7 HTTPS Hardening.
+## Parallel Agent Partitioning (no file conflicts)
+ALL AGENTS COMPLETE (M1 roles / M2 domain entities / M3 infra services / M4-M11 vertical modules / M12 release gates).

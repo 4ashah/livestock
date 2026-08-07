@@ -68,4 +68,23 @@ public class Payment : BaseAuditableEntity
     {
         InvoiceId = invoiceId;
     }
+
+    public void ReversePayment(decimal invoiceGrandTotal, string reason, Guid reversedByUserId)
+    {
+        if (IsReversed)
+            throw new InvalidOperationException("Payment is already reversed.");
+
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Reversal reason cannot be empty or whitespace.", nameof(reason));
+
+        IsReversed = true;
+        ReversalReason = reason;
+        ReversedAt = DateTimeOffset.UtcNow;
+        ReversedByUserId = reversedByUserId;
+    }
+
+    public decimal GetContributedAmount()
+    {
+        return IsReversed ? 0m : Amount;
+    }
 }

@@ -7,6 +7,9 @@ using LivestockManager.Domain.Abstractions;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Infrastructure.Persistence;
 using LivestockManager.Infrastructure.Services;
+using LivestockManager.Infrastructure.Services.Pdf;
+using LivestockManager.Infrastructure.Services.Sequencing;
+using LivestockManager.Infrastructure.Services.Storage;
 
 namespace LivestockManager.Infrastructure;
 
@@ -48,7 +51,10 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<IDateTime, DateTimeProvider>();
         services.AddScoped<ISequenceGenerator, EfSequenceGenerator>();
-        services.AddScoped<IPdfGenerator, StubPdfGenerator>();
+        services.AddScoped<IPdfGenerator, FormattedPdfWriter>();
+
+        services.AddScoped<DocumentNumberGenerator>();
+        services.AddScoped<IProtectedDocumentStorage, ProtectedDocumentStorage>();
 
         return services;
     }

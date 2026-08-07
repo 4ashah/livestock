@@ -1,0 +1,94 @@
+@model LivestockManager.Web.Models.SupplierViewModels.SupplierListViewModel
+@{
+    ViewData["Title"] = "Suppliers";
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">🏭 Suppliers</h1>
+        <div class="text-muted small">Manage your supplier database</div>
+    </div>
+    @if (canEdit)
+    {
+        <a asp-action="Create" class="btn btn-primary"><span class="me-1">+</span> New Supplier</a>
+    }
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-3">
+        <form asp-action="Index" method="get" class="row g-2">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" placeholder="Search by Name, Code, Tax#, Email..." value="@Model.SearchTerm" />
+                    <button class="btn btn-outline-secondary" type="submit">🔍 Search</button>
+                    @if (!string.IsNullOrWhiteSpace(Model.SearchTerm) || Model.OnlyActive.HasValue)
+                    {
+                        <a asp-action="Index" class="btn btn-outline-danger">✕ Clear</a>
+                    }
+                </div>
+            </div>
+            <div class="col-md-6 d-flex align-items-center">
+                <div class="form-check form-switch">
+                    <input type="checkbox" name="onlyActive" id="onlyActive" class="form-check-input" value="true" @(Model.OnlyActive == true ? "checked" : "") />
+                    <label class="form-check-label" for="onlyActive">Only Active</label>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Code</th>
+                        <th>Name</th>
+                        <th>Tax #</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Terms</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in Model.Items)
+                    {
+                        <tr>
+                            <td><code>@s.Code</code></td>
+                            <td>@s.Name</td>
+                            <td>@s.TaxNumber</td>
+                            <td>@s.Email</td>
+                            <td>@s.Phone</td>
+                            <td>@(s.PaymentTermsDays.HasValue ? s.PaymentTermsDays.Value + "d" : "-")</td>
+                            <td>
+                                @if (s.IsActive)
+                                {
+                                    <span class="badge bg-success">Active</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Archived</span>
+                                }
+                            </td>
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@s.Id" class="btn btn-sm btn-outline-primary">Details</a>
+                                @if (canEdit)
+                                {
+                                    <a asp-action="Edit" asp-route-id="@s.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                }
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Items.Any())
+                    {
+                        <tr><td colspan="8" class="text-center py-5 text-muted small">No suppliers found. @if (canEdit) { <text>Create your first supplier.</text> }</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

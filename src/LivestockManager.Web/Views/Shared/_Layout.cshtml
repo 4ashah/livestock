@@ -145,10 +145,14 @@
             {
                 var isViewer = User.IsInRole("Viewer");
                 var isDataEntry = User.IsInRole("DataEntry");
-                var isManager = User.IsInRole("Manager");
-                var isAdmin = User.IsInRole("Administrator");
-                var canWrite = isAdmin || isManager || isDataEntry;
-                var canFinance = isAdmin || isManager;
+                var isFarmManager = User.IsInRole("FarmManager") || User.IsInRole("Manager");
+                var isAccounts = User.IsInRole("Accounts");
+                var isCompanyAdmin = User.IsInRole("CompanyAdministrator") || User.IsInRole("Administrator");
+                var isSystemAdmin = User.IsInRole("SystemAdministrator");
+                var isAdmin = isCompanyAdmin || isSystemAdmin;
+                var isManager = isFarmManager || isAdmin;
+                var canWrite = isAdmin || isManager || isDataEntry || isAccounts;
+                var canFinance = isAdmin || isAccounts || isFarmManager;
 
                 <div class="nav-section-title">Main</div>
                 <ul class="nav flex-column">
@@ -161,7 +165,7 @@
 
                 <div class="nav-section-title">Operations</div>
                 <ul class="nav flex-column">
-                    @if (isAdmin || isManager)
+                    @if (isAdmin || isFarmManager)
                     {
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Farms" asp-action="Index">
@@ -179,6 +183,11 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Customers" asp-action="Index">
                                 <span>&#128101;</span><span>Customers</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Suppliers" asp-action="Index">
+                                <span>&#127973;</span><span>Suppliers</span>
                             </a>
                         </li>
                     }
@@ -214,6 +223,23 @@
                         </a>
                     </li>
                 </ul>
+
+                @if (isAdmin)
+                {
+                    <div class="nav-section-title">Administration</div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Audit" asp-action="Index">
+                                <span>&#128195;</span><span>Audit Logs</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="" asp-controller="Settings" asp-action="Index">
+                                <span>&#9881;</span><span>Settings</span>
+                            </a>
+                        </li>
+                    </ul>
+                }
             }
         </div>
     </aside>

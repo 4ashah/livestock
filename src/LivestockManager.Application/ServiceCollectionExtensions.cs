@@ -12,6 +12,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Services.Payments.IPaymentService, Services.Payments.PaymentService>();
         services.AddScoped<Services.Reports.IReportService, Services.Reports.ReportService>();
         services.AddScoped<Services.Customers.ICustomerService, Services.Customers.CustomerService>();
+        services.AddScoped<Services.Customers.ICustomerBalanceService, Services.Customers.CustomerBalanceService>();
+        services.AddScoped<Services.Expenses.IExpenseService, Services.Expenses.ExpenseService>();
+        services.AddScoped<Services.Receipts.IReceiptService, Services.Receipts.ReceiptService>();
+        services.AddScoped<Services.Suppliers.ISupplierService, Services.Suppliers.SupplierService>();
+        services.AddScoped<Services.Purchases.IPurchaseService, Services.Purchases.PurchaseService>();
         services.AddScoped<Services.Companies.ICompanyService, Services.Companies.CompanyService>();
         services.AddScoped<Services.Farms.IFarmService, Services.Farms.FarmService>();
 

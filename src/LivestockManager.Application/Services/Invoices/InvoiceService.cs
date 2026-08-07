@@ -33,7 +33,12 @@ public class InvoiceService : IInvoiceService
             ?? throw new DomainException($"Invoice {id} not found.");
 
         var items = await _db.InvoiceItems.Where(it => it.InvoiceId == id).ToListAsync(ct);
+        var payments = await _db.Payments.Where(p => p.InvoiceId == id).ToListAsync(ct);
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == invoice.CustomerId, ct);
+
+        invoice.Items = items;
+        invoice.Payments = payments;
+        invoice.RecalculatePaidAmountFromPayments();
 
         return MapToDetail(invoice, items, customer?.Name);
     }
@@ -51,7 +56,13 @@ public class InvoiceService : IInvoiceService
             invoice.InvoiceNumber = await _sequenceGenerator.GenerateInvoiceNumberAsync(invoice.CompanyId);
         }
 
+        var items = await _db.InvoiceItems.Where(it => it.InvoiceId == dto.InvoiceId).ToListAsync(ct);
+        invoice.Items = items;
+        invoice.DiscountTotal = items.Sum(i => i.DiscountAmount);
+        invoice.UpdateTotalsFromItemsAndCharges();
+
         invoice.Status = InvoiceStatus.Confirmed;
+        invoice.UpdateStatusFromBalances(_dateTime.Now);
         invoice.ModifiedAt = _dateTime.Now;
 
         await _db.SaveChangesAsync(ct);
@@ -90,11 +101,9 @@ public class InvoiceService : IInvoiceService
 
         var items = await _db.InvoiceItems.Where(it => it.InvoiceId == invoiceId).ToListAsync(ct);
 
-        invoice.Subtotal = items.Sum(i => i.Quantity * i.UnitPrice - i.DiscountAmount);
+        invoice.Items = items;
         invoice.DiscountTotal = items.Sum(i => i.DiscountAmount);
-        invoice.TaxTotal = items.Sum(i => i.TaxAmount);
-        invoice.ChargeTotal = 0;
-        invoice.GrandTotal = invoice.Subtotal + invoice.TaxTotal + invoice.ChargeTotal;
+        invoice.UpdateTotalsFromItemsAndCharges();
         invoice.ModifiedAt = _dateTime.Now;
 
         await _db.SaveChangesAsync(ct);

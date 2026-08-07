@@ -76,6 +76,8 @@ public class Invoice : BaseAuditableEntity
 
     public virtual List<Payment> Payments { get; set; } = new();
 
+    public virtual List<InvoiceAdditionalCharge> AdditionalCharges { get; set; } = new();
+
     protected Invoice()
     {
     }
@@ -108,5 +110,123 @@ public class Invoice : BaseAuditableEntity
         {
             Status = InvoiceStatus.PartiallyPaid;
         }
+    }
+
+    public void UpdateTotalsFromItemsAndCharges()
+    {
+        const MidpointRounding Rounding = MidpointRounding.AwayFromZero;
+
+        decimal subtotal = 0m;
+        decimal taxTotal = 0m;
+
+        foreach (var item in Items)
+        {
+            decimal gross = item.UnitPrice * item.Quantity;
+            decimal discountPctAsFraction = item.DiscountPercent;
+            if (discountPctAsFraction > 1m)
+                discountPctAsFraction /= 100m;
+
+            decimal netAfterDiscount = Math.Round(gross * (1m - discountPctAsFraction), 2, Rounding);
+            subtotal += netAfterDiscount;
+
+            decimal taxPctAsFraction = item.TaxPercent;
+            if (taxPctAsFraction > 1m)
+                taxPctAsFraction /= 100m;
+
+            decimal itemTax = Math.Round(netAfterDiscount * taxPctAsFraction, 2, Rounding);
+            taxTotal += itemTax;
+        }
+
+        decimal chargeTotal = 0m;
+        foreach (var charge in AdditionalCharges)
+        {
+            chargeTotal += charge.Amount + charge.TaxAmount;
+            taxTotal += charge.TaxAmount;
+        }
+
+        Subtotal = subtotal;
+        ChargeTotal = chargeTotal;
+        TaxTotal = taxTotal;
+        GrandTotal = Subtotal - DiscountTotal + TaxTotal + ChargeTotal;
+    }
+
+    public void UpdateStatusFromBalances(DateTimeOffset today, bool allowOverdueMarker = true)
+    {
+        if (Status == InvoiceStatus.Cancelled || Status == InvoiceStatus.Voided)
+            return;
+
+        if (PaidAmount <= 0.001m)
+        {
+            if (Status != InvoiceStatus.Draft)
+                Status = InvoiceStatus.Confirmed;
+        }
+        else if (PaidAmount + 0.001m < GrandTotal)
+        {
+            Status = InvoiceStatus.PartiallyPaid;
+        }
+        else if (Math.Abs(PaidAmount - GrandTotal) <= 0.001m)
+        {
+            Status = InvoiceStatus.Paid;
+        }
+
+        if (allowOverdueMarker
+            && today > DueDate
+            && OutstandingAmount > 0.001m
+            && Status != InvoiceStatus.Cancelled
+            && Status != InvoiceStatus.Voided)
+        {
+            Status = InvoiceStatus.Overdue;
+        }
+    }
+
+    public void SnapshotCustomer(Customer c)
+    {
+        if (c == null)
+        {
+            CustomerSnapshot = null;
+            return;
+        }
+
+        var parts = new[]
+        {
+            c.Name ?? string.Empty,
+            c.TaxNumber ?? string.Empty,
+            c.BillingAddress?.Street1 ?? string.Empty,
+            c.BillingAddress?.Street2 ?? string.Empty,
+            c.BillingAddress?.City ?? string.Empty,
+            c.BillingAddress?.State ?? string.Empty,
+            c.BillingAddress?.PostalCode ?? string.Empty,
+            c.BillingAddress?.Country ?? string.Empty
+        };
+
+        CustomerSnapshot = string.Join("|", parts);
+    }
+
+    public void SnapshotCompany(Company c)
+    {
+        if (c == null)
+        {
+            CompanySnapshot = null;
+            return;
+        }
+
+        var parts = new[]
+        {
+            c.Name ?? string.Empty,
+            c.TaxNumber ?? string.Empty,
+            c.Address?.Street1 ?? string.Empty,
+            c.Address?.Street2 ?? string.Empty,
+            c.Address?.City ?? string.Empty,
+            c.Address?.State ?? string.Empty,
+            c.Address?.PostalCode ?? string.Empty,
+            c.Address?.Country ?? string.Empty
+        };
+
+        CompanySnapshot = string.Join("|", parts);
+    }
+
+    public void RecalculatePaidAmountFromPayments()
+    {
+        PaidAmount = Payments.Sum(p => p.GetContributedAmount());
     }
 }

@@ -1,0 +1,97 @@
+@model LivestockManager.Web.Models.SupplierViewModels.SupplierDetailsViewModel
+@{
+    ViewData["Title"] = "Supplier Details";
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">
+            @if (Model.IsActive)
+            { <span class="badge bg-success me-2">Active</span> }
+            else
+            { <span class="badge bg-secondary me-2">Archived</span> }
+            @Model.Name
+        </h1>
+        <div class="text-muted small">
+            <code>@Model.Code</code> · Created @Model.CreatedAt.ToString("yyyy-MM-dd")
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">← List</a>
+        @if (canEdit)
+        {
+            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">✏️ Edit</a>
+            <form asp-action="Archive" asp-route-id="@Model.Id" method="post" class="d-inline">
+                <button type="submit" class="btn btn-outline-warning" onclick="return confirm('Archive this supplier?');">
+                    📦 Archive
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">📋 Supplier Info</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small fw-semibold">Supplier Code</dt>
+                    <dd class="col-sm-8"><code>@Model.Code</code></dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Name</dt>
+                    <dd class="col-sm-8">@Model.Name</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Legal Name</dt>
+                    <dd class="col-sm-8">@Model.LegalName</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Tax Number</dt>
+                    <dd class="col-sm-8">@Model.TaxNumber</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Phone</dt>
+                    <dd class="col-sm-8">@Model.Phone</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Email</dt>
+                    <dd class="col-sm-8">@Model.Email</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Bank Account</dt>
+                    <dd class="col-sm-8">@Model.BankAccount</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Payment Terms</dt>
+                    <dd class="col-sm-8">@(Model.PaymentTermsDays.HasValue ? Model.PaymentTermsDays.Value + " days" : "-")</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Currency</dt>
+                    <dd class="col-sm-8">@Model.Currency</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Status</dt>
+                    <dd class="col-sm-8">@(Model.IsActive ? "Active" : "Archived")</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Address</dt>
+                    <dd class="col-sm-8">@Model.Address</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Notes</dt>
+                    <dd class="col-sm-8">@Model.Notes</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">🛒 Purchase History</h6>
+            </div>
+            <div class="card-body">
+                @if (Model.PurchaseHistory.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Reference</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else { <div class="text-muted small">No purchase history available.</div> }
+            </div>
+        </div>
+    </div>
+</div>

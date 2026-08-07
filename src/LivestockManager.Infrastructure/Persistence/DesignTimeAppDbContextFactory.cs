@@ -10,7 +10,7 @@ public class DesignTimeAppDbContextFactory : IDesignTimeDbContextFactory<AppDbCo
     {
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
         optionsBuilder.UseSqlServer(
-            "Server=(localdb)\\MSSQLLocalDB;Database=LivestockManager_Design;Trusted_Connection=True;MultipleActiveResultSets=true");
+            "Server=.;Database=LivestockManager;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Connect Timeout=15");
 
         return new AppDbContext(optionsBuilder.Options);
     }

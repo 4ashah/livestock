@@ -51,8 +51,10 @@ public class PaymentService : IPaymentService
                 var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == allocDto.InvoiceId, ct)
                     ?? throw new DomainException($"Invoice {allocDto.InvoiceId} not found.");
 
-                invoice.PaidAmount += allocDto.Amount;
-                UpdateInvoiceStatus(invoice);
+                var invPayments = await _db.Payments.Where(p => p.InvoiceId == allocDto.InvoiceId).ToListAsync(ct);
+                invoice.Payments = invPayments;
+                invoice.RecalculatePaidAmountFromPayments();
+                invoice.UpdateStatusFromBalances(_dateTime.Now);
             }
 
             await _db.SaveChangesAsync(ct);
@@ -78,9 +80,15 @@ public class PaymentService : IPaymentService
             if (payment.IsReversed)
                 throw new DomainException("Payment is already reversed.");
 
-            payment.IsReversed = true;
-            payment.ReversalReason = reason;
-            payment.ReversedAt = _dateTime.Now;
+            decimal invoiceGrandTotal = 0m;
+            if (payment.InvoiceId.HasValue)
+            {
+                var invoiceForGrandTotal = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == payment.InvoiceId.Value, ct);
+                invoiceGrandTotal = invoiceForGrandTotal?.GrandTotal ?? 0m;
+            }
+
+            var reversedByUserId = Guid.Empty;
+            payment.ReversePayment(invoiceGrandTotal, reason, reversedByUserId);
             payment.ModifiedAt = _dateTime.Now;
 
             if (payment.InvoiceId.HasValue)
@@ -88,9 +96,10 @@ public class PaymentService : IPaymentService
                 var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == payment.InvoiceId.Value, ct);
                 if (invoice != null)
                 {
-                    invoice.PaidAmount -= payment.Amount;
-                    if (invoice.PaidAmount < 0) invoice.PaidAmount = 0;
-                    UpdateInvoiceStatus(invoice);
+                    var invPayments = await _db.Payments.Where(p => p.InvoiceId == payment.InvoiceId.Value).ToListAsync(ct);
+                    invoice.Payments = invPayments;
+                    invoice.RecalculatePaidAmountFromPayments();
+                    invoice.UpdateStatusFromBalances(_dateTime.Now);
                 }
             }
 

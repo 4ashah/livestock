@@ -33,6 +33,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<SequenceCounter> SequenceCounters => Set<SequenceCounter>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    #region Phase 2 Entities
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<Purchase> Purchases => Set<Purchase>();
+    public DbSet<PurchaseItem> PurchaseItems => Set<PurchaseItem>();
+    public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<Receipt> Receipts => Set<Receipt>();
+    public DbSet<InvoiceAdditionalCharge> InvoiceAdditionalCharges => Set<InvoiceAdditionalCharge>();
+    public DbSet<Document> Documents => Set<Document>();
+    #endregion
+
     async Task<IDbContextTransactionFacade> IAppDbContext.BeginTransactionAsync(CancellationToken cancellationToken)
     {
         var transaction = await Database.BeginTransactionAsync(cancellationToken);

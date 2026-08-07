@@ -4,8 +4,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using LivestockManager.Application.Common;
+using LivestockManager.Application.DTOs.Dashboard;
 using LivestockManager.Application.DTOs.Livestock;
 using LivestockManager.Application.DTOs.Invoices;
+using LivestockManager.Application.Services.Reports;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models;
@@ -17,15 +19,18 @@ public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
     private readonly IAppDbContext _db;
+    private readonly IReportService _reportService;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public HomeController(
         ILogger<HomeController> logger,
         IAppDbContext db,
+        IReportService reportService,
         UserManager<ApplicationUser> userManager)
     {
         _logger = logger;
         _db = db;
+        _reportService = reportService;
         _userManager = userManager;
     }
 
@@ -38,40 +43,8 @@ public class HomeController : Controller
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
-        var today = DateTimeOffset.UtcNow.Date;
-        var monthStart = new DateTimeOffset(today.Year, today.Month, 1, 0, 0, 0, TimeSpan.Zero);
 
-        var activeLivestockCount = await _db.Livestock
-            .CountAsync(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active, ct);
-
-        var dischargedTodayCount = await _db.Livestock
-            .CountAsync(l => l.CompanyId == companyId
-                && l.DischargeDate.HasValue
-                && l.DischargeDate.Value.Date == today, ct);
-
-        var revenueStatuses = new[]
-        {
-            InvoiceStatus.Confirmed,
-            InvoiceStatus.PartiallyPaid,
-            InvoiceStatus.Paid,
-            InvoiceStatus.Overdue
-        };
-
-        var revenueMonthToDate = await _db.Invoices
-            .Where(i => i.CompanyId == companyId
-                && i.InvoiceDate >= monthStart
-                && revenueStatuses.Contains(i.Status))
-            .SumAsync(i => (decimal?)i.GrandTotal ?? 0, ct);
-
-        var soldLivestockMonthToDate = await _db.Livestock
-            .Where(l => l.CompanyId == companyId
-                && l.Status == LivestockStatus.DischargedSold
-                && l.DischargeDate.HasValue
-                && l.DischargeDate.Value >= monthStart)
-            .ToListAsync(ct);
-
-        var profitMonthToDate = soldLivestockMonthToDate
-            .Sum(l => l.BasicProfitLoss ?? 0);
+        var kpis = await _reportService.GetDashboardKpisAsync(companyId, ct);
 
         var recentLivestock = await _db.Livestock
             .Where(l => l.CompanyId == companyId)
@@ -114,14 +87,10 @@ public class HomeController : Controller
             })
             .ToListAsync(ct);
 
-        ViewData["ActiveLivestockCount"] = activeLivestockCount;
-        ViewData["DischargedTodayCount"] = dischargedTodayCount;
-        ViewData["RevenueMonthToDate"] = revenueMonthToDate;
-        ViewData["ProfitMonthToDate"] = profitMonthToDate;
         ViewData["RecentLivestock"] = recentLivestock;
         ViewData["RecentInvoices"] = recentInvoices;
 
-        return View();
+        return View(kpis);
     }
 
     public IActionResult Privacy()

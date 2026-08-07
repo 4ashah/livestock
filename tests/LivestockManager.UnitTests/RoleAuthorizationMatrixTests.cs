@@ -9,9 +9,21 @@ public class RoleAuthorizationMatrixTests
     public const string DataEntry = "DataEntry";
     public const string Viewer = "Viewer";
 
+    public const string FarmManager = "FarmManager";
+    public const string Accounts = "Accounts";
+    public const string CompanyAdministrator = "CompanyAdministrator";
+    public const string SystemAdministrator = "SystemAdministrator";
+
     private static readonly HashSet<string> AllowedRoles = new()
     {
-        Administrator, Manager, DataEntry, Viewer
+        Administrator,
+        Manager,
+        DataEntry,
+        Viewer,
+        FarmManager,
+        Accounts,
+        CompanyAdministrator,
+        SystemAdministrator
     };
 
     [Fact]
@@ -21,23 +33,31 @@ public class RoleAuthorizationMatrixTests
         Assert.Equal("Manager", Manager);
         Assert.Equal("DataEntry", DataEntry);
         Assert.Equal("Viewer", Viewer);
+        Assert.Equal("FarmManager", FarmManager);
+        Assert.Equal("Accounts", Accounts);
+        Assert.Equal("CompanyAdministrator", CompanyAdministrator);
+        Assert.Equal("SystemAdministrator", SystemAdministrator);
     }
 
     [Fact]
-    public void AllowedRoles_HasExactlyFourEntries()
+    public void AllowedRoles_HasExpandedPhase2Entries()
     {
-        Assert.Equal(4, AllowedRoles.Count);
+        Assert.Equal(8, AllowedRoles.Count);
         Assert.Contains(Administrator, AllowedRoles);
         Assert.Contains(Manager, AllowedRoles);
         Assert.Contains(DataEntry, AllowedRoles);
         Assert.Contains(Viewer, AllowedRoles);
+        Assert.Contains(FarmManager, AllowedRoles);
+        Assert.Contains(Accounts, AllowedRoles);
+        Assert.Contains(CompanyAdministrator, AllowedRoles);
+        Assert.Contains(SystemAdministrator, AllowedRoles);
     }
 
     [Fact]
     public void RoleConstants_AreDistinct()
     {
-        var roles = new[] { Administrator, Manager, DataEntry, Viewer };
-        Assert.Equal(4, roles.Distinct().Count());
+        var roles = new[] { Administrator, Manager, DataEntry, Viewer, FarmManager, Accounts, CompanyAdministrator, SystemAdministrator };
+        Assert.Equal(8, roles.Distinct().Count());
     }
 
     [Fact]

@@ -1,7 +1,9 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LivestockManager.Web.Controllers;
 
+[Authorize]
 public class CompaniesController : Controller
 {
     public IActionResult Index()

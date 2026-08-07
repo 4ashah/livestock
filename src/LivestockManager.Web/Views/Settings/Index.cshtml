@@ -1,0 +1,155 @@
+@model LivestockManager.Web.Models.SettingsViewModels.SettingsViewModel
+@{
+    ViewData["Title"] = "Application Settings";
+    var successMsg = TempData["SuccessMessage"] as string;
+    var monthOptions = Enumerable.Range(1, 12).Select(m => new { Value = m, Text = new DateTime(2000, m, 1).ToString("MMMM") }).ToList();
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">⚙️ Application Settings</h1>
+        <div class="text-muted small">Configure company profile and default values</div>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(successMsg))
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        ✅ @successMsg
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<form asp-action="Index" method="post">
+    <input type="hidden" asp-for="Id" />
+
+    <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-transparent border-bottom">
+                    <h6 class="mb-0 fw-bold">🏢 Company Profile</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label asp-for="CompanyName" class="form-label fw-semibold"></label>
+                        <input asp-for="CompanyName" class="form-control" placeholder="Acme Farms Ltd." />
+                        <span asp-validation-for="CompanyName" class="text-danger small"></span>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="RegistrationNumber" class="form-label fw-semibold"></label>
+                            <input asp-for="RegistrationNumber" class="form-control" placeholder="REG-000000" />
+                            <span asp-validation-for="RegistrationNumber" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TaxNumber" class="form-label fw-semibold"></label>
+                            <input asp-for="TaxNumber" class="form-control" placeholder="TAX-000000" />
+                            <span asp-validation-for="TaxNumber" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mt-1">
+                        <div class="col-md-6">
+                            <label asp-for="Phone" class="form-label fw-semibold"></label>
+                            <input asp-for="Phone" class="form-control" placeholder="+1 555 0123" />
+                            <span asp-validation-for="Phone" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Email" class="form-label fw-semibold"></label>
+                            <input asp-for="Email" class="form-control" placeholder="admin@company.com" />
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top">
+                        <div class="form-check form-switch">
+                            <input asp-for="IsActive" class="form-check-input" role="switch" />
+                            <label asp-for="IsActive" class="form-check-label fw-semibold"></label>
+                            <div class="text-muted small mt-1">When disabled, company data is preserved but logins and operations are restricted.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-sm border-0 h-100">
+                <div class="card-header bg-transparent border-bottom">
+                    <h6 class="mb-0 fw-bold">🎯 Defaults & Numbering</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="InvoicePrefix" class="form-label fw-semibold"></label>
+                            <input asp-for="InvoicePrefix" class="form-control text-uppercase" maxlength="10" placeholder="INV" />
+                            <span asp-validation-for="InvoicePrefix" class="text-danger small"></span>
+                            <div class="text-muted small mt-1">Invoice numbers: PREFIX-YYYY-NNNNN (max 10 chars)</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="ReceiptPrefix" class="form-label fw-semibold"></label>
+                            <input asp-for="ReceiptPrefix" class="form-control text-uppercase" maxlength="10" placeholder="RCT" />
+                            <span asp-validation-for="ReceiptPrefix" class="text-danger small"></span>
+                            <div class="text-muted small mt-1">Receipt numbers: PREFIX-YYYY-NNNNN (max 10 chars)</div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label asp-for="TaxRate" class="form-label fw-semibold"></label>
+                        <div class="input-group">
+                            <input asp-for="TaxRate" class="form-control" step="0.0001" min="0" max="1" placeholder="0.15" />
+                            <span class="input-group-text">@((Model.TaxRate * 100).ToString("N2"))%</span>
+                        </div>
+                        <span asp-validation-for="TaxRate" class="text-danger small"></span>
+                        <div class="text-muted small mt-1">Default tax rate for invoices and purchases (0.00 to 1.00)</div>
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="FinancialYearStartMonth" class="form-label fw-semibold"></label>
+                            <select asp-for="FinancialYearStartMonth" class="form-select">
+                                @foreach (var m in monthOptions)
+                                {
+                                    <option value="@m.Value">@m.Text</option>
+                                }
+                            </select>
+                            <span asp-validation-for="FinancialYearStartMonth" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Currency" class="form-label fw-semibold"></label>
+                            <select asp-for="Currency" class="form-select">
+                                @foreach (var c in Enum.GetValues<LivestockManager.Domain.Enums.Currency>())
+                                {
+                                    <option value="@((int)c)">@c</option>
+                                }
+                            </select>
+                            <span asp-validation-for="Currency" class="text-danger small"></span>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label asp-for="WeightUnit" class="form-label fw-semibold"></label>
+                        <div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="WeightUnit" id="wuKg" value="@((int)LivestockManager.Domain.Enums.WeightUnit.Kg)" @(Model.WeightUnit == LivestockManager.Domain.Enums.WeightUnit.Kg ? "checked" : "")>
+                                <label class="form-check-label" for="wuKg">Kilograms (kg)</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="WeightUnit" id="wuLb" value="@((int)LivestockManager.Domain.Enums.WeightUnit.Lb)" @(Model.WeightUnit == LivestockManager.Domain.Enums.WeightUnit.Lb ? "checked" : "")>
+                                <label class="form-check-label" for="wuLb">Pounds (lb)</label>
+                            </div>
+                        </div>
+                        <span asp-validation-for="WeightUnit" class="text-danger small"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex justify-content-end gap-2 mt-4">
+        <a asp-action="Index" asp-route-companyId="@Model.Id" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" class="btn btn-primary">💾 Save Settings</button>
+    </div>
+</form>
+
+<partial name="_ValidationScriptsPartial" />

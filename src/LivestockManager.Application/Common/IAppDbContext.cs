@@ -19,6 +19,12 @@ public interface IAppDbContext
     DbSet<Payment> Payments { get; }
     DbSet<SequenceCounter> SequenceCounters { get; }
     DbSet<AuditLog> AuditLogs { get; }
+    DbSet<Supplier> Suppliers { get; }
+    DbSet<Purchase> Purchases { get; }
+    DbSet<PurchaseItem> PurchaseItems { get; }
+    DbSet<Expense> Expenses { get; }
+    DbSet<Receipt> Receipts { get; }
+    DbSet<InvoiceAdditionalCharge> InvoiceAdditionalCharges { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

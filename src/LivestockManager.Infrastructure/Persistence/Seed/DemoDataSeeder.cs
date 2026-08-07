@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Infrastructure.Identity;
@@ -10,7 +11,7 @@ namespace LivestockManager.Infrastructure.Persistence.Seed;
 
 public static class DemoDataSeeder
 {
-    private const string AdminPassword = "Admin@123456";
+    private const string DevPassword = "Dev@123456";
 
     public static async Task SeedAsync(
         AppDbContext dbContext,
@@ -99,10 +100,12 @@ public static class DemoDataSeeder
     {
         var roles = new[]
         {
-            new { Name = "Administrator", Desc = "Full system access" },
-            new { Name = "Manager", Desc = "Farm and operational management" },
-            new { Name = "DataEntry", Desc = "Can create and edit records" },
-            new { Name = "Viewer", Desc = "Read-only access" }
+            new { Name = RoleNames.SystemAdministrator, Desc = "Cross-company system-level access" },
+            new { Name = RoleNames.CompanyAdministrator, Desc = "Full company-level access" },
+            new { Name = RoleNames.Accounts, Desc = "Finance and accounts management" },
+            new { Name = RoleNames.FarmManager, Desc = "Farm and operational management" },
+            new { Name = RoleNames.DataEntry, Desc = "Can create and edit records" },
+            new { Name = RoleNames.Viewer, Desc = "Read-only access" }
         };
 
         foreach (var r in roles)
@@ -138,9 +141,11 @@ public static class DemoDataSeeder
             CreatedAt = DateTimeOffset.UtcNow
         };
 
-        var result = await userManager.CreateAsync(user, AdminPassword);
+        var result = await userManager.CreateAsync(user, DevPassword);
         if (result.Succeeded)
         {
+            await userManager.AddToRoleAsync(user, RoleNames.CompanyAdministrator);
+            await userManager.AddToRoleAsync(user, RoleNames.SystemAdministrator);
             await userManager.AddToRoleAsync(user, "Administrator");
         }
     }
@@ -149,12 +154,14 @@ public static class DemoDataSeeder
     {
         var otherUsers = new[]
         {
-            new { Email = "manager@livestock.dev", Name = "Farm Manager", Role = "Manager" },
-            new { Email = "dataentry@livestock.dev", Name = "Data Entry Clerk", Role = "DataEntry" },
-            new { Email = "viewer@livestock.dev", Name = "View-only Viewer", Role = "Viewer" }
+            new { Email = "accounts@livestock.dev", Name = "Accounts User", Role = RoleNames.Accounts },
+            new { Email = "farmmanager@livestock.dev", Name = "Farm Manager", Role = RoleNames.FarmManager },
+            new { Email = "dataentry@livestock.dev", Name = "Data Entry Clerk", Role = RoleNames.DataEntry },
+            new { Email = "viewer@livestock.dev", Name = "View-only Viewer", Role = RoleNames.Viewer },
+            new { Email = "sysadmin@livestock.dev", Name = "System Administrator", Role = RoleNames.SystemAdministrator }
         };
 
-        const string standardPwd = "Dev@123456";
+        const string standardPwd = DevPassword;
 
         foreach (var spec in otherUsers)
         {

@@ -1,0 +1,182 @@
+@model LivestockManager.Web.Models.AuditViewModels.AuditListViewModel
+@{
+    ViewData["Title"] = "Audit Logs";
+    var actionOptions = new[] { "All", "Create", "Update", "Delete" };
+    var pageSizeOptions = new[] { 10, 25, 50, 100, 250 };
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">📜 Audit Logs</h1>
+        <div class="text-muted small">System-wide entity change history</div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-3">
+        <form asp-action="Index" method="get" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">Entity Type</label>
+                <input type="text" name="entityType" class="form-control" placeholder="e.g. Invoice" value="@Model.EntityTypeFilter" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">Entity ID</label>
+                <input type="text" name="entityId" class="form-control" placeholder="GUID or Key" value="@Model.EntityIdFilter" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">Action</label>
+                <select name="actionType" class="form-select">
+                    @foreach (var opt in actionOptions)
+                    {
+                        var isSelected = (Model.ActionFilter == opt || (opt == "All" && string.IsNullOrWhiteSpace(Model.ActionFilter)));
+                        <option value="@opt" selected="@isSelected">@opt</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">From Date</label>
+                <input type="date" name="from" class="form-control" value="@(Model.From.HasValue ? Model.From.Value.ToString("yyyy-MM-dd") : "")" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">To Date</label>
+                <input type="date" name="to" class="form-control" value="@(Model.To.HasValue ? Model.To.Value.ToString("yyyy-MM-dd") : "")" />
+            </div>
+            <div class="col-md-2">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary w-100" type="submit">🔍 Filter</button>
+                    <a asp-action="Index" class="btn btn-outline-danger w-100">✕</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-3">
+    <div class="card-body py-2 px-3">
+        <div class="row align-items-center g-2">
+            <div class="col-md-6">
+                <span class="text-muted small">
+                    Total: <strong class="text-dark">@Model.TotalCount</strong> entries
+                    @if (Model.TotalCount > 0)
+                    {
+                        <text> · Page @Model.Page / @Model.TotalPages</text>
+                    }
+                </span>
+            </div>
+            <div class="col-md-6 d-flex justify-content-md-end">
+                <form asp-action="Index" method="get" class="d-flex align-items-center gap-2">
+                    <input type="hidden" name="entityType" value="@Model.EntityTypeFilter" />
+                    <input type="hidden" name="entityId" value="@Model.EntityIdFilter" />
+                    <input type="hidden" name="actionType" value="@Model.ActionFilter" />
+                    <input type="hidden" name="from" value="@(Model.From.HasValue ? Model.From.Value.ToString("yyyy-MM-dd") : "")" />
+                    <input type="hidden" name="to" value="@(Model.To.HasValue ? Model.To.Value.ToString("yyyy-MM-dd") : "")" />
+                    <input type="hidden" name="page" value="@Model.Page" />
+                    <label class="form-label mb-0 small">Page Size:</label>
+                    <select name="pageSize" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                        @foreach (var ps in pageSizeOptions)
+                        {
+                            var isPsSelected = Model.PageSize == ps;
+                            <option value="@ps" selected="@isPsSelected">@ps</option>
+                        }
+                    </select>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 160px;">Created At</th>
+                        <th>Entity</th>
+                        <th style="width: 140px;">ID</th>
+                        <th style="width: 100px;">Action</th>
+                        <th>User</th>
+                        <th style="width: 90px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in Model.Items)
+                    {
+                        <tr>
+                            <td><span class="text-muted small">@a.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss")</span></td>
+                            <td><code class="small">@a.EntityType</code></td>
+                            <td><code class="small" title="@a.EntityId">@(a.EntityId != null && a.EntityId.Length > 10 ? a.EntityId.Substring(0, 8) + "…" : a.EntityId)</code></td>
+                            <td>
+                                @if (a.Action == "Create")
+                                { <span class="badge bg-success">Create</span> }
+                                else if (a.Action == "Update")
+                                { <span class="badge bg-warning text-dark">Update</span> }
+                                else if (a.Action == "Delete")
+                                { <span class="badge bg-danger">Delete</span> }
+                                else
+                                { <span class="badge bg-secondary">@a.Action</span> }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(a.UserEmail))
+                                { <span class="small">@a.UserEmail</span> }
+                                else if (a.UserId.HasValue)
+                                { <code class="small text-muted">@a.UserId.Value.ToString("N")[..8]</code> }
+                                else
+                                { <span class="text-muted small">—</span> }
+                            </td>
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@a.Id" class="btn btn-sm btn-outline-primary">View</a>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Items.Any())
+                    {
+                        <tr><td colspan="6" class="text-center py-5 text-muted small">No audit entries found matching the current filters.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mt-4">
+    @if (Model.Page > 1)
+    {
+        <a asp-action="Index"
+           asp-route-entityType="@Model.EntityTypeFilter"
+           asp-route-entityId="@Model.EntityIdFilter"
+           asp-route-actionType="@Model.ActionFilter"
+           asp-route-from="@(Model.From.HasValue ? Model.From.Value.ToString("yyyy-MM-dd") : "")"
+           asp-route-to="@(Model.To.HasValue ? Model.To.Value.ToString("yyyy-MM-dd") : "")"
+           asp-route-page="@(Model.Page - 1)"
+           asp-route-pageSize="@Model.PageSize"
+           class="btn btn-outline-secondary">
+            ← Previous
+        </a>
+    }
+    else
+    {
+        <button class="btn btn-outline-secondary" disabled>← Previous</button>
+    }
+
+    <span class="text-muted small">Page @Model.Page of @Model.TotalPages</span>
+
+    @if (Model.Page < Model.TotalPages)
+    {
+        <a asp-action="Index"
+           asp-route-entityType="@Model.EntityTypeFilter"
+           asp-route-entityId="@Model.EntityIdFilter"
+           asp-route-actionType="@Model.ActionFilter"
+           asp-route-from="@(Model.From.HasValue ? Model.From.Value.ToString("yyyy-MM-dd") : "")"
+           asp-route-to="@(Model.To.HasValue ? Model.To.Value.ToString("yyyy-MM-dd") : "")"
+           asp-route-page="@(Model.Page + 1)"
+           asp-route-pageSize="@Model.PageSize"
+           class="btn btn-outline-secondary">
+            Next →
+        </a>
+    }
+    else
+    {
+        <button class="btn btn-outline-secondary" disabled>Next →</button>
+    }
+</div>

@@ -1,0 +1,100 @@
+@model LivestockManager.Web.Models.SupplierViewModels.SupplierCreateEditViewModel
+@{
+    ViewData["Title"] = "New Supplier";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">➕ New Supplier</h1>
+        <div class="text-muted small">Add a new supplier record</div>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">← Back to List</a>
+</div>
+
+<form asp-action="Create" method="post" class="row g-3" novalidate>
+    <div asp-validation-summary="All" class="col-12 alert alert-danger"></div>
+
+    <div class="col-md-12">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">Supplier Info</h6>
+            </div>
+            <div class="card-body row g-3">
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Supplier Code *</label>
+                    <input asp-for="Code" class="form-control" required />
+                    <span asp-validation-for="Code" class="text-danger small"></span>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold">Name *</label>
+                    <input asp-for="Name" class="form-control" required />
+                    <span asp-validation-for="Name" class="text-danger small"></span>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Legal Name</label>
+                    <input asp-for="LegalName" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Tax Number</label>
+                    <input asp-for="TaxNumber" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Phone</label>
+                    <input asp-for="Phone" class="form-control" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Email</label>
+                    <input asp-for="Email" type="email" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-semibold">Payment Terms (days)</label>
+                    <input asp-for="PaymentTermsDays" type="number" class="form-control" value="30" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-semibold">Currency *</label>
+                    <select asp-for="Currency" class="form-select" required>
+                        <option value="">-- Select Currency --</option>
+                        <option value="@((int)Currency.USD)">USD - US Dollar</option>
+                        <option value="@((int)Currency.EUR)">EUR - Euro</option>
+                        <option value="@((int)Currency.GBP)">GBP - British Pound</option>
+                        <option value="@((int)Currency.ZAR)">ZAR - South African Rand</option>
+                        <option value="@((int)Currency.AUD)">AUD - Australian Dollar</option>
+                        <option value="@((int)Currency.CAD)">CAD - Canadian Dollar</option>
+                        <option value="@((int)Currency.NZD)">NZD - New Zealand Dollar</option>
+                        <option value="@((int)Currency.Other)">Other</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small fw-semibold">Bank Account</label>
+                    <input asp-for="BankAccount" class="form-control" />
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small fw-semibold d-block">Status</label>
+                    <div class="form-check form-switch mt-2">
+                        <input asp-for="IsActive" class="form-check-input" type="checkbox" />
+                        <label class="form-check-label" asp-for="IsActive">Active</label>
+                    </div>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Address</label>
+                    <textarea asp-for="Address" rows="2" class="form-control"></textarea>
+                </div>
+                <div class="col-md-12">
+                    <label class="form-label small fw-semibold">Notes</label>
+                    <textarea asp-for="Notes" rows="2" class="form-control"></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12 pt-3">
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">💾 Save Supplier</button>
+            <a asp-action="Index" class="btn btn-outline-secondary px-4">Cancel</a>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

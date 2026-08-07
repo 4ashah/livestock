@@ -1,0 +1,120 @@
+@model LivestockManager.Web.Models.AuditViewModels.AuditDetailsViewModel
+@{
+    ViewData["Title"] = "Audit Entry Details";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">
+            @if (Model.Action == "Create")
+            { <span class="badge bg-success me-2">Create</span> }
+            else if (Model.Action == "Update")
+            { <span class="badge bg-warning text-dark me-2">Update</span> }
+            else if (Model.Action == "Delete")
+            { <span class="badge bg-danger me-2">Delete</span> }
+            Audit Entry
+        </h1>
+        <div class="text-muted small">
+            ID: <code>@Model.Id</code>
+        </div>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">← Back to Logs</a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-5">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">📋 Entry Metadata</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small fw-semibold">Entry ID</dt>
+                    <dd class="col-sm-8"><code>@Model.Id</code></dd>
+
+                    <dt class="col-sm-4 text-muted small fw-semibold">Timestamp</dt>
+                    <dd class="col-sm-8">@Model.CreatedAt.ToString("yyyy-MM-dd HH:mm:ss zzz")</dd>
+
+                    <dt class="col-sm-4 text-muted small fw-semibold">Action</dt>
+                    <dd class="col-sm-8">
+                        @if (Model.Action == "Create")
+                        { <span class="badge bg-success">Create</span> }
+                        else if (Model.Action == "Update")
+                        { <span class="badge bg-warning text-dark">Update</span> }
+                        else if (Model.Action == "Delete")
+                        { <span class="badge bg-danger">Delete</span> }
+                        else
+                        { <span class="badge bg-secondary">@Model.Action</span> }
+                    </dd>
+
+                    <dt class="col-sm-4 text-muted small fw-semibold">Entity Type</dt>
+                    <dd class="col-sm-8"><code>@Model.EntityType</code></dd>
+
+                    <dt class="col-sm-4 text-muted small fw-semibold">Entity ID</dt>
+                    <dd class="col-sm-8"><code>@Model.EntityId</code></dd>
+
+                    <dt class="col-sm-4 text-muted small fw-semibold">User</dt>
+                    <dd class="col-sm-8">
+                        @if (!string.IsNullOrWhiteSpace(Model.UserName))
+                        {
+                            <div>@Model.UserName</div>
+                            if (!string.IsNullOrWhiteSpace(Model.UserEmail))
+                            { <div class="text-muted small">@Model.UserEmail</div> }
+                        }
+                        else if (!string.IsNullOrWhiteSpace(Model.UserEmail))
+                        { @Model.UserEmail }
+                        else
+                        { <span class="text-muted small">— System —</span> }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between">
+                        <h6 class="mb-0 fw-bold">📜 Old Values (Before)</h6>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="formatJson('oldJson')">Pretty-print</button>
+                    </div>
+                    <div class="card-body p-0">
+                        <pre id="oldJson" class="mb-0 p-3 bg-light small" style="max-height: 280px; overflow-y: auto; border-radius: 0;">@if (!string.IsNullOrWhiteSpace(Model.OldValuesJson))
+{ @Html.Raw(Model.OldValuesJson) }
+else { <span class="text-muted">(no old values — this was a Create action)</span> }</pre>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <div class="card shadow-sm border-0">
+                    <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between">
+                        <h6 class="mb-0 fw-bold">📜 New Values (After)</h6>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="formatJson('newJson')">Pretty-print</button>
+                    </div>
+                    <div class="card-body p-0">
+                        <pre id="newJson" class="mb-0 p-3 bg-light small" style="max-height: 280px; overflow-y: auto; border-radius: 0;">@if (!string.IsNullOrWhiteSpace(Model.NewValuesJson))
+{ @Html.Raw(Model.NewValuesJson) }
+else { <span class="text-muted">(no new values — this was a Delete action)</span> }</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function formatJson(elementId) {
+    var el = document.getElementById(elementId);
+    if (!el) return;
+    var raw = el.textContent.trim();
+    if (!raw || raw.startsWith('(')) return;
+    try {
+        var parsed = JSON.parse(raw);
+        el.textContent = JSON.stringify(parsed, null, 2);
+    } catch (e) {
+        alert('Not valid JSON: ' + e.message);
+    }
+}
+</script>
