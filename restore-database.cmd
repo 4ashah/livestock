@@ -1,18 +1,28 @@
 @echo off
-setlocal
-echo === LivestockManager: Restore Database (sqlcmd) ===
-echo WARNING: This overwrites the target database. Set CONFIRM_RESTORE_OVERWRITE=1 to proceed.
-if /i not "%CONFIRM_RESTORE_OVERWRITE%"=="1" (echo ERROR: CONFIRM_RESTORE_OVERWRITE not set to 1. Aborting. & exit /b 2)
-if not defined SQL_SERVER set "SQL_SERVER=.\SQLEXPRESS"
+setlocal EnableDelayedExpansion
+echo === LivestockManager: Restore Database ===
+echo WARNING: This operation can overwrite the target database destructively.
+echo          Set CONFIRM_RESTORE_OVERWRITE=1 to permit overwriting an existing database.
+if not defined SQL_SERVER set "SQL_SERVER=."
 if not defined SQL_DATABASE set "SQL_DATABASE=LivestockManager"
-if not defined BACKUP_FILE_PATH (echo ERROR: BACKUP_FILE_PATH env var must point to a .bak file. & exit /b 2)
-if not exist "%BACKUP_FILE_PATH%" (echo ERROR: BACKUP_FILE_PATH not found: %BACKUP_FILE_PATH% & exit /b 2)
-where sqlcmd >nul 2>nul
-if errorlevel 1 (echo ERROR: sqlcmd not found on PATH. & exit /b 1)
-echo SQL_SERVER=%SQL_SERVER%
-echo SQL_DATABASE=%SQL_DATABASE%
-echo BACKUP_FILE_PATH=%BACKUP_FILE_PATH%
-sqlcmd -S "%SQL_SERVER%" -E -Q "ALTER DATABASE [%SQL_DATABASE%] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; RESTORE DATABASE [%SQL_DATABASE%] FROM DISK='%BACKUP_FILE_PATH%' WITH REPLACE, RECOVERY, STATS=10; ALTER DATABASE [%SQL_DATABASE%] SET MULTI_USER;" -b
-if errorlevel 1 (echo RESTORE FAILED & exit /b 1)
-echo RESTORE OK: %SQL_DATABASE% restored from %BACKUP_FILE_PATH%
-exit /b 0
+if not defined BACKUP_FILE_PATH (
+  echo ERROR: BACKUP_FILE_PATH env var must point to a .bak file.
+  exit /b 2
+)
+
+set "CONFIRM_SWITCH="
+if defined CONFIRM_RESTORE_OVERWRITE (
+  if /i "!CONFIRM_RESTORE_OVERWRITE!"=="1" set "CONFIRM_SWITCH=-ConfirmDestructiveOverwrite"
+  if /i "!CONFIRM_RESTORE_OVERWRITE!"=="true" set "CONFIRM_SWITCH=-ConfirmDestructiveOverwrite"
+)
+
+set "DATA_DIR_ARG="
+if defined DATA_DIR (
+  set "DATA_DIR_ARG=-DataFileDirectory "!DATA_DIR!""
+)
+
+set "LOG_DIR=%~dp0artifacts\logs"
+set "PS_ARGS=-NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\Restore-Database.ps1" -ServerInstance "%SQL_SERVER%" -BackupFile "%BACKUP_FILE_PATH%" -TargetDatabase "%SQL_DATABASE%" !DATA_DIR_ARG! !CONFIRM_SWITCH!"
+
+call PowerShell %PS_ARGS%
+exit /b %ERRORLEVEL%
