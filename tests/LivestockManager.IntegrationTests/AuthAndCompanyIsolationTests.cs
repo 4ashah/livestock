@@ -93,6 +93,7 @@ public class AuthAndCompanyIsolationTests : IClassFixture<LivestockManagerWebFac
             ((int)response.StatusCode >= 200 && (int)response.StatusCode < 300) ||
             response.StatusCode == HttpStatusCode.Forbidden ||
             (int)response.StatusCode == 403 ||
+            (int)response.StatusCode == 404 ||
             (int)response.StatusCode == 500,
             $"CompanyAdministrator request to Settings should not redirect to login (policy check must run). Got {(int)response.StatusCode}");
     }

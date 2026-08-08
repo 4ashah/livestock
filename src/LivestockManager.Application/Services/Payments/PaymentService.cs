@@ -60,7 +60,8 @@ public class PaymentService : IPaymentService
 
             foreach (var allocDto in dto.Allocations)
             {
-                var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == allocDto.InvoiceId && i.CompanyId == resolvedCompanyId, ct)!;
+                var invoice = await _db.Invoices.FirstOrDefaultAsync(i => i.Id == allocDto.InvoiceId && i.CompanyId == resolvedCompanyId, ct)
+                    ?? throw new DomainException("Invoice not found in payment allocation lookup.");
                 var invPayments = await _db.Payments.Where(p => p.InvoiceId == allocDto.InvoiceId).ToListAsync(ct);
                 invoice.Payments = invPayments;
                 invoice.RecalculatePaidAmountFromPayments();

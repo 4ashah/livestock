@@ -193,7 +193,7 @@ public class ReportService : IReportService
 
         var linkedSaleItemIds = soldLivestock
             .Where(l => l.SaleItemId.HasValue)
-            .Select(l => l.SaleItemId.Value)
+            .Select(l => l.SaleItemId.GetValueOrDefault())
             .ToList();
 
         var excludedInvoices = new List<Guid>();
@@ -208,9 +208,10 @@ public class ReportService : IReportService
             if (saleIds.Count > 0)
             {
                 excludedInvoices = await _db.Invoices
-                    .Where(i => saleIds.Contains(i.SaleId.Value)
+                    .Where(i => i.SaleId.HasValue
+                        && saleIds.Contains(i.SaleId.GetValueOrDefault())
                         && (i.Status == InvoiceStatus.Cancelled || i.Status == InvoiceStatus.Voided))
-                    .Select(i => i.SaleId.Value)
+                    .Select(i => i.SaleId.GetValueOrDefault())
                     .Distinct()
                     .ToListAsync(ct);
             }
@@ -246,8 +247,8 @@ public class ReportService : IReportService
             .Where(e => e.CompanyId == companyId
                 && !e.IsDeleted
                 && e.LivestockId.HasValue
-                && validLivestockIds.Contains(e.LivestockId.Value))
-            .GroupBy(e => e.LivestockId.Value)
+                && validLivestockIds.Contains(e.LivestockId.GetValueOrDefault()))
+            .GroupBy(e => e.LivestockId.GetValueOrDefault())
             .Select(g => new { LivestockId = g.Key, Total = g.Sum(e => e.Total) })
             .ToDictionaryAsync(g => g.LivestockId, g => g.Total, ct);
 

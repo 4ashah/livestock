@@ -117,13 +117,12 @@ VALUES ({0}, {1}, 1, {2})",
     {
         var invoiceId = Guid.NewGuid();
         var invoiceNumber = $"INV-TEST-{suffix}-{Guid.NewGuid():N}";
-        var now = DateTimeOffset.UtcNow;
 
         await db.Database.ExecuteSqlInterpolatedAsync($@"
 INSERT INTO Invoices (Id, CompanyId, CustomerId, InvoiceNumber, InvoiceDate, DueDate, Currency, Status,
-                      Subtotal, TaxTotal, ChargeTotal, GrandTotal, PaidAmount, CreatedAt)
-VALUES ({invoiceId}, {companyId}, {customerId}, {invoiceNumber}, {now}, {dueDate}, 0, 0,
-        1000.0, 150.0, 0.0, 1150.0, 0.0, GETUTCDATE())");
+                      Subtotal, DiscountTotal, TaxTotal, ChargeTotal, GrandTotal, PaidAmount, IsDeleted, CreatedAt)
+VALUES ({invoiceId}, {companyId}, {customerId}, {invoiceNumber}, GETUTCDATE(), {dueDate}, 0, 1,
+        1000.0, 0.0, 150.0, 0.0, 1150.0, 0.0, 0, GETUTCDATE())");
         return invoiceId;
     }
 
@@ -268,11 +267,10 @@ VALUES ({invoiceId}, {companyId}, {customerId}, {invoiceNumber}, {now}, {dueDate
     public async Task Sequence_NoDuplicates_TwoRapidCalls()
     {
         var companyId = Guid.Parse(LivestockManagerWebFactory.StagingCompanyIdA);
-        using (var scope = NewScope())
+        using (var setupScope = NewScope())
         {
-            var sp = scope.ServiceProvider;
+            var sp = setupScope.ServiceProvider;
             var db = sp.GetRequiredService<AppDbContext>();
-            var invoiceSvc = sp.GetRequiredService<IInvoiceService>();
 
             var customerId = await EnsureTestCustomerViaService(sp, companyId,
                 "WF-SEQ-01", "Seq Test Customer");
@@ -282,26 +280,33 @@ VALUES ({invoiceId}, {companyId}, {customerId}, {invoiceNumber}, {now}, {dueDate
             var draft2Id = await CreateDraftInvoiceViaSql(db, companyId, customerId,
                 DateTimeOffset.UtcNow.AddDays(45), "03B");
 
-            var task1 = invoiceSvc.ConfirmAsync(new InvoiceConfirmDto { InvoiceId = draft1Id },
-                companyId, CancellationToken.None);
-            var task2 = invoiceSvc.ConfirmAsync(new InvoiceConfirmDto { InvoiceId = draft2Id },
-                companyId, CancellationToken.None);
+            using (var scopeA = NewScope())
+            using (var scopeB = NewScope())
+            {
+                var svcA = scopeA.ServiceProvider.GetRequiredService<IInvoiceService>();
+                var svcB = scopeB.ServiceProvider.GetRequiredService<IInvoiceService>();
 
-            await Task.WhenAll(task1, task2);
+                var task1 = svcA.ConfirmAsync(new InvoiceConfirmDto { InvoiceId = draft1Id },
+                    companyId, CancellationToken.None);
+                var task2 = svcB.ConfirmAsync(new InvoiceConfirmDto { InvoiceId = draft2Id },
+                    companyId, CancellationToken.None);
 
-            var inv1 = task1.Result;
-            var inv2 = task2.Result;
+                await Task.WhenAll(task1, task2);
 
-            Assert.NotNull(inv1);
-            Assert.NotNull(inv2);
-            Assert.NotEqual(Guid.Empty, inv1.Id);
-            Assert.NotEqual(Guid.Empty, inv2.Id);
-            Assert.NotEqual(inv1.Id, inv2.Id);
+                var inv1 = task1.Result;
+                var inv2 = task2.Result;
 
-            var n1 = inv1.InvoiceNumber ?? string.Empty;
-            var n2 = inv2.InvoiceNumber ?? string.Empty;
-            Assert.True(!n1.Equals(n2, StringComparison.Ordinal),
-                $"Rapid invoice confirms must produce distinct invoice numbers. Both got: '{n1}' and '{n2}'");
+                Assert.NotNull(inv1);
+                Assert.NotNull(inv2);
+                Assert.NotEqual(Guid.Empty, inv1.Id);
+                Assert.NotEqual(Guid.Empty, inv2.Id);
+                Assert.NotEqual(inv1.Id, inv2.Id);
+
+                var n1 = inv1.InvoiceNumber ?? string.Empty;
+                var n2 = inv2.InvoiceNumber ?? string.Empty;
+                Assert.True(!n1.Equals(n2, StringComparison.Ordinal),
+                    $"Rapid invoice confirms must produce distinct invoice numbers. Both got: '{n1}' and '{n2}'");
+            }
         }
     }
 
