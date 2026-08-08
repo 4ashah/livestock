@@ -19,16 +19,23 @@ public static class DemoDataSeeder
         RoleManager<ApplicationRole> roleManager,
         IConfiguration configuration)
     {
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
-        if (env == "Production")
-            return;
+        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? configuration["ASPNETCORE_ENVIRONMENT"];
+        var isProduction = string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase);
 
         var seedDemoData = configuration["SeedDemoData"] == "1";
         var enableDevSeed = configuration["EnableDevSeed"] == "true";
-        var seedEnv = (env == "Development" || env == "Staging");
-        var shouldSeed = (seedDemoData || seedEnv) && enableDevSeed;
-        if (!shouldSeed)
+        var enableE2ESeed = configuration["EnableE2ESeed"] == "1";
+        Environment.SetEnvironmentVariable("LIVESEED", "0");
+        var seedEnv = (env == "Development" || env == "Staging" || env == "Testing");
+        var shouldSeed = seedEnv && (enableDevSeed || enableE2ESeed);
+        if (isProduction && !seedDemoData && !enableE2ESeed)
+        {
             return;
+        }
+        if (!shouldSeed && !seedDemoData && !enableE2ESeed)
+        {
+            return;
+        }
 
         using var transaction = await dbContext.Database.BeginTransactionAsync();
         try
@@ -128,7 +135,43 @@ public static class DemoDataSeeder
     {
         const string adminEmail = "admin@livestock.dev";
         var existing = await userManager.FindByEmailAsync(adminEmail);
-        if (existing != null) return;
+        if (existing != null)
+        {
+            var now = DateTimeOffset.UtcNow;
+            existing.LockoutEnd = null;
+            existing.AccessFailedCount = 0;
+            existing.LockoutEnabled = true;
+            existing.IsEnabled = true;
+            existing.LastLoginAt = null;
+            await userManager.UpdateAsync(existing);
+            if (existing.LastLoginAt is null || (now - existing.LastLoginAt) > TimeSpan.FromMinutes(2))
+            {
+                if ((await userManager.CheckPasswordAsync(existing, DevPassword)) == false)
+                {
+                    if ((await userManager.HasPasswordAsync(existing)) == false)
+                    {
+                        await userManager.AddPasswordAsync(existing, DevPassword);
+                    }
+                    else
+                    {
+                        var remove = await userManager.RemovePasswordAsync(existing);
+                        if (remove.Succeeded)
+                        {
+                            await userManager.AddPasswordAsync(existing, DevPassword);
+                        }
+                    }
+                }
+            }
+            var r1 = await userManager.IsInRoleAsync(existing, RoleNames.CompanyAdministrator);
+            var r2 = await userManager.IsInRoleAsync(existing, RoleNames.SystemAdministrator);
+            if (!r1) await userManager.AddToRoleAsync(existing, RoleNames.CompanyAdministrator);
+            if (!r2) await userManager.AddToRoleAsync(existing, RoleNames.SystemAdministrator);
+            if (!await userManager.IsInRoleAsync(existing, "Administrator"))
+            {
+                try { await userManager.AddToRoleAsync(existing, "Administrator"); } catch { }
+            }
+            return;
+        }
 
         var user = new ApplicationUser
         {
@@ -146,7 +189,7 @@ public static class DemoDataSeeder
         {
             await userManager.AddToRoleAsync(user, RoleNames.CompanyAdministrator);
             await userManager.AddToRoleAsync(user, RoleNames.SystemAdministrator);
-            await userManager.AddToRoleAsync(user, "Administrator");
+            try { await userManager.AddToRoleAsync(user, "Administrator"); } catch { }
         }
     }
 
@@ -166,7 +209,35 @@ public static class DemoDataSeeder
         foreach (var spec in otherUsers)
         {
             var existing = await userManager.FindByEmailAsync(spec.Email);
-            if (existing != null) continue;
+            if (existing != null)
+            {
+                existing.LockoutEnd = null;
+                existing.AccessFailedCount = 0;
+                existing.LockoutEnabled = true;
+                existing.IsEnabled = true;
+                existing.LastLoginAt = null;
+                await userManager.UpdateAsync(existing);
+                if ((await userManager.CheckPasswordAsync(existing, standardPwd)) == false)
+                {
+                    if ((await userManager.HasPasswordAsync(existing)) == false)
+                    {
+                        await userManager.AddPasswordAsync(existing, standardPwd);
+                    }
+                    else
+                    {
+                        var remove = await userManager.RemovePasswordAsync(existing);
+                        if (remove.Succeeded)
+                        {
+                            await userManager.AddPasswordAsync(existing, standardPwd);
+                        }
+                    }
+                }
+                if (!await userManager.IsInRoleAsync(existing, spec.Role))
+                {
+                    try { await userManager.AddToRoleAsync(existing, spec.Role); } catch { }
+                }
+                continue;
+            }
 
             var user = new ApplicationUser
             {
