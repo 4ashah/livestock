@@ -259,6 +259,48 @@ public abstract class E2ETestBase : IAsyncLifetime
             try { await CaptureFailureArtifactsIfAny(testId, ex); } catch { }
         }
     }
+
+    /// <summary>
+    /// Asserts that the full page (document.body) does not have avoidable
+    /// horizontal overflow. Tolerance: 12px for small viewports, 24px for
+    /// larger ones (>= 1024 width) to account for scrollbars. If this
+    /// assertion fails, a screenshot is automatically captured because the
+    /// caller runs inside RunAsync's try/catch, which triggers
+    /// CaptureFailureArtifactsIfAny on any exception.
+    /// </summary>
+    protected internal async Task AssertNoPageHorizontalOverflowAsync(IPage page)
+    {
+        var viewport = page.ViewportSize;
+        int viewportWidth = viewport?.Width ?? 1280;
+        var tolerance = viewportWidth >= 1024 ? 24 : 12;
+
+        var dimensions = await page.EvaluateAsync(@"() => {
+            const b = document.body;
+            const de = document.documentElement;
+            return {
+                bodyScrollWidth: b ? b.scrollWidth : 0,
+                bodyClientWidth: b ? b.clientWidth : 0,
+                docScrollWidth: de ? de.scrollWidth : 0,
+                docClientWidth: de ? de.clientWidth : 0,
+                viewportInnerWidth: window.innerWidth
+            };
+        }");
+
+        var je = dimensions.Value;
+        int bodyScrollWidth = je.GetProperty("bodyScrollWidth").GetInt32();
+        int bodyClientWidth = je.GetProperty("bodyClientWidth").GetInt32();
+        int docScrollWidth = je.GetProperty("docScrollWidth").GetInt32();
+        int effectiveViewportWidth = viewportWidth > 0 ? viewportWidth : bodyClientWidth;
+
+        // Use the larger of body scroll width and document scroll width.
+        int maxScrollWidth = Math.Max(bodyScrollWidth, docScrollWidth);
+        int allowedMax = effectiveViewportWidth + tolerance;
+
+        _output?.WriteLine($"[OverflowCheck] viewport={effectiveViewportWidth}, maxScrollWidth={maxScrollWidth} (body={bodyScrollWidth}, doc={docScrollWidth}), tolerance={tolerance}, allowedMax={allowedMax}");
+
+        Assert.True(maxScrollWidth <= allowedMax,
+            $"Avoidable page-level horizontal overflow detected: maxScrollWidth={maxScrollWidth} exceeds viewport {effectiveViewportWidth} + tolerance {tolerance} = {allowedMax}.");
+    }
 }
 
 /// <summary>

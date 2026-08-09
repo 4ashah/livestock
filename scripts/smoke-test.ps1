@@ -9,6 +9,9 @@ $env:ASPNETCORE_URLS = "http://localhost:$Port"
 $env:ASPNETCORE_ENVIRONMENT = "Production"
 $env:SeedDemoData = "0"
 $env:EnableDevSeed = "false"
+$env:EnableE2ESeed = "0"
+$env:ENV_ENABLE_DEV_SEED = "false"
+$env:ConnectionStrings__LivestockManagerDb = "Server=.;Database=LivestockManager;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=True;Connect Timeout=15"
 $LogFile = Join-Path $env:TEMP "livestock-smoke.log"
 $StartArgs = @("run","--project",$WebProj,"-c",$Configuration,"--no-build","--no-restore")
 $Proc = Start-Process -FilePath "dotnet" -ArgumentList $StartArgs -RedirectStandardOutput $LogFile -RedirectStandardError $LogFile -PassThru -WindowStyle Hidden

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using System.IO.Compression;
 using LivestockManager.Domain.Abstractions;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Enums;
@@ -18,7 +19,7 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
 
         var configuredRoot = configuration?["ProtectedStorage:Root"];
         var relativeRoot = string.IsNullOrWhiteSpace(configuredRoot)
-            ? "./App_Data/Documents"
+            ? "./App_Data/ProtectedDocuments"
             : configuredRoot.Trim();
 
         var combined = Path.Combine(AppContext.BaseDirectory, relativeRoot);
@@ -32,6 +33,9 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
         Guid companyId, string sanitizedDisplayName, Stream content, DocumentType allowedType,
         long maxSizeBytes, string[] allowedExtensions, Guid? uploadedByUserId, CancellationToken ct)
     {
+        if (companyId == Guid.Empty)
+            throw new InvalidOperationException("Company ID is required.");
+
         if (content == null)
             throw new ArgumentNullException(nameof(content));
         if (maxSizeBytes <= 0)
@@ -39,10 +43,24 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
         if (allowedExtensions == null || allowedExtensions.Length == 0)
             throw new ArgumentException("At least one allowed extension must be provided.", nameof(allowedExtensions));
 
+        var canonicalMax = ProtectedFileUploadValidator.MaxFileSizeBytes;
+        var enforcedMax = Math.Min(maxSizeBytes, canonicalMax);
+
         if (content.CanSeek)
         {
-            if (content.Length > maxSizeBytes)
-                throw new InvalidOperationException($"File exceeds maximum allowed size of {maxSizeBytes} bytes.");
+            if (content.Length <= 0)
+                throw new InvalidOperationException("Empty / zero-byte files are not allowed.");
+            if (content.Length > enforcedMax)
+                throw new InvalidOperationException($"File exceeds maximum allowed size of {enforcedMax} bytes.");
+        }
+
+        var serverAllowList = ProtectedFileUploadValidator.AllowedExtensions;
+        foreach (var ext in allowedExtensions)
+        {
+            if (!serverAllowList.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException($"Storage allow-list contains extension '{ext}' which is not in the canonical server allow-list.");
+            }
         }
 
         var sanitizedName = SanitizeDisplayName(sanitizedDisplayName);
@@ -66,13 +84,15 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
             }
             else
             {
-                headerRead = await ReadBufferedWithMax(content, tempCopy, headerBuffer, maxSizeBytes, ct);
+                headerRead = await ReadBufferedWithMax(content, tempCopy, headerBuffer, enforcedMax, ct);
             }
 
             totalBytesRead = tempCopy.Length;
 
-            if (totalBytesRead > maxSizeBytes)
-                throw new InvalidOperationException($"File exceeds maximum allowed size of {maxSizeBytes} bytes (read {totalBytesRead}).");
+            if (totalBytesRead <= 0)
+                throw new InvalidOperationException("Empty / zero-byte files are not allowed.");
+            if (totalBytesRead > enforcedMax)
+                throw new InvalidOperationException($"File exceeds maximum allowed size of {enforcedMax} bytes (read {totalBytesRead}).");
         }
         finally
         {
@@ -80,15 +100,19 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
                 content.Position = 0;
         }
 
-        VerifyMagicBytes(safeExt, headerBuffer, (int)Math.Min(16, totalBytesRead));
+        await VerifyMagicBytesEnhanced(safeExt, headerBuffer, (int)Math.Min(16, totalBytesRead), tempCopy, ct);
 
         var now = DateTimeOffset.UtcNow;
-        var monthSub = $"{now:yyyy-MM}";
         var companySub = $"{companyId:N}";
-        var subFolder = Path.Combine(_rootFolder, companySub, monthSub);
+        var subFolder = Path.Combine(_rootFolder, companySub);
         var directoryInfo = Directory.CreateDirectory(subFolder);
 
         var internalFileName = $"{Guid.NewGuid():N}.{safeExt}";
+        if (ProtectedFileUploadValidator.ContainsPathTraversal(internalFileName))
+            throw new InvalidOperationException("Invalid stored file name: path traversal detected.");
+        if (ProtectedFileUploadValidator.ContainsInvalidFilenameChars(internalFileName))
+            throw new InvalidOperationException("Invalid stored file name: invalid characters.");
+
         var fullPath = Path.GetFullPath(Path.Combine(subFolder, internalFileName));
         var safeInternalPath = NormalizeInternalPath(fullPath);
 
@@ -96,6 +120,11 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
         var resolvedRoot = Path.GetFullPath(_rootFolder);
         if (!finalDir.StartsWith(resolvedRoot, StringComparison.Ordinal))
             throw new InvalidOperationException("Invalid storage path: attempted path traversal detected.");
+
+        var expectedCompanyDir = Path.Combine(resolvedRoot, companySub);
+        var resolvedCompanyDir = Path.GetFullPath(expectedCompanyDir);
+        if (!finalDir.StartsWith(resolvedCompanyDir, StringComparison.Ordinal))
+            throw new InvalidOperationException("Invalid storage path: file must be stored under company-specific folder.");
 
         tempCopy.Position = 0;
         using (var fs = new FileStream(fullPath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 81920, useAsync: true))
@@ -124,6 +153,9 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
     public async Task<(Stream FileStream, Document Metadata)> DownloadAsync(
         Guid documentId, Guid companyId, CancellationToken ct)
     {
+        if (companyId == Guid.Empty)
+            throw new UnauthorizedAccessException("Company ID is required.");
+
         var document = await _dbContext.Set<Document>()
             .AsNoTracking()
             .FirstOrDefaultAsync(d => d.Id == documentId && !d.IsDeleted, ct);
@@ -140,6 +172,11 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
 
         if (!fullPath.StartsWith(resolvedRoot, StringComparison.Ordinal))
             throw new InvalidOperationException("Invalid storage path: attempted path traversal detected.");
+
+        var expectedCompanyDir = Path.Combine(resolvedRoot, $"{companyId:N}");
+        var resolvedCompanyDir = Path.GetFullPath(expectedCompanyDir);
+        if (!filePathDir.StartsWith(resolvedCompanyDir, StringComparison.Ordinal))
+            throw new UnauthorizedAccessException("Document storage path violates company isolation.");
 
         if (!File.Exists(fullPath))
             throw new InvalidOperationException("Document file not found on storage.");
@@ -176,35 +213,9 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
         return headerFilled;
     }
 
-    private static string SanitizeDisplayName(string input)
+    public static string SanitizeDisplayName(string input)
     {
-        if (string.IsNullOrWhiteSpace(input))
-            throw new ArgumentException("Display name cannot be empty.", nameof(input));
-
-        var invalid = Path.GetInvalidFileNameChars();
-        var chars = input.ToCharArray();
-        for (int i = 0; i < chars.Length; i++)
-        {
-            if (Array.IndexOf(invalid, chars[i]) >= 0)
-                chars[i] = '-';
-        }
-
-        var sanitized = new string(chars);
-        sanitized = Path.GetFileName(sanitized);
-        sanitized = sanitized.Trim();
-
-        while (sanitized.Length > 0 && (sanitized[0] == '.' || sanitized[0] == ' '))
-            sanitized = sanitized[1..];
-        while (sanitized.Length > 0 && (sanitized[^1] == '.' || sanitized[^1] == ' '))
-            sanitized = sanitized[..^1];
-
-        if (sanitized.Length > 255)
-            sanitized = sanitized[..255];
-
-        if (string.IsNullOrWhiteSpace(sanitized))
-            throw new ArgumentException("Display name is invalid after sanitization.", nameof(input));
-
-        return sanitized;
+        return ProtectedFileUploadValidator.SanitizeDisplayName(input);
     }
 
     private static (string SafeExt, string OriginalExt) ValidateAndNormalizeExtension(
@@ -233,10 +244,19 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
         return (matched, originalExt);
     }
 
-    private static void VerifyMagicBytes(string safeExt, byte[] header, int headerLength)
+    private static async Task VerifyMagicBytesEnhanced(string safeExt, byte[] header, int headerLength, MemoryStream fullContent, CancellationToken ct)
     {
         if (headerLength <= 0)
             throw new InvalidOperationException("File is empty.");
+
+        if (headerLength >= 2 && header[0] == 0x4D && header[1] == 0x5A)
+        {
+            bool isZipExt = safeExt == "docx" || safeExt == "xlsx";
+            if (!isZipExt)
+            {
+                throw new InvalidOperationException("File signature matches executable (MZ header) which is not allowed.");
+            }
+        }
 
         switch (safeExt.ToLowerInvariant())
         {
@@ -253,44 +273,127 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
 
             case "jpg":
             case "jpeg":
-                if (headerLength < 2 ||
+                if (headerLength < 3 ||
                     header[0] != 0xFF ||
-                    header[1] != 0xD8)
+                    header[1] != 0xD8 ||
+                    header[2] != 0xFF)
                 {
                     throw new InvalidOperationException("File signature does not match extension (.jpg/.jpeg).");
+                }
+                if (fullContent.Length > 2)
+                {
+                    fullContent.Position = fullContent.Length - 2;
+                    byte[] trailer = new byte[2];
+                    int tr = await fullContent.ReadAsync(trailer, 0, 2, ct);
+                    if (tr < 2 || trailer[0] != 0xFF || trailer[1] != 0xD9)
+                    {
+                    }
+                    fullContent.Position = 0;
                 }
                 break;
 
             case "png":
                 if (headerLength < 8 ||
-                    header[0] != 137 ||
-                    header[1] != 80 ||
-                    header[2] != 78 ||
-                    header[3] != 71 ||
-                    header[4] != 13 ||
-                    header[5] != 10 ||
-                    header[6] != 26 ||
-                    header[7] != 10)
+                    header[0] != 0x89 ||
+                    header[1] != 0x50 ||
+                    header[2] != 0x4E ||
+                    header[3] != 0x47 ||
+                    header[4] != 0x0D ||
+                    header[5] != 0x0A ||
+                    header[6] != 0x1A ||
+                    header[7] != 0x0A)
                 {
                     throw new InvalidOperationException("File signature does not match extension (.png).");
                 }
                 break;
 
-            case "gif":
-                if (headerLength < 3 ||
-                    header[0] != 0x47 ||
-                    header[1] != 0x49 ||
-                    header[2] != 0x46)
+            case "doc":
+            case "xls":
+                if (headerLength < 8 ||
+                    header[0] != 0xD0 ||
+                    header[1] != 0xCF ||
+                    header[2] != 0x11 ||
+                    header[3] != 0xE0 ||
+                    header[4] != 0xA1 ||
+                    header[5] != 0xB1 ||
+                    header[6] != 0x1A ||
+                    header[7] != 0xE1)
                 {
-                    throw new InvalidOperationException("File signature does not match extension (.gif).");
+                    throw new InvalidOperationException("File signature does not match OLE Compound Document (.doc/.xls).");
                 }
                 break;
 
-            case "txt":
+            case "docx":
+            case "xlsx":
+                if (headerLength < 4 ||
+                    header[0] != 0x50 ||
+                    header[1] != 0x4B ||
+                    header[2] != 0x03 ||
+                    header[3] != 0x04)
+                {
+                    throw new InvalidOperationException("File signature does not match Office Open XML (.docx/.xlsx requires ZIP PK header).");
+                }
+                await ValidateOOXMLInternal(fullContent, ct);
+                break;
+
+            case "csv":
+                await ValidateCsvInternal(fullContent, ct);
                 break;
 
             default:
                 break;
+        }
+    }
+
+    private static Task ValidateOOXMLInternal(MemoryStream stream, CancellationToken ct)
+    {
+        try
+        {
+            stream.Position = 0;
+            using var zip = new ZipArchive(stream, ZipArchiveMode.Read, leaveOpen: true);
+
+            bool found = false;
+            int entriesChecked = 0;
+            long totalRead = 0;
+            const long maxBytes = 1024 * 1024;
+            const int maxEntries = 256;
+
+            foreach (var entry in zip.Entries)
+            {
+                entriesChecked++;
+                if (entriesChecked > maxEntries || totalRead > maxBytes)
+                    break;
+                totalRead += entry.Length;
+                if (entry.FullName.Equals("[Content_Types].xml", StringComparison.OrdinalIgnoreCase))
+                {
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+                throw new InvalidOperationException("OOXML package missing [Content_Types].xml.");
+
+            return Task.CompletedTask;
+        }
+        catch (InvalidDataException)
+        {
+            throw new InvalidOperationException("Invalid ZIP format for Office Open XML file.");
+        }
+    }
+
+    private static async Task ValidateCsvInternal(MemoryStream stream, CancellationToken ct)
+    {
+        stream.Position = 0;
+        byte[] buf = new byte[81920];
+        int read;
+        while ((read = await stream.ReadAsync(buf, 0, buf.Length, ct)) > 0)
+        {
+            for (int i = 0; i < read; i++)
+            {
+                if (buf[i] == 0x00)
+                    throw new InvalidOperationException("CSV contains NUL bytes.");
+            }
         }
     }
 
@@ -301,8 +404,11 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
             "pdf" => "application/pdf",
             "jpg" or "jpeg" => "image/jpeg",
             "png" => "image/png",
-            "gif" => "image/gif",
-            "txt" => "text/plain",
+            "doc" => "application/msword",
+            "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "xls" => "application/vnd.ms-excel",
+            "xlsx" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "csv" => "text/csv",
             _ => "application/octet-stream"
         };
     }

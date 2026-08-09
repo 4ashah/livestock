@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Enums;
@@ -13,29 +14,104 @@ public static class DemoDataSeeder
 {
     private const string DevPassword = "Dev@123456";
 
+    internal static string? LastEnvironmentCheckedName;
+    internal static bool LastProductionShortCircuited;
+    internal static bool LastSeedConditionsMet;
+    internal static int LastUsersEnumeratedCount;
+    internal static bool LastUsedTestingE2EPath;
+    internal static bool LastUsedDevelopmentPath;
+
+    internal static readonly string[] KnownDevEmails = new[]
+    {
+        "admin@livestock.dev",
+        "accounts@livestock.dev",
+        "farmmanager@livestock.dev",
+        "dataentry@livestock.dev",
+        "viewer@livestock.dev",
+        "sysadmin@livestock.dev"
+    };
+
+    internal static bool IsTruthy(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var v = value.Trim().ToLowerInvariant();
+        return v == "true" || v == "1" || v == "yes";
+    }
+
+    internal static bool IsTestingEnvironment(string? envName)
+    {
+        if (string.IsNullOrWhiteSpace(envName)) return false;
+        var n = envName.Trim();
+        return string.Equals(n, "Testing", StringComparison.OrdinalIgnoreCase)
+               || n.StartsWith("Testing", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static bool IsDevelopmentEnvironment(string? envName)
+    {
+        if (string.IsNullOrWhiteSpace(envName)) return false;
+        var n = envName.Trim();
+        return string.Equals(n, "Development", StringComparison.OrdinalIgnoreCase)
+               || n.Contains("Development", StringComparison.OrdinalIgnoreCase);
+    }
+
+    internal static (bool TestingE2EActive, bool DevelopmentActive) EvaluateSeedConditions(
+        IHostEnvironment env,
+        IConfiguration config)
+    {
+        bool testingActive = false;
+        bool devActive = false;
+
+        string? envName = env?.EnvironmentName;
+        string? enableE2E = config?["EnableE2ESeed"];
+        string? enableDev = config?["EnableDevSeed"];
+
+        if (IsTestingEnvironment(envName) && IsTruthy(enableE2E))
+        {
+            testingActive = true;
+        }
+
+        if (IsDevelopmentEnvironment(envName) && IsTruthy(enableDev))
+        {
+            devActive = true;
+        }
+
+        return (testingActive, devActive);
+    }
+
     public static async Task SeedAsync(
         AppDbContext dbContext,
         UserManager<ApplicationUser> userManager,
         RoleManager<ApplicationRole> roleManager,
-        IConfiguration configuration)
+        IHostEnvironment env,
+        IConfiguration config)
     {
-        var env = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? configuration["ASPNETCORE_ENVIRONMENT"];
-        var isProduction = string.Equals(env, "Production", StringComparison.OrdinalIgnoreCase);
+        LastEnvironmentCheckedName = env?.EnvironmentName;
+        LastProductionShortCircuited = false;
+        LastSeedConditionsMet = false;
+        LastUsersEnumeratedCount = 0;
+        LastUsedTestingE2EPath = false;
+        LastUsedDevelopmentPath = false;
 
-        var seedDemoData = configuration["SeedDemoData"] == "1";
-        var enableDevSeed = configuration["EnableDevSeed"] == "true";
-        var enableE2ESeed = configuration["EnableE2ESeed"] == "1";
-        Environment.SetEnvironmentVariable("LIVESEED", "0");
-        var seedEnv = (env == "Development" || env == "Staging" || env == "Testing");
-        var shouldSeed = seedEnv && (enableDevSeed || enableE2ESeed);
-        if (isProduction && !seedDemoData && !enableE2ESeed)
+        if (env == null) return;
+
+        if (env.IsProduction())
+        {
+            LastProductionShortCircuited = true;
+            return;
+        }
+
+        if (dbContext == null || userManager == null || roleManager == null || config == null) return;
+
+        var (testingE2E, development) = EvaluateSeedConditions(env, config);
+
+        if (!testingE2E && !development)
         {
             return;
         }
-        if (!shouldSeed && !seedDemoData && !enableE2ESeed)
-        {
-            return;
-        }
+
+        LastSeedConditionsMet = true;
+        if (testingE2E) LastUsedTestingE2EPath = true;
+        if (development) LastUsedDevelopmentPath = true;
 
         using var transaction = await dbContext.Database.BeginTransactionAsync();
         try
@@ -134,6 +210,7 @@ public static class DemoDataSeeder
     private static async Task SeedAdminUserAsync(UserManager<ApplicationUser> userManager, Guid companyId)
     {
         const string adminEmail = "admin@livestock.dev";
+        LastUsersEnumeratedCount++;
         var existing = await userManager.FindByEmailAsync(adminEmail);
         if (existing != null)
         {
@@ -208,6 +285,7 @@ public static class DemoDataSeeder
 
         foreach (var spec in otherUsers)
         {
+            LastUsersEnumeratedCount++;
             var existing = await userManager.FindByEmailAsync(spec.Email);
             if (existing != null)
             {

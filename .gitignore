@@ -40,3 +40,36 @@ publish/
 App_Data/
 *.db-shm
 *.db-wal
+
+
+# ============= Phase 11 additions (2026-08-09) =============
+# Build output at any depth (preserve existing bin/obj entries)
+**/bin/
+**/obj/
+
+# Fine-grained artifact subdirectories (exact paths, .gitkeep files NOT ignored by these patterns)
+artifacts/publish/
+artifacts/production-publish/
+artifacts/e2e/.playwright-browsers/
+artifacts/e2e/results/
+artifacts/e2e/screenshots/
+artifacts/e2e/traces/
+artifacts/e2e/videos/
+artifacts/logs/
+artifacts/backups/
+
+# Test output / stale tool output
+*.trx
+coverage/
+coverage.*
+
+# Secrets / sensitive / credential files
+*.pfx
+*.snk
+appsettings.Production.json
+
+# Archives / compressed packages (EXCEPT audit.zip which is retained evidence)
+*.zip
+!audit.zip
+
+# (Kept entries already present above: .vs/, *.bak, *.user, *.suo, App_Data/, TestResults/)

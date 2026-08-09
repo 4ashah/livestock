@@ -36,9 +36,9 @@
                         <div class="display-5 mb-2 text-muted">📂</div>
                         <div class="h6 mb-1">Drag and drop files here, or click to browse</div>
                         <div class="small text-muted mb-3">
-                            Allowed: .pdf, .jpg, .jpeg, .png, .gif, .txt, .csv (max 10 MB each)
+                            Allowed: .pdf, .jpg, .jpeg, .png, .doc, .docx, .xls, .xlsx, .csv (max 25 MB each)
                         </div>
-                        <input asp-for="Files" type="file" multiple class="form-control d-none" id="fileInput" />
+                        <input asp-for="Files" type="file" multiple class="form-control d-none" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx,.csv" />
                         <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('fileInput').click()">
                             Choose Files
                         </button>

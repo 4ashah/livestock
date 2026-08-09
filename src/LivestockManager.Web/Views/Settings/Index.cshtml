@@ -52,7 +52,7 @@
                     <div class="row g-3 mt-1">
                         <div class="col-md-6">
                             <label asp-for="Phone" class="form-label fw-semibold"></label>
-                            <input asp-for="Phone" class="form-control" placeholder="+1 555 0123" />
+                            <input asp-for="Phone" class="form-control" placeholder="+1 555 0123" inputmode="tel" />
                             <span asp-validation-for="Phone" class="text-danger small"></span>
                         </div>
                         <div class="col-md-6">
@@ -97,7 +97,7 @@
                     <div class="mb-3 mt-3">
                         <label asp-for="TaxRate" class="form-label fw-semibold"></label>
                         <div class="input-group">
-                            <input asp-for="TaxRate" class="form-control" step="0.0001" min="0" max="1" placeholder="0.15" />
+                            <input asp-for="TaxRate" class="form-control" step="0.0001" min="0" max="1" placeholder="0.15" inputmode="decimal" />
                             <span class="input-group-text">@((Model.TaxRate * 100).ToString("N2"))%</span>
                         </div>
                         <span asp-validation-for="TaxRate" class="text-danger small"></span>

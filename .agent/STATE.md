@@ -1,6 +1,12 @@
 # Project State
 
-## Current Phase
+## Phase 0 Status
+Phase: 0 done
+starting_commit: ef1fac7
+target_branch: remediation/final-production-hardening
+preserved_E2E: true
+
+## Current Phase (previous context)
 AUDIT REMEDIATION MODE (commit ef36f34 baseline immutable, 2 Critical + 5 High release-blocking defects). Working branch: `remediation/audit-critical-fixes`.
 
 ## Phase Definition / Source
@@ -37,7 +43,7 @@ Files owned (EXCLUSIVE write):
   - Edit ICustomerBalanceService.cs + CustomerBalanceService.cs (company scope)
   - Edit IReportService.cs + ReportService.cs (company scope)
   - NOTE: In all methods, NEVER trust CompanyId from payload. Always use companyId parameter.
-  - NotFound result for cross-company (do not reveal existence).
+- NotFound result for cross-company (do not reveal existence).
 
 EXPLICITLY FORBIDDEN for Agent A:
 - Do NOT edit Controllers
@@ -160,8 +166,8 @@ InitialMvp: APPLIED (21 tables). Phase2Entities: APPLIED (28 tables total). Sequ
 ## Resume Instructions (if context limit)
 ```
 cd C:\Projects\livestock
-git branch --show-current           # expect: remediation/audit-critical-fixes
-git status --short                  # expect: agents A-E files dirty; committed per checkpoint commits
+git branch --show-current           # expect: remediation/final-production-hardening
+git status --short                  # expect: clean except Phase 0 md edits
 dotnet restore LivestockManager.sln -v minimal
 dotnet build LivestockManager.sln -c Release -v minimal  # expect 0/0 after fixes
 dotnet test LivestockManager.sln -c Release -v minimal   # expect all non-empty tests PASS

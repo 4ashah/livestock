@@ -22,7 +22,7 @@ public static class ServiceCollectionExtensions
         services.AddDbContext<AppDbContext>(options =>
         {
             options.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection"),
+                configuration.GetConnectionString("LivestockManagerDb"),
                 sql =>
                 {
                     sql.CommandTimeout(90);

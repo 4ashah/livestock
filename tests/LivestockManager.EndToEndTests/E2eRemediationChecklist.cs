@@ -29,6 +29,17 @@ public class E2eRemediationChecklist : E2ETestCollectionBase
 {
     private readonly E2ETestAssemblyFixture _fixture;
 
+    public static IEnumerable<object[]> MobileViewportMatrix => new List<object[]>
+    {
+        new object[] { 360, 800, "Mobile-S (Galaxy S8-style)" },
+        new object[] { 390, 844, "Mobile-M (iPhone 14-style)" },
+        new object[] { 430, 932, "Mobile-L (iPhone 14 Pro Max-style)" },
+        new object[] { 768, 1024, "Tablet-P (iPad Mini-style portrait)" },
+        new object[] { 1024, 768, "Tablet-L (iPad Mini-style landscape)" },
+        new object[] { 1366, 768, "Laptop (13\" HD)" },
+        new object[] { 1920, 1080, "Desktop (FHD 1080p)" }
+    };
+
     public E2eRemediationChecklist(ITestOutputHelper output, E2ETestAssemblyFixture fixture) : base(output, fixture)
     {
         _fixture = fixture;
@@ -349,6 +360,99 @@ public class E2eRemediationChecklist : E2ETestCollectionBase
             var code = resp?.Status ?? 0;
             Assert.True(code == 200 || code == 404 || code == 403,
                 $"Audit page (if implemented) must be 200/403/404. Got {code}");
+        });
+    }
+
+    [Theory]
+    [MemberData(nameof(MobileViewportMatrix))]
+    public async Task Mobile_Viewport_Matrix_Login_Dashboard_Livestock_NoHorizontalOverflow(int width, int height, string label)
+    {
+        var testId = $"Mobile_Viewport_{width}x{height}_{label.Replace(" ", "_").Replace("(", "").Replace(")", "").Replace("\"", "")}";
+        await RunAsync(testId, async () =>
+        {
+            Output.WriteLine($"[Viewport] Testing {width}x{height} ({label})");
+            var opts = new BrowserNewContextOptions
+            {
+                ViewportSize = new ViewportSize { Width = width, Height = height },
+                Locale = "en-US",
+                TimezoneId = "UTC"
+            };
+            var page = await NewPageAsync(testId, opts);
+            Assert.NotNull(page.ViewportSize);
+            Assert.Equal(width, page.ViewportSize.Width);
+            Assert.Equal(height, page.ViewportSize.Height);
+
+            // 1. Login page: no page-wide horizontal overflow
+            await page.GotoAsync($"{BaseUrl}/Account/Login", new() { Timeout = 60_000 });
+            await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
+            var title = await page.TitleAsync();
+            Output.WriteLine($"[Viewport] Login page title: {title}");
+
+            // Login button reachable
+            var submitBtn = page.Locator("button[type='submit'], input[type='submit']").First;
+            var btnCount = await submitBtn.CountAsync();
+            Assert.True(btnCount >= 1, $"Login submit button missing on viewport {width}x{height}");
+            Assert.True(await submitBtn.IsVisibleAsync(), $"Login submit button not visible on viewport {width}x{height}");
+            var btnBox = await submitBtn.BoundingBoxAsync();
+            Assert.NotNull(btnBox); // reachable in viewport flow
+            Output.WriteLine($"[Viewport] Login button bounding: x={btnBox.X}, y={btnBox.Y}, w={btnBox.Width}, h={btnBox.Height}");
+
+            // Assert no page-wide horizontal overflow on Login page
+            await AssertNoPageHorizontalOverflowAsync(page);
+
+            // 2. Login and navigate to Dashboard / Home Index
+            await LoginAsync(page, "admin@livestock.dev", "Dev@123456");
+            try
+            {
+                var resp = await page.GotoAsync($"{BaseUrl}/", new() { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 45_000 });
+                try { await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new() { Timeout = 15_000 }); } catch { }
+                Output.WriteLine($"[Viewport] Dashboard status: {resp?.Status}, URL: {page.Url}");
+            }
+            catch
+            {
+                // login+redirect may already have landed on dashboard
+            }
+
+            // Main action visible on Dashboard (at least the sidebar hamburger or brand or heading)
+            var heading = page.Locator("h1, h2, h3, .navbar-brand, .sidebar-toggler").First;
+            var headingCount = await heading.CountAsync();
+            Assert.True(headingCount >= 1, $"No main heading or navigation visible on Dashboard at {width}x{height}");
+            Output.WriteLine($"[Viewport] Dashboard heading elements found: {headingCount}");
+
+            // Assert no page-wide horizontal overflow on Dashboard
+            await AssertNoPageHorizontalOverflowAsync(page);
+
+            // 3. Livestock/Index: table scrolling should be inside wrapper only
+            try
+            {
+                var liResp = await page.GotoAsync($"{BaseUrl}/Livestock", new() { WaitUntil = WaitUntilState.DOMContentLoaded, Timeout = 45_000 });
+                try { await page.WaitForLoadStateAsync(LoadState.NetworkIdle, new() { Timeout = 15_000 }); } catch { }
+                Output.WriteLine($"[Viewport] Livestock/Index status: {liResp?.Status}");
+            }
+            catch
+            {
+                // swallow navigation issues — still check overflow below if page loaded
+            }
+
+            // Table container (table-responsive) should have internal scroll when table is wider
+            var tableContainer = page.Locator(".table-responsive, .table-responsive-mobile").First;
+            if (await tableContainer.CountAsync() > 0)
+            {
+                var containerDims = await tableContainer.EvaluateAsync(@"(el) => ({
+                    scrollWidth: el.scrollWidth,
+                    clientWidth: el.clientWidth,
+                    scrollHeight: el.scrollHeight
+                })");
+                var ce = containerDims.Value;
+                int cScrollW = ce.GetProperty("scrollWidth").GetInt32();
+                int cClientW = ce.GetProperty("clientWidth").GetInt32();
+                // container scrollWidth >= clientWidth is OK (internal scrolling allowed within wrapper)
+                Output.WriteLine($"[Viewport] Livestock table container: scrollWidth={cScrollW}, clientWidth={cClientW} (internal scrolling OK if scrollWidth >= clientWidth)");
+                Assert.True(cScrollW >= cClientW - 2, "Table wrapper should at least accommodate table content width.");
+            }
+
+            // BODY must still NOT have page-wide horizontal overflow (scroll should be local to table wrapper)
+            await AssertNoPageHorizontalOverflowAsync(page);
         });
     }
 

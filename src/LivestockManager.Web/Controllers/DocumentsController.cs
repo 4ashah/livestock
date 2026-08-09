@@ -9,6 +9,7 @@ using LivestockManager.Domain.Enums;
 using LivestockManager.Domain.Exceptions;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Infrastructure.Persistence;
+using LivestockManager.Infrastructure.Services.Storage;
 using LivestockManager.Web.Models.DocumentViewModels;
 
 namespace LivestockManager.Web.Controllers;
@@ -83,9 +84,6 @@ public class DocumentsController : Controller
 
         var (companyId, userId) = await GetCurrentCompanyAndUser();
 
-        var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".txt", ".csv" };
-        const long maxSizeBytes = 10 * 1024 * 1024;
-
         var successCount = 0;
         var errorMessages = new List<string>();
 
@@ -100,14 +98,21 @@ public class DocumentsController : Controller
 
             try
             {
+                var validationResult = await ProtectedFileUploadValidator.ValidateUploadAsync(file, companyId, ct);
+                if (!validationResult.IsValid)
+                {
+                    errorMessages.Add($"{file.FileName}: {validationResult.ErrorMessage}");
+                    continue;
+                }
+
                 using var stream = file.OpenReadStream();
                 var (documentId, _, _) = await _storage.StoreAsync(
                     companyId,
-                    file.FileName,
+                    validationResult.SanitizedDisplayName!,
                     stream,
                     vm.DocumentType,
-                    maxSizeBytes,
-                    allowedExtensions,
+                    ProtectedFileUploadValidator.MaxFileSizeBytes,
+                    ProtectedFileUploadValidator.AllowedExtensions,
                     userId,
                     ct);
 
@@ -215,6 +220,14 @@ public class DocumentsController : Controller
             return File(fileStream, metadata.ContentType ?? "application/octet-stream", fileDownloadName: sanitizedName);
         }
         catch (DomainException)
+        {
+            return NotFound();
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return NotFound();
+        }
+        catch (InvalidOperationException)
         {
             return NotFound();
         }
