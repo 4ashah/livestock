@@ -6,20 +6,39 @@ param(
     [ValidatePattern('^[A-Za-z0-9_@#$-]+$')]
     [string]$DatabaseName,
 
-    [Parameter(Mandatory=$true)]
-    [string]$BackupDirectory,
+    [string]$BackupDirectory = "./artifacts/backups",
 
     [int]$RetentionDays = -1,
 
-    [string]$LogDirectory = (Join-Path (Get-Location) "artifacts\logs")
+    [string]$LogDirectory = "./artifacts/logs"
 )
 
 $ErrorActionPreference = "Stop"
 
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
 
-New-Item -ItemType Directory -Force -Path $LogDirectory | Out-Null
-$logFile = Join-Path $LogDirectory ("Backup_{0}.log" -f $stamp)
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = Split-Path -Parent $ScriptDir
+if (-not (Test-Path (Join-Path $RepoRoot "LivestockManager.sln"))) {
+    Write-Error "FATAL: RepoRoot detection failed. Expected LivestockManager.sln under: $RepoRoot"
+    exit 99
+}
+
+function Resolve-AbsoluteFromRepo {
+    param([string]$Path)
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    } else {
+        $combined = Join-Path $RepoRoot $Path
+        return [System.IO.Path]::GetFullPath($combined)
+    }
+}
+
+$BackupDirectoryFull = Resolve-AbsoluteFromRepo $BackupDirectory
+$LogDirectoryFull = Resolve-AbsoluteFromRepo $LogDirectory
+
+New-Item -ItemType Directory -Force -Path $LogDirectoryFull | Out-Null
+$logFile = Join-Path $LogDirectoryFull ("Backup_{0}.log" -f $stamp)
 
 function Write-Log {
     param([string]$Level, [string]$Message)
@@ -29,11 +48,13 @@ function Write-Log {
 }
 
 Write-Log "INFO" "=== Database Backup Start ==="
+Write-Log "INFO" "RepoRoot (detected): $RepoRoot"
 Write-Log "INFO" "ServerInstance: $ServerInstance"
 Write-Log "INFO" "DatabaseName:   $DatabaseName"
-Write-Log "INFO" "BackupDirectory: $BackupDirectory"
+Write-Log "INFO" "BackupDirectory (user): $BackupDirectory"
+Write-Log "INFO" "BackupDirectory (absolute resolved): $BackupDirectoryFull"
 Write-Log "INFO" "RetentionDays:  $RetentionDays"
-Write-Log "INFO" "LogDirectory:   $LogDirectory"
+Write-Log "INFO" "LogDirectory (absolute resolved): $LogDirectoryFull"
 
 $systemDbs = @('master', 'model', 'msdb', 'tempdb')
 if ($systemDbs -contains $DatabaseName) {
@@ -62,57 +83,56 @@ if ($checkExit -ne 0 -or ($checkResult -join "`n") -notmatch [regex]::Escape($Da
 Write-Log "INFO" "SQL connectivity and existence check passed."
 
 try {
-    New-Item -ItemType Directory -Force -Path $BackupDirectory | Out-Null
+    New-Item -ItemType Directory -Force -Path $BackupDirectoryFull | Out-Null
 } catch {
-    Write-Log "ERROR" "backup-dir-not-writable: Failed to create BackupDirectory '$BackupDirectory'."
+    Write-Log "ERROR" "backup-dir-not-writable: Failed to create BackupDirectory '$BackupDirectoryFull'."
     Write-Error -ErrorAction Continue "backup-dir-not-writable: Failed to create BackupDirectory."
     exit 13
 }
 
-$testTmp = Join-Path $BackupDirectory ("__write_test_{0}.tmp" -f [guid]::NewGuid().ToString("N"))
+$probePath = Join-Path $BackupDirectoryFull ".write-probe.tmp"
 try {
-    [System.IO.File]::WriteAllText($testTmp, "test")
-    if (-not (Test-Path $testTmp)) { throw "tmp missing" }
-    Remove-Item $testTmp -Force
+    New-Item -ItemType File -Path $probePath -Value "ok" -Force | Out-Null
+    Remove-Item $probePath -Force
 } catch {
-    Write-Log "ERROR" "backup-dir-not-writable: Cannot write to BackupDirectory '$BackupDirectory'."
-    Write-Error -ErrorAction Continue "backup-dir-not-writable: Cannot write to BackupDirectory."
-    if (Test-Path $testTmp) { Remove-Item $testTmp -Force -ErrorAction SilentlyContinue }
+    Write-Log "ERROR" "backup-dir-not-writable: Write-probe test failed on BackupDirectory '$BackupDirectoryFull'."
+    Write-Error -ErrorAction Continue "backup-dir-not-writable: Write-probe test failed."
+    if (Test-Path $probePath) { Remove-Item $probePath -Force -ErrorAction SilentlyContinue }
     exit 13
 }
-Write-Log "INFO" "BackupDirectory writable check passed."
+Write-Log "INFO" "BackupDirectory created and writable (write-probe passed)."
 
-$BackupFile = Join-Path $BackupDirectory ("{0}_{1}.bak" -f $DatabaseName, $stamp)
-Write-Log "INFO" "BackupFile will be: $BackupFile"
+$BackupFileFull = Join-Path $BackupDirectoryFull ("{0}_{1}.bak" -f $DatabaseName, $stamp)
+Write-Log "INFO" "BackupFile (absolute): $BackupFileFull"
 
-$backupQuery = "BACKUP DATABASE [$DatabaseName] TO DISK=N'$($BackupFile.Replace("'","''"))' WITH INIT, COMPRESSION, STATS=10;"
-Write-Log "INFO" "Executing BACKUP DATABASE..."
+$backupQuery = "BACKUP DATABASE [$DatabaseName] TO DISK=N'$($BackupFileFull.Replace("'","''"))' WITH INIT, COMPRESSION, STATS=10;"
+Write-Log "INFO" "Executing BACKUP DATABASE (absolute path to SQL Server)..."
 & sqlcmd -S $ServerInstance -E -b -Q $backupQuery
 $backupExit = $LASTEXITCODE
 if ($backupExit -ne 0) {
     Write-Log "ERROR" "backup-failed-sql (exit=$backupExit): BACKUP DATABASE command failed."
-    if (Test-Path $BackupFile) {
-        Write-Log "WARN" "Removing partially written backup file: $BackupFile"
-        Remove-Item $BackupFile -Force -ErrorAction SilentlyContinue
+    if (Test-Path $BackupFileFull) {
+        Write-Log "WARN" "Removing partially written backup file: $BackupFileFull"
+        Remove-Item $BackupFileFull -Force -ErrorAction SilentlyContinue
     }
     Write-Error -ErrorAction Continue "backup-failed-sql: BACKUP command failed with exit $backupExit."
     exit 14
 }
 Write-Log "INFO" "BACKUP DATABASE sqlcmd returned 0."
 
-if (-not (Test-Path $BackupFile) -or ((Get-Item $BackupFile).Length -le 0)) {
+if (-not (Test-Path $BackupFileFull) -or ((Get-Item $BackupFileFull).Length -le 0)) {
     Write-Log "ERROR" "backup-zero-length: Backup file missing or zero length."
     Write-Error -ErrorAction Continue "backup-zero-length: Backup file missing or zero length."
     exit 15
 }
-$bkSize = (Get-Item $BackupFile).Length
+$bkSize = (Get-Item $BackupFileFull).Length
 Write-Log "INFO" "Backup verified. Size = $bkSize bytes."
 
 if ($RetentionDays -gt 0) {
     Write-Log "INFO" "Applying retention policy: older than $RetentionDays days."
     $cutoff = (Get-Date).AddDays(-$RetentionDays)
     $filter = $DatabaseName + "_*.bak"
-    $toRemove = Get-ChildItem -Path $BackupDirectory -Filter $filter -File | Where-Object { $_.LastWriteTime -lt $cutoff }
+    $toRemove = Get-ChildItem -Path $BackupDirectoryFull -Filter $filter -File | Where-Object { $_.LastWriteTime -lt $cutoff }
     foreach ($f in $toRemove) {
         Write-Log "INFO" "Retention purge: $($f.FullName) ($($f.LastWriteTime))"
         Remove-Item $f.FullName -Force -ErrorAction SilentlyContinue
@@ -122,6 +142,6 @@ if ($RetentionDays -gt 0) {
     Write-Log "INFO" "RetentionDays <= 0, skipping retention purge."
 }
 
-Write-Log "INFO" "BACKUP OK: $BackupFile"
-Write-Output "BACKUP OK: $BackupFile"
+Write-Log "INFO" "BACKUP OK: $BackupFileFull"
+Write-Output "BACKUP OK: $BackupFileFull"
 exit 0

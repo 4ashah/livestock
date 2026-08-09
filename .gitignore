@@ -1,10 +1,6 @@
 bin/
 obj/
 packages/
-Artifacts/
-artifacts/
-TestResults/
-testresults/
 *.user
 .vs/
 *.suo
@@ -29,7 +25,6 @@ MSBuild/
 *.pidb
 *.svclog
 *.scc
-*.bak
 *.cache
 *.log
 *.sqlsuo
@@ -37,39 +32,48 @@ MSBuild/
 publish/
 .freebuff/
 .trae/
-App_Data/
 *.db-shm
 *.db-wal
 
 
-# ============= Phase 11 additions (2026-08-09) =============
-# Build output at any depth (preserve existing bin/obj entries)
+# ============= Repository hygiene (ROUND2 3.txt §C) =============
+
+# Compressed packages / generated binaries / test output
+*.zip
+*.bak
+*.trx
+
+# Build output at any depth
 **/bin/
 **/obj/
 
-# Fine-grained artifact subdirectories (exact paths, .gitkeep files NOT ignored by these patterns)
+# Visual Studio / IDE state
+.vs/
+
+# Test output dirs
+TestResults/
+App_Data/
+
+# Release / artifact subdirectories
 artifacts/publish/
 artifacts/production-publish/
-artifacts/e2e/.playwright-browsers/
+artifacts/backups/
+artifacts/logs/
+
+# E2E Playwright outputs + local browser install
 artifacts/e2e/results/
 artifacts/e2e/screenshots/
 artifacts/e2e/traces/
 artifacts/e2e/videos/
-artifacts/logs/
-artifacts/backups/
+artifacts/e2e/.playwright-browsers/
 
-# Test output / stale tool output
-*.trx
-coverage/
-coverage.*
+# Fonts: Genuine font TTFs and the OFL.txt license are explicitly tracked
+# in src/LivestockManager.Infrastructure/Resources/Fonts/. All other *.ttf
+# files elsewhere remain ignored by the lack of a matching negation.
+!src/LivestockManager.Infrastructure/Resources/Fonts/*.ttf
+!src/LivestockManager.Infrastructure/Resources/Fonts/OFL.txt
 
 # Secrets / sensitive / credential files
 *.pfx
 *.snk
 appsettings.Production.json
-
-# Archives / compressed packages (EXCEPT audit.zip which is retained evidence)
-*.zip
-!audit.zip
-
-# (Kept entries already present above: .vs/, *.bak, *.user, *.suo, App_Data/, TestResults/)

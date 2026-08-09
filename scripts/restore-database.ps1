@@ -11,15 +11,41 @@ param(
 
     [string]$DataFileDirectory = "",
 
+    [string]$LogDirectory = "./artifacts/logs",
+
     [switch]$ConfirmDestructiveOverwrite
 )
 
 $ErrorActionPreference = "Stop"
 
 $stamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$LogDirectory = Join-Path (Get-Location) "artifacts\logs"
-New-Item -ItemType Directory -Force -Path $LogDirectory | Out-Null
-$logFile = Join-Path $LogDirectory ("Restore_{0}.log" -f $stamp)
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = Split-Path -Parent $ScriptDir
+if (-not (Test-Path (Join-Path $RepoRoot "LivestockManager.sln"))) {
+    Write-Error "FATAL: RepoRoot detection failed. Expected LivestockManager.sln under: $RepoRoot"
+    exit 99
+}
+
+function Resolve-AbsoluteFromRepo {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) { return "" }
+    if ([System.IO.Path]::IsPathRooted($Path)) {
+        return [System.IO.Path]::GetFullPath($Path)
+    } else {
+        $combined = Join-Path $RepoRoot $Path
+        return [System.IO.Path]::GetFullPath($combined)
+    }
+}
+
+$LogDirectoryFull = Resolve-AbsoluteFromRepo $LogDirectory
+if (-not [string]::IsNullOrWhiteSpace($DataFileDirectory)) {
+    $DataFileDirectory = Resolve-AbsoluteFromRepo $DataFileDirectory
+}
+$BackupFile = Resolve-AbsoluteFromRepo $BackupFile
+
+New-Item -ItemType Directory -Force -Path $LogDirectoryFull | Out-Null
+$logFile = Join-Path $LogDirectoryFull ("Restore_{0}.log" -f $stamp)
 
 function Write-Log {
     param([string]$Level, [string]$Message)
@@ -29,8 +55,9 @@ function Write-Log {
 }
 
 Write-Log "INFO" "=== Database Restore Start ==="
+Write-Log "INFO" "RepoRoot (detected): $RepoRoot"
 Write-Log "INFO" "ServerInstance:          $ServerInstance"
-Write-Log "INFO" "BackupFile:              $BackupFile"
+Write-Log "INFO" "BackupFile (resolved):   $BackupFile"
 Write-Log "INFO" "TargetDatabase:          $TargetDatabase"
 Write-Log "INFO" "DataFileDirectory:       '$DataFileDirectory'"
 Write-Log "INFO" "ConfirmDestructiveOverwrite: $ConfirmDestructiveOverwrite"

@@ -13,6 +13,18 @@ This file contains attributions for third-party software, fonts, and resources d
 - **Attribution**: Designed by Google Inc. Noto is a trademark of Google Inc.
 - **Included as**: Embedded resource for PDF Unicode rendering in invoices/receipts.
 
+### ⚠️ CURRENT FONT STATUS (ROUND2 2026-08-09)
+
+> **Validated genuine Noto Sans fonts were not available in this build.**
+>
+> Invalid 169-byte placeholder assets (that only mimicked genuine Noto-Sans file names but contained **zero usable TrueType data** and could not be parsed by a TrueType reader) were **REMOVED** from `src/LivestockManager.Infrastructure/Resources/Fonts/`. They were rejected by the new `TrueTypeFontValidator` structural C# class (which enforces ≥ 50 KB, 0x00010000 signature, 8–40 tables, and the presence of all 9 required TrueType tables: head, hhea, maxp, hmtx, cmap, name, OS/2, glyf, loca).
+>
+> - **Unicode PDF rendering:** **BLOCKED_EXTERNAL**
+> - **Safe basic WinAnsi Helvetica fallback:** ACTIVE for all PDF generation (invoice/receipt rendering) until a validated genuine font is embedded and `TrueTypeFontValidator` passes.
+> - **Basic ASCII-only customer names / symbols / currency codes:** Supported via WinAnsi Helvetica fallback.
+> - **International names with diacritics / non-Latin scripts / extended currency glyphs (₹ € Ł etc.):** Not rendered correctly until genuine subsetted Noto Sans (Regular + Bold) is obtained, placed under the Fonts/ directory, and passes `TrueTypeFontValidator.Validate()`.
+> - **Action for future maintainers:** Obtain genuine NotoSans-Regular.ttf + NotoSans-Bold.ttf (≥ 50 KB each, genuine Google Noto release), drop them into `src/LivestockManager.Infrastructure/Resources/Fonts/`, ensure OFL.txt is present, then re-run `TrueTypeFontValidatorTests` and `PdfUnicodeTests`.
+
 ### SIL Open Font License 1.1 Summary
 
 The OFL allows the licensed fonts to be used, studied, modified and redistributed freely as long as they are not sold by themselves. The fonts, including any derivative works, can be bundled, embedded, redistributed and/or sold with any software provided that any reserved names are not used by derivative works. The fonts and derivatives, however, cannot be released under any other type of license. The requirement for fonts to remain under this license does not apply to any document created using the fonts or their derivatives.

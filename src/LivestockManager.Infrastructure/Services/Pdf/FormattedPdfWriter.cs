@@ -29,6 +29,8 @@ public class FormattedPdfWriter : IPdfGenerator
     private static byte[]? _cachedRegularTtf;
     private static byte[]? _cachedBoldTtf;
     private static bool? _fontsAvailable;
+    private static bool _fontsInvalidPlaceholderDetected;
+    private static bool _placeholderRejectWarningLogged;
 
     internal static bool UnicodeFontsAvailable
     {
@@ -40,6 +42,8 @@ public class FormattedPdfWriter : IPdfGenerator
         }
     }
 
+    internal static bool InvalidPlaceholderDetected => _fontsInvalidPlaceholderDetected;
+
     internal static void ResetFontCacheForTesting()
     {
         lock (FontLock)
@@ -48,6 +52,8 @@ public class FormattedPdfWriter : IPdfGenerator
             _cachedBoldTtf = null;
             _fontsAvailable = null;
             _forceFallbackMode = false;
+            _fontsInvalidPlaceholderDetected = false;
+            _placeholderRejectWarningLogged = false;
         }
     }
 
@@ -85,9 +91,45 @@ public class FormattedPdfWriter : IPdfGenerator
                     using var boldMs = new MemoryStream();
                     regStream.CopyTo(regMs);
                     boldStream.CopyTo(boldMs);
-                    _cachedRegularTtf = regMs.ToArray();
-                    _cachedBoldTtf = boldMs.ToArray();
-                    _fontsAvailable = _cachedRegularTtf.Length > 100 && _cachedBoldTtf.Length > 100;
+                    byte[] regBytes = regMs.ToArray();
+                    byte[] boldBytes = boldMs.ToArray();
+
+                    bool regValid;
+                    using (var regValStream = new MemoryStream(regBytes))
+                        regValid = TrueTypeFontValidator.Validate(regValStream, out _);
+                    bool boldValid;
+                    using (var boldValStream = new MemoryStream(boldBytes))
+                        boldValid = TrueTypeFontValidator.Validate(boldValStream, out _);
+
+                    if (regValid && boldValid)
+                    {
+                        _cachedRegularTtf = regBytes;
+                        _cachedBoldTtf = boldBytes;
+                        _fontsAvailable = true;
+                    }
+                    else
+                    {
+                        _cachedRegularTtf = null;
+                        _cachedBoldTtf = null;
+                        _fontsAvailable = false;
+                        _fontsInvalidPlaceholderDetected = true;
+                        if (!_placeholderRejectWarningLogged)
+                        {
+                            _placeholderRejectWarningLogged = true;
+                            try
+                            {
+                                Console.Error.WriteLine(
+                                    "[WARN][PDF] Rejected invalid embedded TrueType font assets " +
+                                    "(placeholders detected; TrueTypeFontValidator failed). " +
+                                    "Unicode PDF rendering disabled; using safe basic WinAnsi Helvetica fallback. " +
+                                    "Replace with genuine validated Noto Sans (Regular + Bold) to re-enable Unicode PDF output."
+                                );
+                            }
+                            catch
+                            {
+                            }
+                        }
+                    }
                 }
                 else
                 {

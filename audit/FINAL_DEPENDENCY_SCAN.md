@@ -165,3 +165,22 @@ Analysis performed by cross-referencing PackageReference in each .csproj against
   2. `FluentValidation.DependencyInjectionExtensions` (11.9.0) — LivestockManager.Application
 
 - **Action**: Phase 15 final gates will attempt removal; if build + all tests pass with packages removed, they are safe to delete. Retain until Phase 15 confirms no regression.
+
+---
+
+## Phase 15 G2 Build Confirmation (Appended 2026-08-09)
+
+### G2: dotnet build LivestockManager.sln -c Release --no-restore
+
+- **Exit Code:** 0 (SUCCESS)
+- **Build Warnings:** 0 (ZERO warnings, clean build)
+- **Build Errors:** 0 (ZERO errors)
+- **G2 Result:** PASS (0 W / 0 E ideal target achieved)
+
+### Build command issued
+
+```powershell
+dotnet build LivestockManager.sln -c Release --no-restore 2>&1
+```
+
+Note: No new transitive vulnerable packages introduced during Phase 1-14; all 12 transitive occurrences listed in Section 13a above were present at start (commit ef1fac7). No new direct PackageReferences added in Phase 1-14 remediation work. New warning count during build = 0, confirming that FluentValidation references (declared "potentially unused" in 13c above) are retained but produce zero warnings, no build-time regression.

@@ -203,5 +203,204 @@
     "RetryCount": 0,
     "Verified": "2026-08-07",
     "Notes": "Release build 0/0 errors/warnings; unit tests 84/84 Pass Release+Debug; 10 CMD scripts written to repo root (build/clean/test/smoke-test/run-dev/package-release/publish-iis/database-update/backup-database/restore-database); 10 PowerShell equivalents in scripts/ subfolder; backup-database default .\\SQLEXPRESS with RETENTION_DAYS support; restore guarded CONFIRM_RESTORE_OVERWRITE==1; DEPLOY_CHECKLIST.md §1–10 complete; appsettings.Production.example.json repo-root + src/Web copies; package-release.cmd produces 158 files in artifacts\\publish\\"
+  },
+  {
+    "TaskID": "S10",
+    "Module": "Phase 15 Release Gates (G1..G11) + 10 FINAL_* Reports",
+    "Description": "Phase 15 ONLY: run 11 release gates G1-G11 in order, generate release ZIP + SHA256, write 10 FINAL_* reports under audit/, set FINAL_RELEASE_CANDIDATE status = PENDING INDEPENDENT AUDIT (NOT self-approved).",
+    "Dependencies": ["S9"],
+    "Priority": "Critical",
+    "Agent": "DevOps / Build",
+    "Status": "verified",
+    "AcceptanceCriteria": [
+      "G1 Git clean + commit message exactly 'Phase 1-14 final hardening; pending gate execution' → dotnet restore exit 0",
+      "G2 dotnet build -c Release --no-restore → 0 Warnings, 0 Errors (ideal target achieved)",
+      "G3 Unit tests: 314 Discovered, 314 Passed, 0 Failed, 0 Skipped (Release no-restore no-build)",
+      "G4 Integration tests: 15 Discovered, 15 Passed (WebApplicationFactory pattern #6 fix via static ctor)",
+      "G5 Architecture tests: 60 Discovered, 60 Passed",
+      "G6 E2E Run-E2ETests.ps1 -ServerInstance '.' → 25/25 Pass incl 7 mobile viewports (360-1920 widths), exit 0, DB kept for DR",
+      "G7 PDF generation gate: 6 PDFs in artifacts/pdf-samples/ (1/18/25/50/unicode/receipt), non-empty sizes, /Type /Page counts: 25=3pg, 50=5pg, Unicode names José María Gómez / François Müller / Łukasz / Sørensen + ₹€£R$ currencies",
+      "G8 SQL backup-database.ps1 → LivestockManager_E2E_Gate .bak > 0 bytes (exit 0, 697 pages)",
+      "G9 SQL restore-database.ps1 to LivestockManager_E2E_Gate_Restored (exit 0; 3-table row counts match AspNetUsers 6/6, AspNetRoles 6/6, Livestock 0/0)",
+      "G10 publish-iis.ps1 → artifacts/production-publish contains web.config and non-empty LivestockManager.Web.dll 1.33 MB",
+      "G11 Release ZIP: artifacts/release/LivestockManager-Release-v1.0.0-rc.zip 23.4 MB (publish+docs+audit+scripts); SHA256 sidecar; hash = 800D58676BD2FB362D88EAC1457073979075FDB695BC85CD053DC5C25FEF7D2E",
+      "10 FINAL_* reports written to audit/: HARDENING (lines 1073-1104), CLEANUP_INVENTORY (verified), SECRETS_SCAN (verified), DEPENDENCY_SCAN (appended G2 0W/0E), MOBILE_RESULTS (7 viewport), PDF_RESULTS (6 pdfs), PRODUCTION_CONFIG (12 checks), TEST_RESULTS (414 tests), DR_RESULTS (backup/restore), RELEASE_CANDIDATE (PENDING INDEPENDENT AUDIT explicitly)",
+      "BUILD_STATUS.md rewritten with G1-G11 table, version v1.0.0-rc, final status line 'Phase 15 gates complete; release status = PENDING INDEPENDENT AUDIT'",
+      ".agent/* files final update: STATE.md (Phase=15, Exit=0 iff ALL gates pass), TASKS.json (S10 gate record), DEFECTS.md (final list + closed tracking), LAST_RUN.md (timestamped summary with SHA256)",
+      "Release self-approval DISABLED. FINAL_RELEASE_CANDIDATE.md explicitly 'PENDING INDEPENDENT AUDIT'. No force-push or deployment performed anywhere. 3.txt external to repo NOT committed. Secrets/connection strings NEVER printed."
+    ],
+    "TestIDs": ["G1-RESTORE-0", "G2-0W0E", "G3-UNIT-314P", "G4-INTG-15P", "G5-ARCH-60P", "G6-E2E-25P-MOBILE7", "G7-PDF6-MULTI-UNICODE", "G8-BACKUP-697PG", "G9-RESTORE-ROWS-MATCH", "G10-PUBLISH-IIS-DLL", "G11-ZIP-SHA256-64CHARS"],
+    "RetryCount": 0,
+    "Verified": "2026-08-09",
+    "Notes": "All 11 gates PASS (11/11). Final commit short hash HEAD = 4ea7b78 on branch remediation/final-production-hardening. Overall pipeline Exit=0 because ALL gates passed. Release status PENDING INDEPENDENT AUDIT per strict rules — no self-approval applied. 414/414 tests PASS 0 FAIL 0 SKIP across all 4 suites. SHA256 800D58676BD2FB362D88EAC1457073979075FDB695BC85CD053DC5C25FEF7D2E written to .sha256 sidecar. No secrets/conn strings in any output. No force-push; no deployment anywhere."
+  },
+  {
+    "TaskID": "R2C",
+    "Module": "ROUND2 Audit Stabilization — Hygiene",
+    "Description": "Phase C: Remove audit.zip safely from tracking, update .gitignore, add RepositoryHygiene xUnit test blocking tracked *.zip/*.bak/*.trx/bin/obj/TestResults/playwright-browsers.",
+    "Dependencies": ["S10"],
+    "Priority": "Critical",
+    "Agent": "Infra + Test",
+    "Status": "in_progress",
+    "AcceptanceCriteria": [
+      "git rm --cached audit.zip exits 0",
+      "audit.zip deleted from worktree",
+      ".gitignore updated with all 19 patterns from 3.txt §C + font TTF/OFL negations, !audit.zip removed",
+      "RepositoryHygieneTests.cs exists, Test R1 shells out to git ls-files and fails on violations",
+      "dotnet test RepositoryHygieneTests (single filter) exits 0 after audit.zip removal"
+    ],
+    "TestIDs": ["R2C-R1-HYGIENE-GITLSFILES"],
+    "RetryCount": 0,
+    "Blockers": "None expected; audit.zip is binary only; audit/*.md evidence retained."
+  },
+  {
+    "TaskID": "R2D",
+    "Module": "ROUND2 Audit Stabilization — Dependency Vulns",
+    "Description": "Phase D: Remove Microsoft.VisualStudio.Web.CodeGeneration.Design, remove or upgrade Microsoft.Extensions.Caching.Memory; confirm no Critical/High runtime packages in publish deps.",
+    "Dependencies": ["R2C"],
+    "Priority": "Critical",
+    "Agent": "Infra + Build",
+    "Status": "pending",
+    "AcceptanceCriteria": [
+      "Microsoft.VisualStudio.Web.CodeGeneration.Design PackageReference removed from LivestockManager.Web.csproj",
+      "Microsoft.Extensions.Caching.Memory removed from Domain/Application if unused OR pinned to 8.0.5+ safe patch if used",
+      "dotnet restore LivestockManager.sln exit 0",
+      "dotnet build -c Release exit 0 (0W/0E ideal)",
+      "dotnet list package --vulnerable --include-transitive: 0 Critical + 0 High in packages that ship in production publish output",
+      "Publish scripts/publish-iis.ps1: LivestockManager.Web.deps.json contains no Microsoft.Build / System.Text.Json 7.0.3 / CodeGeneration"
+    ],
+    "TestIDs": ["R2D-RESTORE-0", "R2D-BUILD-0W0E", "R2D-PUBLISH-DEPS-CHECK"],
+    "RetryCount": 0
+  },
+  {
+    "TaskID": "R2E",
+    "Module": "ROUND2 Audit Stabilization — Font Assets + PDF Fallback",
+    "Description": "Phase E: Delete 169-byte fake NotoSans TTF placeholders; add TrueTypeFontValidator structural C# class; wire FormattedPdfWriter fallback mode; update THIRD_PARTY_NOTICES; add 4 validator unit tests.",
+    "Dependencies": ["R2D"],
+    "Priority": "Critical",
+    "Agent": "Infra + PDF + Test",
+    "Status": "pending",
+    "AcceptanceCriteria": [
+      "NotoSans-Regular.ttf and NotoSans-Bold.ttf (169 bytes each) deleted from worktree and tracking",
+      "Empty OFL.txt placeholder deleted if present, real OFL retained if genuine",
+      "TrueTypeFontValidator.cs added: Validate(Stream, out errors) returning bool enforcing len>=50KB, sig=0x00010000, numTables 8..40, 9 required tables (head/hhea/maxp/hmtx/cmap/name/OS/2/glyf/loca), offset+length bounds",
+      "FormattedPdfWriter.EnsureFontsLoaded runs validator after loading; if invalid sets _fontsAvailable=false and _fontsInvalidPlaceholderDetected=true; logs warning once; DrawText uses Helvetica WinAnsi fallback always",
+      "THIRD_PARTY_NOTICES.md Noto section updated with CURREBT FONT STATUS: UNICODE_BLOCKED_EXTERNAL_WITH_SAFE_BASIC_FALLBACK block",
+      "TrueTypeFontValidatorTests.cs 4 tests: 169-byte fails, valid 50KB+ valid stream passes, wrong sig fails, head missing fails"
+    ],
+    "TestIDs": ["R2E-VAL-4TESTS-PASS", "R2E-PDF-FALLBACK-25ITEMS", "R2E-PDF-FALLBACK-50ITEMS"],
+    "RetryCount": 0
+  },
+  {
+    "TaskID": "R2F",
+    "Module": "ROUND2 Audit Stabilization — Backup Script",
+    "Description": "Phase F: Fix scripts/backup-database.ps1 BackupDirectory relative-to-repo-root normalization; absolute paths only to sqlcmd; write probe; 6 test cases PASS (2 valid produce .bak>=1MB; 4 invalid nonzero exit); restore one backup and verify AspNetRoles/AspNetUsers/Companies/Livestock exist.",
+    "Dependencies": ["R2E"],
+    "Priority": "High",
+    "Agent": "DevOps + Test",
+    "Status": "pending",
+    "AcceptanceCriteria": [
+      "BackupDirectory parameter default ./artifacts/backups normalized to absolute relative to $RepoRoot (not CWD) via Join-Path RepoRoot + Path.GetFullPath",
+      "New-Item -ItemType Directory -Force creates dir if missing",
+      "Write probe: .write-probe.tmp written + removed; failure writes error + exit nonzero",
+      "Final .bak path passed to sqlcmd is absolute; no relative paths in BACKUP DATABASE statement",
+      "All existing guards retained: DB regex, system DB reject (master/model/msdb/tempdb), nonzero on failure, no credential logging, consistent casing refs",
+      "Case 1 relative artifacts/backups exit 0, .bak>=1MB",
+      "Case 2 abs C:\\Projects\\livestock\\artifacts\\backup-tests-abs exit 0, .bak>=1MB",
+      "Case 3 path with spaces exit 0, .bak>=1MB",
+      "Case 4 invalid drive X:\\nonexistent-dir\\backups exit nonzero",
+      "Case 5 DatabaseName=NOPE_DATABASE_12345 exit nonzero",
+      "Case 6 DatabaseName=master (system DB) exit nonzero",
+      "Restore-Database.ps1 run on one valid backup; sqlcmd SELECT TOP 0 on AspNetRoles/AspNetUsers/Companies/Livestock exits 0"
+    ],
+    "TestIDs": ["R2F-CASE1-TO-6", "R2F-RESTORE-4TABLES"],
+    "RetryCount": 0
+  },
+  {
+    "TaskID": "R2G",
+    "Module": "ROUND2 Audit Stabilization — Doc Consistency Test",
+    "Description": "Phase G: Fix LivestockDocConsistencyTests without weakening; add HISTORICAL_BASELINE_QUOTE_START/END markers to audit/*.md quoted stale blocks; strip markers in scanner before adjacency loop; add 5 new test cases G-T1..G-T5.",
+    "Dependencies": ["R2F"],
+    "Priority": "Critical",
+    "Agent": "Test + Docs",
+    "Status": "pending",
+    "AcceptanceCriteria": [
+      "Existing test LivestockDocConsistencyTests.DoesNotAssociateAhSuSaAdSdWithStaleDomesticAnimalMeanings_DocsAndAudit still FAILS before markers added (baseline)",
+      "Relevant audit/*.md files (AUDIT_SUMMARY, DEFECTS, REMEDIATION_REPORT, REAUDIT_SUMMARY + any test-flagged) have precise stale-quote blocks wrapped with HISTORICAL_BASELINE_QUOTE_START / END markers (minimal, NOT entire files)",
+      "Scanner logic updated: Regex.Replace with Singleline strips marker-enclosed regions BEFORE running adjacency for-loop",
+      "Exclusions retained: audit/PHASE1_SOURCE_INVENTORY.md, third-party LICENSE files, and now the historical markers; audit folder NOT excluded wholesale",
+      "G-T1 correct current mapping doc passes",
+      "G-T2 raw doc with Ah/Aves poultry fails (helper returns violations>0; test asserts nonzero; test itself doesn't kill run)",
+      "G-T3 marked historical quote inside markers gives 0 violations",
+      "G-T4 synthetic audit/fake-ROUND2-check.md in-memory with unmarked Ah = Adult Bovine returns violations>0",
+      "G-T5 scan of real *.cshtml/*.cs source UI literal strings for 5 codes + stale adjacency words passes (0 violations)",
+      "dotnet test filter LivestockDocConsistencyTests exit 0",
+      "Full unit suite exit 0"
+    ],
+    "TestIDs": ["R2G-DOCTEST-EXIT0", "R2G-FULLUNIT-EXIT0"],
+    "RetryCount": 0
+  },
+  {
+    "TaskID": "R2I",
+    "Module": "ROUND2 Audit Stabilization — Commit Valid Changes",
+    "Description": "Phase I: Git status, stage only valid source/test/script/docs/audit-text/.agent/.gitignore/TrueTypeFontValidator, exclude artifacts/binaries, commit with exact message, record SHA.",
+    "Dependencies": ["R2G", "R2H"],
+    "Priority": "Critical",
+    "Agent": "Infra",
+    "Status": "pending",
+    "AcceptanceCriteria": [
+      "git status shows no untracked *.zip *.bak *.trx bin/ obj/ publish/ etc. (all correctly ignored)",
+      "Staged files: source/*.cs source/*.csproj tests/*.cs scripts/*.ps1 audit/*.md (except old unchanged ones) BUILD_STATUS.md .agent/* .gitignore THIRD_PARTY_NOTICES.md; NOT audit.zip, NOT fake 169-byte fonts, NOT .vscode/, NOT artifacts/",
+      "Commit message exactly: 'fix(release): resolve final audit blockers and prepare clean demo candidate'",
+      "Commit short SHA (7 chars) + full SHA recorded for Phase M",
+      "Working tree clean after commit (or only untracked ignored files remain)"
+    ],
+    "TestIDs": ["R2I-COMMIT-SHA-RECORDED"],
+    "RetryCount": 0
+  },
+  {
+    "TaskID": "R2J",
+    "Module": "ROUND2 — Post-Remediation PDF Sample Generation (for Demo)",
+    "Description": "Phase J: Re-run Generate-PdfSamples.ps1 after font validator + fallback active; capture 25-item and 50-item PDF via Helvetica WinAnsi fallback; sizes/page counts recorded for demo; note Unicode=BLOCKED_EXTERNAL.",
+    "Dependencies": ["R2I"],
+    "Priority": "Medium",
+    "Agent": "Build + Demo",
+    "Status": "pending",
+    "AcceptanceCriteria": [
+      "Generate-PdfSamples.ps1 runs exit 0",
+      "invoice-25-items.pdf >= 25000 bytes, pages 3+",
+      "invoice-50-items.pdf >= 50000 bytes, pages 5+",
+      "Samples visually checked (basic ASCII only; Unicode chars replaced or Helvetica fallback glyphs)",
+      "Update FINAL_PDF_RESULTS.md (append Fallback Active section: Unicode BLOCKED_EXTERNAL until genuine TTF embedded)"
+    ],
+    "TestIDs": ["R2J-PDF6-SAMPLES-EXIT0"]
+  },
+  {
+    "TaskID": "R2K",
+    "Module": "ROUND2 — Demo Readiness Smoke Run",
+    "Description": "Phase K: Build + full unit suite once after commit; verify 0 failures; open issues only documented (no new fixes mid-demo).",
+    "Dependencies": ["R2I"],
+    "Priority": "Medium",
+    "Agent": "Build + Test",
+    "Status": "pending",
+    "AcceptanceCriteria": [
+      "dotnet build -c Release exit 0",
+      "dotnet test tests/LivestockManager.UnitTests -c Release exit 0",
+      "Snapshot of pass rate recorded for M report"
+    ],
+    "TestIDs": ["R2K-SMOKE-UNIT-EXIT0"]
+  },
+  {
+    "TaskID": "R2M",
+    "Module": "ROUND2 — Final Audit Stabilization Report",
+    "Description": "Phase M: Aggregate results into one report referencing all A,B,C,D,E,F,G,H,I,J,K outputs; include branch name, commit SHA, dep count (0), font status, doc test PASS, backup 6-case matrix, clock status.",
+    "Dependencies": ["R2I", "R2J", "R2K"],
+    "Priority": "Medium",
+    "Agent": "Lead",
+    "Status": "pending",
+    "AcceptanceCriteria": [
+      "audit/ROUND2_FINAL_REPORT.md written with all requested fields",
+      "Return values for summary: branch, commit short SHA, dep vuln count=0, font status, doc test result, unit pass rate, backup 6-case pass/fail"
+    ]
   }
 ]

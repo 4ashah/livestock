@@ -29,6 +29,21 @@ public class LivestockDocConsistencyTests
         "PHASE1_SOURCE_INVENTORY.md"
     };
 
+    private static readonly Regex HistoricalQuoteStripRegex = new Regex(
+        @"<!--\s*HISTORICAL_BASELINE_QUOTE_START\s*-->.*?<!--\s*HISTORICAL_BASELINE_QUOTE_END\s*-->",
+        RegexOptions.Compiled | RegexOptions.Singleline | RegexOptions.IgnoreCase);
+
+    private static readonly Regex CodeAhWordBoundary = new Regex(@"\bAh\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex CodeSuWordBoundary = new Regex(@"\bSu\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex CodeSaWordBoundary = new Regex(@"\bSa\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex CodeAdWordBoundary = new Regex(@"\bAd\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex CodeSdWordBoundary = new Regex(@"\bSd\b", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    private static string StripHistoricalQuoteRegions(string content)
+    {
+        return HistoricalQuoteStripRegex.Replace(content, " ");
+    }
+
     [Fact]
     public void DoesNotAssociateAhSuSaAdSdWithStaleDomesticAnimalMeanings_DocsAndAudit()
     {
@@ -55,8 +70,139 @@ public class LivestockDocConsistencyTests
             if (IsThirdPartyLicenseFile(filePath))
                 continue;
 
-            string content = File.ReadAllText(filePath);
+            string rawContent = File.ReadAllText(filePath);
+            string content = StripHistoricalQuoteRegions(rawContent);
             var fileViolations = FindForbiddenAssociations(content, filePath);
+            violations.AddRange(fileViolations);
+        }
+
+        if (violations.Count > 0)
+        {
+            File.WriteAllLines(Path.Combine(FindRepoRoot(), "artifacts", "logs", "doc-consistency-violations.txt"), violations);
+        }
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void G_T1_CorrectCurrentMapping_PassesScanner()
+    {
+        string correctDoc = @"
+# Current Correct Ovine Livestock Mappings
+
+Authoritative mappings (all sheep terminology only):
+- Ah = Purchased castrated ram (wether)
+- Su = Uncastrated ram (intact male)
+- Sa = Purchased ewe
+- Ad = Bred castrated ram
+- Sd = Bred ewe
+
+All five codes map exclusively to ovine male and female descriptors.
+";
+        var violations = FindForbiddenAssociations(correctDoc, "G_T1_inline.md");
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void G_T2_FalseCurrentMappingWithoutMarkers_ReturnsNonzeroViolations()
+    {
+        string badDoc = @"
+# This doc has incorrect unmarked associations
+
+Old stale incorrect claims (NOT in historical markers — should be flagged):
+- Ah = Aves poultry chicken
+- Su = Swine pigs piglet
+- Sa = Adult Bovine cow
+- Ad = Young Bovine calf
+- Sd = Purchased chick
+";
+        var violations = FindForbiddenAssociations(badDoc, "G_T2_bad_inline.md");
+        Assert.True(violations.Count > 0,
+            $"Expected nonzero violations for purposefully bad unmarked doc. Got {violations.Count}.");
+    }
+
+    [Fact]
+    public void G_T3_MarkedHistoricalQuoteWrapped_NoViolations()
+    {
+        string docWithMarkers = @"
+# Correct doc with wrapped historical baseline quotes
+
+Current mappings:
+- Ah = Purchased castrated ram
+- Su = Uncastrated ram
+- Sa = Purchased ewe
+- Ad = Bred castrated ram
+- Sd = Bred ewe
+
+Historical quoted baseline (wrapped, must be ignored by scanner):
+<!-- HISTORICAL_BASELINE_QUOTE_START -->
+OLD incorrect claims recorded at original baseline audit 2026-08-07:
+- Ah = Aves poultry chick hatchling
+- Su = Swine pigs piglet
+- Sa = Adult Bovine cow
+- Ad = Young Bovine calf calves
+- Sd = Purchased chick
+<!-- HISTORICAL_BASELINE_QUOTE_END -->
+
+Outside markers, only ovine terminology is used.
+";
+        string stripped = StripHistoricalQuoteRegions(docWithMarkers);
+        var violations = FindForbiddenAssociations(stripped, "G_T3_marked_inline.md");
+        Assert.Empty(violations);
+    }
+
+    [Fact]
+    public void G_T4_FakeAuditFileWithoutMarkers_FalseStatementNonzero()
+    {
+        string fakeAuditBad = @"
+# audit/fake-ROUND2-check.md — purposefully problematic synthetic
+
+This simulates a NEW audit file (2026-08-09) that unapologetically writes:
+Ah = Adult Bovine cow cattle Angus steer heifer bull ox.
+Therefore scanner MUST return nonzero violations (no markers around it).
+";
+        var violations = FindForbiddenAssociations(fakeAuditBad, "audit/fake-ROUND2-check.md");
+        Assert.True(violations.Count > 0,
+            $"G_T4: unmarked false statement in new audit file should trigger >0 violations. Got {violations.Count}.");
+    }
+
+    [Fact]
+    public void G_T5_SourceUiFiles_NoForbiddenStaleWordsAdjacentToFiveCodes()
+    {
+        string repoRoot = FindRepoRoot();
+        var scanRoots = new[]
+        {
+            Path.Combine(repoRoot, "src"),
+            Path.Combine(repoRoot, "views"),
+            Path.Combine(repoRoot, "Pages"),
+        };
+
+        var sourceFiles = new List<string>();
+        foreach (var root in scanRoots.Where(Directory.Exists))
+        {
+            sourceFiles.AddRange(Directory.EnumerateFiles(root, "*.cs", SearchOption.AllDirectories));
+            sourceFiles.AddRange(Directory.EnumerateFiles(root, "*.cshtml", SearchOption.AllDirectories));
+            sourceFiles.AddRange(Directory.EnumerateFiles(root, "*.razor", SearchOption.AllDirectories));
+            sourceFiles.AddRange(Directory.EnumerateFiles(root, "*.js", SearchOption.AllDirectories));
+        }
+
+        var violations = new List<string>();
+        foreach (var sf in sourceFiles)
+        {
+            string content;
+            try { content = File.ReadAllText(sf); }
+            catch { continue; }
+
+            bool hasAnyCode =
+                CodeAhWordBoundary.IsMatch(content) ||
+                CodeSuWordBoundary.IsMatch(content) ||
+                CodeSaWordBoundary.IsMatch(content) ||
+                CodeAdWordBoundary.IsMatch(content) ||
+                CodeSdWordBoundary.IsMatch(content);
+
+            if (!hasAnyCode) continue;
+
+            var fileViolations = FindForbiddenAssociations(content, sf);
             violations.AddRange(fileViolations);
         }
 
@@ -83,7 +229,7 @@ public class LivestockDocConsistencyTests
         return false;
     }
 
-    private static List<string> FindForbiddenAssociations(string content, string filePath)
+    internal static List<string> FindForbiddenAssociations(string content, string filePath)
     {
         var violations = new List<string>();
         var words = TokenizeWords(content);

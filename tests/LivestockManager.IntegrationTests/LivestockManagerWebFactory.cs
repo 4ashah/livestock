@@ -69,12 +69,28 @@ public class LivestockManagerWebFactory : WebApplicationFactory<HomeController>
     public const string StagingCompanyIdA = "11111111-1111-1111-1111-111111111111";
     public const string StagingCompanyIdB = "22222222-2222-2222-2222-222222222222";
 
+    private const string TestConnectionString = "Server=.;Database=Test_LivestockManager_Integration;Trusted_Connection=True;TrustServerCertificate=true;MultipleActiveResultSets=true;";
+
+    static LivestockManagerWebFactory()
+    {
+        Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Testing", EnvironmentVariableTarget.Process);
+        Environment.SetEnvironmentVariable("ConnectionStrings__LivestockManagerDb", TestConnectionString, EnvironmentVariableTarget.Process);
+        Environment.SetEnvironmentVariable("SeedDemoData", "0", EnvironmentVariableTarget.Process);
+        Environment.SetEnvironmentVariable("EnableDevSeed", "false", EnvironmentVariableTarget.Process);
+        Environment.SetEnvironmentVariable("EnableE2ESeed", "0", EnvironmentVariableTarget.Process);
+        Environment.SetEnvironmentVariable("ENV_ENABLE_DEV_SEED", "0", EnvironmentVariableTarget.Process);
+    }
+
     public Action<IServiceCollection>? ConfigureTestServicesHook { get; set; }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.UseSetting("ASPNETCORE_ENVIRONMENT", "Staging");
-        builder.UseSetting("EnableDevSeed", "true");
+        builder.UseEnvironment("Testing");
+        builder.UseSetting("ConnectionStrings:LivestockManagerDb", TestConnectionString);
+        builder.UseSetting("SeedDemoData", "0");
+        builder.UseSetting("EnableDevSeed", "false");
+        builder.UseSetting("EnableE2ESeed", "0");
+        builder.UseSetting("ENV_ENABLE_DEV_SEED", "0");
 
         builder.ConfigureTestServices(services =>
         {
@@ -97,8 +113,7 @@ public class LivestockManagerWebFactory : WebApplicationFactory<HomeController>
 
             services.AddDbContext<AppDbContext>(options =>
             {
-                options.UseSqlServer(
-                    "Server=.;Database=Test_LivestockManager_Integration;Trusted_Connection=True;TrustServerCertificate=true;MultipleActiveResultSets=true;");
+                options.UseSqlServer(TestConnectionString);
             });
 
             ConfigureTestServicesHook?.Invoke(services);
