@@ -8,17 +8,17 @@
     var recentInvoices = ViewData["RecentInvoices"] as IEnumerable<InvoiceSummaryDto>;
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4">
+<div class="page-title-row">
     <div>
-        <h1 class="h3 mb-1">📊 Dashboard</h1>
+        <h1 class="page-title">📊 Dashboard</h1>
         <div class="text-muted small">@Model.CompanyName · Today is @Model.TodayUtc.LocalDateTime.ToString("dddd, MMMM d, yyyy")</div>
     </div>
 </div>
 
 <h5 class="mb-2 text-muted small text-uppercase fw-bold border-bottom pb-1">Operational</h5>
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4 kpi-row-wrap">
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #2d6a4f;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #2d6a4f;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(45,106,79,0.1);">
@@ -34,7 +34,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #40916c;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #40916c;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(64,145,108,0.1);">
@@ -50,7 +50,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #e76f51;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #e76f51;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(231,111,81,0.1);">
@@ -66,7 +66,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #e9c46a;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #e9c46a;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(233,196,106,0.1);">
@@ -82,7 +82,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #d00000;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #d00000;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(208,0,0,0.1);">
@@ -98,7 +98,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #457b9d;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #457b9d;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(69,123,157,0.1);">
@@ -114,7 +114,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #1d3557;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #1d3557;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(29,53,87,0.1);">
@@ -132,9 +132,9 @@
 </div>
 
 <h5 class="mb-2 text-muted small text-uppercase fw-bold border-bottom pb-1">Commercial</h5>
-<div class="row g-3 mb-4">
+<div class="row g-3 mb-4 kpi-row-wrap">
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #2a9d8f;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #2a9d8f;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(42,157,143,0.1);">
@@ -150,7 +150,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #52b788;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #52b788;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(82,183,136,0.1);">
@@ -166,7 +166,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #9b5de5;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #9b5de5;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(155,93,229,0.1);">
@@ -182,7 +182,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #f15bb5;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #f15bb5;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(241,91,181,0.1);">
@@ -198,7 +198,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #00bbf9;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #00bbf9;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(0,187,249,0.1);">
@@ -214,7 +214,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #f77f00;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #f77f00;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(247,127,0,0.1);">
@@ -230,7 +230,7 @@
         </div>
     </div>
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
-        <div class="card kpi-card h-100 border-0" style="border-left-color: #00f5d4;">
+        <div class="card kpi-card kpi-mobile-card h-100 border-0" style="border-left-color: #00f5d4;">
             <div class="card-body">
                 <div class="d-flex align-items-center">
                     <div class="rounded-circle p-3 me-3" style="background-color: rgba(0,245,212,0.1);">
@@ -255,7 +255,8 @@
                 <a asp-controller="Livestock" asp-action="Index" class="small">View all →</a>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                @* Desktop Table View *@
+                <div class="table-responsive d-none d-md-block">
                     <table class="table table-sm table-hover mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
@@ -295,6 +296,46 @@
                         </tbody>
                     </table>
                 </div>
+                @* Mobile Card List View *@
+                <div class="d-md-none mobile-list-cards">
+                    @if (recentLivestock != null && recentLivestock.Any())
+                    {
+                        @foreach (var l in recentLivestock)
+                        {
+                            <div class="mobile-list-card">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <div class="text-muted small text-uppercase fw-semibold">Livestock ID</div>
+                                        <code class="fs-6 fw-bold">@l.LivestockId</code>
+                                    </div>
+                                    @if (l.Status == LivestockStatus.Active)
+                                    { <span class="badge bg-success">Active</span> }
+                                    else
+                                    { <span class="badge bg-secondary">@l.Status</span> }
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center small">
+                                    <div>
+                                        <div class="text-muted">Type</div>
+                                        <div class="fw-semibold">@l.LivestockTypeId</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="text-muted">Weight</div>
+                                        <div class="fw-semibold">
+                                            @if (l.CurrentWeight.HasValue)
+                                            { @l.CurrentWeight.Value.ToString("F2") @l.WeightUnit }
+                                            else
+                                            { <span class="text-muted">—</span> }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted small">No recent livestock.</div>
+                    }
+                </div>
             </div>
         </div>
     </div>
@@ -305,7 +346,8 @@
                 <a asp-controller="Invoices" asp-action="Index" class="small">View all →</a>
             </div>
             <div class="card-body p-0">
-                <div class="table-responsive">
+                @* Desktop Table View *@
+                <div class="table-responsive d-none d-md-block">
                     <table class="table table-sm table-hover mb-0 align-middle">
                         <thead class="table-light">
                             <tr>
@@ -347,6 +389,47 @@
                             }
                         </tbody>
                     </table>
+                </div>
+                @* Mobile Card List View *@
+                <div class="d-md-none mobile-list-cards">
+                    @if (recentInvoices != null && recentInvoices.Any())
+                    {
+                        @foreach (var i in recentInvoices)
+                        {
+                            var statusBadge = i.Status switch
+                            {
+                                InvoiceStatus.Paid => ("Paid", "bg-success"),
+                                InvoiceStatus.PartiallyPaid => ("Partial", "bg-primary"),
+                                InvoiceStatus.Draft => ("Draft", "bg-light text-dark border"),
+                                InvoiceStatus.Overdue => ("Overdue", "bg-danger"),
+                                InvoiceStatus.Confirmed => ("Confirmed", "bg-info"),
+                                _ => (i.Status.ToString(), "bg-secondary")
+                            };
+                            <div class="mobile-list-card">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <div class="text-muted small text-uppercase fw-semibold">Invoice #</div>
+                                        <code class="fs-6 fw-bold">@i.InvoiceNumber</code>
+                                    </div>
+                                    <span class="badge @statusBadge.Item2">@statusBadge.Item1</span>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center small">
+                                    <div>
+                                        <div class="text-muted">Date</div>
+                                        <div class="fw-semibold">@i.InvoiceDate.ToString("yyyy-MM-dd")</div>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="text-muted">Total</div>
+                                        <div class="fw-bold fs-5 text-dark">$@i.GrandTotal.ToString("F2")</div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    }
+                    else
+                    {
+                        <div class="text-center py-4 text-muted small">No recent invoices.</div>
+                    }
                 </div>
             </div>
         </div>
