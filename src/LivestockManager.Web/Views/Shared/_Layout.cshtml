@@ -171,6 +171,25 @@
         }
         .sidebar-backdrop.show { display: block; }
     </style>
+    <script>
+        (function () {
+            var w = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth || 0;
+            var ua = navigator.userAgent || '';
+            var mobileByUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+            var forceMobile = (w <= 767 || (mobileByUA && w <= 900));
+            var here = window.location.pathname + window.location.search;
+            var COOKIE = 'noMobileRedirect';
+            try {
+                var bypass = (document.cookie || '').split(';').some(function (c) { return c.trim().indexOf(COOKIE + '=') === 0; });
+                if (bypass) return;
+            } catch (e) { /* no-op */ }
+            if (forceMobile && (here === '/' || here === '/Home/Index' || here.indexOf('/Home/Index') === 0)) {
+                var noCache = '?m=' + Date.now().toString(36);
+                window.location.replace('/Home/MobileDashboard' + noCache);
+                throw new Error('redirecting to mobile dashboard');
+            }
+        })();
+    </script>
     @await RenderSectionAsync("Styles", required: false)
 </head>
 <body>

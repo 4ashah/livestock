@@ -97,6 +97,59 @@ public class HomeController : Controller
 
     [HttpGet]
     [Authorize(Policy = "CanViewOperationalData")]
+    public async Task<IActionResult> MobileDashboard(CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var kpis = await _reportService.GetDashboardKpisAsync(companyId, ct);
+
+        var recentLivestock = await _db.Livestock
+            .Where(l => l.CompanyId == companyId)
+            .OrderByDescending(l => l.CreatedAt)
+            .Take(4)
+            .Select(l => new LivestockSummaryDto
+            {
+                Id = l.Id,
+                CompanyId = l.CompanyId,
+                FarmId = l.FarmId,
+                LivestockId = l.LivestockId,
+                LivestockTypeId = l.LivestockTypeId,
+                AcquisitionDate = l.AcquisitionDate,
+                InitialWeight = l.InitialWeight,
+                WeightUnit = l.WeightUnit,
+                PurchaseAmount = l.PurchaseAmount,
+                CurrentWeight = l.CurrentWeight,
+                CurrentWeightDate = l.CurrentWeightDate,
+                Status = l.Status
+            })
+            .ToListAsync(ct);
+
+        var recentInvoices = await _db.Invoices
+            .Where(i => i.CompanyId == companyId)
+            .OrderByDescending(i => i.CreatedAt)
+            .Take(4)
+            .Select(i => new InvoiceSummaryDto
+            {
+                Id = i.Id,
+                CompanyId = i.CompanyId,
+                CustomerId = i.CustomerId,
+                CustomerName = i.Customer != null ? i.Customer.Name : null,
+                InvoiceNumber = i.InvoiceNumber,
+                InvoiceDate = i.InvoiceDate,
+                DueDate = i.DueDate,
+                GrandTotal = i.GrandTotal,
+                PaidAmount = i.PaidAmount,
+                OutstandingAmount = i.OutstandingAmount,
+                Status = i.Status
+            })
+            .ToListAsync(ct);
+
+        ViewData["RecentLivestock"] = recentLivestock;
+        ViewData["RecentInvoices"] = recentInvoices;
+        return View(kpis);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public IActionResult Privacy()
     {
         return View();
