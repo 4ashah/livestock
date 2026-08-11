@@ -7,16 +7,18 @@
     var livestock = ViewData["ActiveLivestock"] as System.Collections.IEnumerable;
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+<div class="page-title-row">
     <div>
-        <h1 class="h3 mb-1">🛒 New Purchase</h1>
+        <h1 class="page-title">🛒 New Purchase</h1>
         <div class="text-muted small">Create a draft purchase order (livestock buy-in or supplier expense)</div>
     </div>
-    <a asp-action="Index" class="btn btn-outline-secondary">← Cancel</a>
+    <div class="actions">
+        <a asp-action="Index" class="btn btn-outline-secondary">← Cancel</a>
+    </div>
 </div>
 
-<form asp-action="Create" method="post" class="row g-3" id="purchaseForm">
-    <div class="col-md-12">
+<form asp-action="Create" method="post" class="row g-3 two-col-form" id="purchaseForm">
+    <div class="col-12 col-lg-8">
         <div class="card shadow-sm border-0 mb-3">
             <div class="card-header bg-transparent border-bottom">
                 <h6 class="mb-0 fw-bold">📝 Purchase Details</h6>
@@ -156,31 +158,37 @@
         </div>
     </div>
 
-    <div class="col-md-6 offset-md-6">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-transparent border-bottom">
-                <h6 class="mb-0 fw-bold">💵 Totals (Preview)</h6>
-            </div>
-            <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-6 text-muted small fw-semibold">Livestock Subtotal</dt>
-                    <dd class="col-sm-6 text-end" id="lsSub">$0.00</dd>
-                    <dt class="col-sm-6 text-muted small fw-semibold">Line Items Subtotal</dt>
-                    <dd class="col-sm-6 text-end" id="lnSub">$0.00</dd>
-                    <hr class="my-2" />
-                    <dt class="col-sm-6 fw-bold">Grand Total (approx)</dt>
-                    <dd class="col-sm-6 text-end fw-bold fs-5" id="grand">$0.00</dd>
-                </dl>
-                <div class="small text-muted mt-2">
-                    Discount % and Tax % can be adjusted after creating the draft purchase.
+    <div class="col-12 col-lg-4">
+        <div class="sticky-preview-card" style="top: calc(56px + 1rem);">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-transparent border-bottom">
+                    <h6 class="mb-0 fw-bold">💵 Totals (Preview)</h6>
                 </div>
-            </div>
-            <div class="card-footer bg-transparent border-top text-end">
-                <button type="submit" class="btn btn-primary px-5">💾 Save as Draft</button>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-6 text-muted small fw-semibold">Livestock Subtotal</dt>
+                        <dd class="col-sm-6 text-end" id="lsSub">$0.00</dd>
+                        <dt class="col-sm-6 text-muted small fw-semibold">Line Items Subtotal</dt>
+                        <dd class="col-sm-6 text-end" id="lnSub">$0.00</dd>
+                        <hr class="my-2" />
+                        <dt class="col-sm-6 fw-bold">Grand Total (approx)</dt>
+                        <dd class="col-sm-6 text-end fw-bold fs-5" id="grand">$0.00</dd>
+                    </dl>
+                    <div class="small text-muted mt-2">
+                        Discount % and Tax % can be adjusted after creating the draft purchase.
+                    </div>
+                </div>
+                <div class="card-footer bg-transparent border-top text-end d-none d-md-block">
+                    <button type="submit" class="btn btn-primary px-5 hide-when-mobile-sticky">💾 Save as Draft</button>
+                </div>
             </div>
         </div>
     </div>
 </form>
+
+<div class="mobile-sticky-actions">
+    <button type="submit" class="btn btn-primary btn-lg" form="purchaseForm">💾 Save as Draft</button>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

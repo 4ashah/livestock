@@ -342,3 +342,192 @@ a:focus {
     justify-content: center;
     font-size: 1.5rem;
 }
+
+/* ============================================================
+   MOBILE / TOUCH OPTIMIZATIONS
+   ============================================================ */
+:root {
+    --sat: env(safe-area-inset-top, 0px);
+    --sab: env(safe-area-inset-bottom, 0px);
+    --sal: env(safe-area-inset-left, 0px);
+    --sar: env(safe-area-inset-right, 0px);
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+/* Buttons / interactive controls: ≥48px hit target on touch devices */
+.btn,
+.nav-link,
+.dropdown-item,
+.page-link,
+.input-suffix-btn,
+.form-check-input,
+.form-switch .form-check-input,
+a.dropdown-toggle,
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"] {
+    touch-action: manipulation;
+}
+.btn,
+.page-link,
+a.nav-link.nav-link-mobile-target,
+.input-group-text,
+.input-suffix-btn {
+    min-height: 44px;
+}
+.btn.btn-lg { min-height: 56px; }
+.btn.btn-sm { min-height: 36px; }
+.dropdown-item { min-height: 44px; display: flex; align-items: center; }
+
+/* Form controls – larger tap targets on mobile */
+.form-control,
+.form-select,
+.input-group .form-control,
+.input-group .form-select {
+    min-height: 48px;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+}
+textarea.form-control { min-height: 110px; }
+.form-floating-agri,
+.form-floating > .form-control,
+.form-floating > .form-select {
+    min-height: 54px;
+}
+.form-check {
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.2rem 0;
+}
+.form-check-input {
+    width: 22px;
+    height: 22px;
+    margin-top: 0;
+    flex-shrink: 0;
+}
+.form-check-label { line-height: 1.5; font-size: 0.95rem; }
+.form-control-plaintext {
+    min-height: 48px;
+    padding: 0.65rem 0.75rem;
+    line-height: 2;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: #1b4332;
+    background-color: #f1f5ef;
+    border-radius: 0.75rem;
+}
+
+/* Global mobile: remove hover focus artifact on touch */
+@media (hover: none) and (pointer: coarse) {
+    .btn:hover,
+    .nav-link:hover,
+    .card:hover {
+        transform: none !important;
+        box-shadow: none !important;
+        background-color: inherit !important;
+    }
+}
+
+/* Table horizontal scrolling defaults + safe zones */
+.table-responsive,
+.table-responsive-mobile {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: auto;
+    border-radius: 0.75rem;
+    padding-bottom: var(--sab);
+    scrollbar-width: thin;
+}
+/* Highlight sticky first col on small tables where applicable */
+@media (max-width: 767.98px) {
+    .table thead th { font-size: 0.8rem; padding: 0.65rem 0.75rem; letter-spacing: 0.02em; }
+    .table tbody td { padding: 0.7rem 0.75rem; font-size: 0.92rem; }
+    .table td .btn,
+    .table th .btn {
+        min-width: 40px;
+        min-height: 40px;
+        padding: 0.35rem 0.55rem;
+    }
+}
+
+/* Sticky "sticky-bottom-mobile" action bar — visible only on <md screens.
+   Add .mobile-sticky-actions class around <button> container at bottom of Create/Edit pages. */
+.mobile-sticky-actions {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 1025;
+    background: linear-gradient(180deg, rgba(248,250,246,0) 0%, var(--agri-bg, #f8faf6) 35%);
+    padding: 1rem 1rem calc(1rem + var(--sab));
+    margin: 1rem -1rem -1rem;
+    display: none;
+}
+.mobile-sticky-actions .btn { width: 100%; min-height: 54px; font-size: 1.05rem; border-radius: 0.85rem; }
+@media (max-width: 767.98px) {
+    .mobile-sticky-actions { display: block; }
+    /* Hide duplicate static save btn when sticky bar shown (optional opt-in class) */
+    .hide-when-mobile-sticky { display: none; }
+}
+
+/* KPI rows: on phones, show 1-2 columns instead of 4 to avoid cramped cards */
+@media (max-width: 575.98px) {
+    .row-cols-4.kpi-row-wrap > .col,
+    .row-cols-3.kpi-row-wrap > .col,
+    .row-cols-2.kpi-row-wrap > .col { flex: 0 0 100%; max-width: 100%; }
+    .kpi-row-wrap { row-gap: 0.75rem; }
+}
+@media (min-width: 576px) and (max-width: 991.98px) {
+    .row-cols-4.kpi-row-wrap > .col { flex: 0 0 50%; max-width: 50%; }
+}
+
+/* Cards shrink padding on phones */
+@media (max-width: 767.98px) {
+    .card-body { padding: 1rem; }
+    .card-body.p-4,
+    .card-body.p-5 { padding: 1rem !important; }
+    .card-header { padding: 0.75rem 1rem; }
+    h1, .h1 { font-size: 1.6rem; }
+    h2, .h2 { font-size: 1.3rem; }
+    h3, .h3 { font-size: 1.1rem; }
+    .display-4, .display-5, .display-6 { font-size: 1.6rem !important; }
+    /* Two-column Create/Edit layouts collapse stacked earlier */
+    .row.two-col-form > [class^="col-"],
+    .row.two-col-form > [class*=" col-"] { flex: 0 0 100%; max-width: 100%; }
+    /* Sticky preview card on Create/Edit becomes sticky-top only on scrollable long viewport */
+    .sticky-preview-card {
+        position: sticky;
+        top: calc(56px + var(--sat) + 0.75rem);
+        z-index: 10;
+    }
+}
+
+/* Body / html base padding for safe areas */
+html, body {
+    padding-left: 0;
+    padding-right: 0;
+    scroll-behavior: smooth;
+}
+
+/* Breadcrumb + page title row – wrap neatly on small screens */
+.page-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+.page-title-row .page-title { margin: 0; font-size: 1.35rem; }
+.page-title-row .actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+@media (max-width: 767.98px) {
+    .page-title-row .actions { width: 100%; }
+    .page-title-row .actions .btn { flex: 1 1 auto; min-height: 48px; }
+}
+
+/* Input-group: uniform height + radius for copy/select addons */
+.input-group-text { min-height: 48px; border-radius: 0.75rem; }
+

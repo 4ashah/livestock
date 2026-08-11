@@ -9,12 +9,14 @@
     bool ModelHasErrors() => ViewContext.ModelState.ErrorCount > 0;
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4">
+<div class="page-title-row">
     <div>
-        <h1 class="h3 mb-1">＋ Record New Expense</h1>
+        <h1 class="page-title">＋ Record New Expense</h1>
         <div class="text-muted small">Operating expenditure entry</div>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" asp-action="Index">← Cancel</a>
+    <div class="actions">
+        <a class="btn btn-outline-secondary" asp-action="Index">← Cancel</a>
+    </div>
 </div>
 
 @if (ModelHasErrors())
@@ -31,7 +33,7 @@
     </div>
 }
 
-<form asp-action="Create" method="post" id="expenseForm" class="row g-4">
+<form asp-action="Create" method="post" id="expenseForm" class="row g-4 two-col-form">
     <input type="hidden" asp-for="CompanyId" />
     <input type="hidden" asp-for="ExpenseDate" id="ExpenseDate" />
 
@@ -144,7 +146,7 @@
     </div>
 
     <div class="col-12 col-lg-4">
-        <div class="sticky-top" style="top:90px;">
+        <div class="sticky-preview-card" style="top: calc(56px + 1rem);">
             <div class="card border-start border-5 border-danger border-0 shadow-sm" style="border-left-color:#dc3545;">
                 <div class="card-header bg-white border-bottom">
                     <h6 class="mb-0 fw-semibold">💰 Amount & Payment</h6>
@@ -214,15 +216,19 @@
                         <span class="text-uppercase small fw-bold text-muted">Total Expense</span>
                         <span class="fs-3 fw-bold text-danger" id="totalPreview">$0.00</span>
                     </div>
-                    <button type="submit" class="btn btn-danger btn-lg w-100 mb-2" id="submitBtn">
+                    <button type="submit" class="btn btn-danger btn-lg w-100 mb-2 hide-when-mobile-sticky" id="submitBtn">
                         💸 Record Expense
                     </button>
-                    <a asp-action="Index" class="btn btn-outline-secondary w-100">Cancel</a>
+                    <a asp-action="Index" class="btn btn-outline-secondary w-100 hide-when-mobile-sticky">Cancel</a>
                 </div>
             </div>
         </div>
     </div>
 </form>
+
+<div class="mobile-sticky-actions">
+    <button type="submit" class="btn btn-danger btn-lg" form="expenseForm">💸 Record Expense</button>
+</div>
 
 <script>
     (function () {

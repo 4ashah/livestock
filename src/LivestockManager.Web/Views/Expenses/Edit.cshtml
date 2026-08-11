@@ -10,14 +10,14 @@
     bool ModelHasErrors() => ViewContext.ModelState.ErrorCount > 0;
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4">
+<div class="page-title-row">
     <div>
-        <h1 class="h3 mb-1">✏️ Edit Expense</h1>
+        <h1 class="page-title">✏️ Edit Expense</h1>
         <div class="text-muted small">Adjust expense details</div>
     </div>
-    <div class="d-flex gap-2">
-        <a class="btn btn-outline-secondary btn-sm" asp-action="Details" asp-route-id="@expenseId">← Cancel & View</a>
-        <a class="btn btn-sm btn-outline-danger" asp-action="Details" asp-route-id="@expenseId">🗑 Delete</a>
+    <div class="actions">
+        <a class="btn btn-outline-secondary" asp-action="Details" asp-route-id="@expenseId">← Cancel & View</a>
+        <a class="btn btn-outline-danger" asp-action="Details" asp-route-id="@expenseId">🗑 Delete</a>
     </div>
 </div>
 
@@ -35,7 +35,7 @@
     </div>
 }
 
-<form asp-action="Edit" method="post" id="expenseForm" asp-route-id="@expenseId" class="row g-4">
+<form asp-action="Edit" method="post" id="expenseForm" asp-route-id="@expenseId" class="row g-4 two-col-form">
     <input type="hidden" asp-for="ExpenseDate" id="ExpenseDate" />
 
     <div class="col-12 col-lg-8">
@@ -147,7 +147,7 @@
     </div>
 
     <div class="col-12 col-lg-4">
-        <div class="sticky-top" style="top:90px;">
+        <div class="sticky-preview-card" style="top: calc(56px + 1rem);">
             <div class="card border-start border-5 border-primary border-0 shadow-sm">
                 <div class="card-header bg-white border-bottom">
                     <h6 class="mb-0 fw-semibold">💰 Amount & Payment</h6>
@@ -218,15 +218,19 @@
                         <span class="text-uppercase small fw-bold text-muted">Total Expense</span>
                         <span class="fs-3 fw-bold text-danger" id="totalPreview">$0.00</span>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-lg w-100 mb-2" id="submitBtn">
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mb-2 hide-when-mobile-sticky" id="submitBtn">
                         💾 Save Changes
                     </button>
-                    <a asp-action="Details" asp-route-id="@expenseId" class="btn btn-outline-secondary w-100">Cancel</a>
+                    <a asp-action="Details" asp-route-id="@expenseId" class="btn btn-outline-secondary w-100 hide-when-mobile-sticky">Cancel</a>
                 </div>
             </div>
         </div>
     </div>
 </form>
+
+<div class="mobile-sticky-actions">
+    <button type="submit" class="btn btn-primary btn-lg" form="expenseForm">💾 Save Changes</button>
+</div>
 
 <script>
     (function () {

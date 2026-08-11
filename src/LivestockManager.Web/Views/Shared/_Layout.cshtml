@@ -5,7 +5,11 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+    <meta name="theme-color" content="#1b4332" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>@ViewData["Title"] - Livestock Manager</title>
     <environment include="Development">
         <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.css" />
@@ -24,13 +28,22 @@
             --agri-accent: #95d5b2;
             --agri-bg: #f8faf6;
             --sidebar-width: 250px;
+            --sat: env(safe-area-inset-top, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
+            --sar: env(safe-area-inset-right, 0px);
         }
-        body { background-color: var(--agri-bg); min-height: 100vh; }
+        html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
+        body { background-color: var(--agri-bg); min-height: 100vh; padding-bottom: var(--sab); }
+        body.sidebar-open { overflow: hidden; touch-action: none; }
         .topbar {
             background-color: var(--agri-dark);
-            height: 56px;
+            height: auto;
+            min-height: 56px;
+            padding-top: var(--sat);
             z-index: 1030;
         }
+        .topbar .container-fluid { padding-top: 0.25rem; padding-bottom: 0.25rem; padding-left: calc(var(--sal) + 0.75rem); padding-right: calc(var(--sar) + 0.75rem); }
         .topbar .navbar-brand {
             color: #fff;
             font-weight: 700;
@@ -41,19 +54,27 @@
             background: transparent;
             color: #fff;
             font-size: 1.3rem;
-            padding: 0.25rem 0.5rem;
+            padding: 0.6rem 0.75rem;
+            min-width: 48px;
+            min-height: 48px;
+            border-radius: 0.5rem;
+            touch-action: manipulation;
         }
+        .sidebar-toggler:active { background: rgba(255,255,255,0.08); }
         .sidebar {
             background-color: var(--agri-primary);
             width: var(--sidebar-width);
-            min-height: calc(100vh - 56px);
+            min-height: calc(100vh - 56px - var(--sat));
             transition: transform 0.25s ease;
             position: fixed;
-            top: 56px;
+            top: calc(56px + var(--sat));
             left: 0;
             bottom: 0;
             z-index: 1020;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-left: var(--sal);
+            padding-bottom: calc(var(--sab) + 0.5rem);
         }
         .sidebar .nav-link {
             color: #d8f3dc;
@@ -79,8 +100,13 @@
             cursor: pointer;
             user-select: none;
             transition: color .2s ease;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1.25rem;
+            touch-action: manipulation;
         }
-        .sidebar .nav-section-title:hover { color: #fff; }
+        .sidebar .nav-section-title:hover { color: #fff; background: rgba(255,255,255,0.04); border-radius: 0.375rem; }
         .sidebar .nav-section-title.collapsed .section-chevron {
             transform: rotate(-90deg);
         }
@@ -88,38 +114,46 @@
             transition: transform .2s ease;
             opacity: .7;
             font-size: .7rem;
+            margin-left: auto;
         }
         .sidebar .nav-section-body.collapsed {
             display: none;
         }
+        .sidebar .nav-section-body .nav-link { min-height: 48px; }
         .main-content {
             margin-left: var(--sidebar-width);
             padding: 1.5rem;
-            padding-top: calc(56px + 1.5rem);
+            padding-top: calc(56px + 1.5rem + var(--sat));
+            padding-left: calc(1.5rem + var(--sal));
+            padding-right: calc(1.5rem + var(--sar));
+            padding-bottom: calc(2rem + var(--sab));
             min-height: 100vh;
         }
         @@media (max-width: 991.98px) {
-            .sidebar { transform: translateX(-100%); }
+            .sidebar { transform: translateX(-100%); box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
             .sidebar.open { transform: translateX(0); }
-            .main-content { margin-left: 0; }
+            .main-content { margin-left: 0; padding: 1rem; padding-top: calc(56px + 1rem + var(--sat)); padding-left: calc(0.75rem + var(--sal)); padding-right: calc(0.75rem + var(--sar)); }
+            .sidebar-backdrop { top: calc(56px + var(--sat)); }
         }
         .user-dropdown .dropdown-toggle {
             color: #fff !important;
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            min-height: 48px;
+            padding: 0.25rem 0.5rem !important;
         }
         .user-avatar {
             background-color: var(--agri-light);
             color: var(--agri-dark);
             border-radius: 50%;
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 0.85rem;
+            font-size: 0.95rem;
         }
         .kpi-card {
             border-left: 4px solid var(--agri-secondary);
@@ -132,7 +166,8 @@
             inset: 0;
             background: rgba(0,0,0,0.4);
             z-index: 1015;
-            top: 56px;
+            top: calc(56px + var(--sat));
+            backdrop-filter: blur(2px);
         }
         .sidebar-backdrop.show { display: block; }
     </style>

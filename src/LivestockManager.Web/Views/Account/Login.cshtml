@@ -18,7 +18,11 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+    <meta name="theme-color" content="#1b4332" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>@ViewData["Title"] - Livestock Manager</title>
     <environment include="Development">
         <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.css" />
@@ -34,7 +38,12 @@
             --lg-primary: #2d6a4f;
             --lg-accent: #74c69d;
             --lg-soft: #d8f3dc;
+            --sat: env(safe-area-inset-top, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+            --sal: env(safe-area-inset-left, 0px);
+            --sar: env(safe-area-inset-right, 0px);
         }
+        * { -webkit-tap-highlight-color: transparent; }
         html, body { height: 100%; }
         body {
             margin: 0;
@@ -46,6 +55,10 @@
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
+            padding-top: var(--sat);
+            padding-bottom: var(--sab);
+            padding-left: var(--sal);
+            padding-right: var(--sar);
         }
         body::before {
             content: "";
@@ -58,11 +71,11 @@
         .login-wrap {
             position: relative;
             z-index: 1;
-            min-height: 100vh;
+            min-height: calc(100vh - var(--sat) - var(--sab));
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 1.5rem;
+            padding: clamp(0.75rem, 3vw, 1.5rem);
         }
         .login-shell {
             width: 100%;
@@ -79,6 +92,11 @@
         }
         @@media (min-width: 992px) {
             .login-shell { grid-template-columns: 0.95fr 1.05fr; min-height: 620px; }
+        }
+        @@media (max-width: 480px) {
+            .login-shell { border-radius: 1.1rem; }
+            .form-side { padding: 2rem 1.25rem !important; }
+            .form-head h2 { font-size: 1.45rem; }
         }
         .brand-side {
             position: relative;
@@ -370,18 +388,20 @@
             gap: 0.5rem;
         }
         .demo-chip {
-            flex: 1 1 auto;
+            flex: 1 1 44%;
             min-width: 130px;
+            min-height: 56px;
             border: 1.5px solid #e9ecef;
             background: #fff;
-            border-radius: 0.75rem;
-            padding: 0.6rem 0.75rem;
+            border-radius: 0.85rem;
+            padding: 0.55rem 0.7rem;
             cursor: pointer;
             text-align: left;
             transition: border-color 0.2s, background 0.2s, transform 0.15s, box-shadow 0.2s;
             display: flex;
             align-items: center;
             gap: 0.6rem;
+            touch-action: manipulation;
         }
         .demo-chip:hover {
             border-color: var(--lg-accent);
@@ -389,9 +409,12 @@
             transform: translateY(-2px);
             box-shadow: 0 8px 18px rgba(64,145,108,0.14);
         }
+        @@media (max-width: 480px) {
+            .demo-chip { flex: 1 1 100%; }
+        }
         .chip-avatar {
-            width: 34px;
-            height: 34px;
+            width: 36px;
+            height: 36px;
             border-radius: 0.6rem;
             background: linear-gradient(135deg, #40916c, #2d6a4f);
             color: #fff;
