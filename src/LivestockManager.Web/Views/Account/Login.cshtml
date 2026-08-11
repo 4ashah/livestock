@@ -1,95 +1,617 @@
 @model LoginViewModel
 @{
+    Layout = null;
     ViewData["Title"] = "Login";
+    var demoUsers = new (string Label, string User, string Badge)[]
+    {
+        ("Admin",         "admin@livestock.dev",       "System"),
+        ("Accounts",      "accounts@livestock.dev",    "Finance"),
+        ("Farm Manager",  "farmmanager@livestock.dev", "Ops"),
+        ("Data Entry",    "dataentry@livestock.dev",   "Clerk"),
+        ("Viewer",        "viewer@livestock.dev",      "Read"),
+        ("System Admin",  "sysadmin@livestock.dev",    "Root"),
+    };
+    bool hasErrors = ViewContext.ModelState != null &&
+                     ViewContext.ModelState.Any(x => x.Value != null && x.Value.Errors != null && x.Value.Errors.Count > 0);
 }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Livestock Manager</title>
+    <environment include="Development">
+        <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.css" />
+    </environment>
+    <environment exclude="Development">
+        <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    </environment>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        :root {
+            --lg-dark: #0f2f1e;
+            --lg-mid: #1b4332;
+            --lg-primary: #2d6a4f;
+            --lg-accent: #74c69d;
+            --lg-soft: #d8f3dc;
+        }
+        html, body { height: 100%; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
+            background:
+                radial-gradient(circle at 15% 20%, rgba(116,198,157,0.30) 0%, transparent 45%),
+                radial-gradient(circle at 85% 80%, rgba(216,243,220,0.18) 0%, transparent 40%),
+                linear-gradient(135deg, #081c15 0%, #1b4332 45%, #2d6a4f 100%);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.04'%3E%3Cpath d='M20 90 L40 70 L60 80 L80 55 L100 75' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='95' cy='30' r='10' stroke-width='2'/%3E%3Ccircle cx='95' cy='30' r='4' fill='%23ffffff' fill-opacity='0.05'/%3E%3C/g%3E%3C/svg%3E");
+            pointer-events: none;
+            z-index: 0;
+        }
+        .login-wrap {
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .login-shell {
+            width: 100%;
+            max-width: 960px;
+            background: #fff;
+            border-radius: 1.5rem;
+            overflow: hidden;
+            box-shadow:
+                0 30px 80px rgba(0,0,0,0.45),
+                0 0 0 1px rgba(255,255,255,0.06),
+                0 0 60px rgba(116,198,157,0.10);
+            display: grid;
+            grid-template-columns: 1fr;
+        }
+        @@media (min-width: 992px) {
+            .login-shell { grid-template-columns: 0.95fr 1.05fr; min-height: 620px; }
+        }
+        .brand-side {
+            position: relative;
+            padding: 3rem 2.5rem;
+            color: #fff;
+            background:
+                radial-gradient(circle at 80% 15%, rgba(149,213,178,0.25) 0%, transparent 45%),
+                radial-gradient(circle at 10% 90%, rgba(64,145,108,0.60) 0%, transparent 50%),
+                linear-gradient(155deg, #1b4332 0%, #2d6a4f 55%, #40916c 100%);
+            overflow: hidden;
+            display: none;
+        }
+        @@media (min-width: 992px) { .brand-side { display: flex; flex-direction: column; justify-content: space-between; } }
+        .brand-side::after {
+            content: "";
+            position: absolute;
+            right: -100px;
+            bottom: -120px;
+            width: 420px;
+            height: 420px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(149,213,178,0.22) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        .brand-logo {
+            width: 72px;
+            height: 72px;
+            border-radius: 1.25rem;
+            background: linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0.05));
+            backdrop-filter: blur(8px);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.25rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.18);
+            margin-bottom: 1.5rem;
+        }
+        .brand-title {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.4rem;
+        }
+        .brand-tagline {
+            color: rgba(216,243,220,0.85);
+            line-height: 1.6;
+            font-size: 1.02rem;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+            margin: 2rem 0 0;
+            display: grid;
+            gap: 0.85rem;
+        }
+        .feature-list li {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: rgba(216,243,220,0.95);
+            font-size: 0.95rem;
+        }
+        .feature-bullet {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.12);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #d8f3dc;
+            flex-shrink: 0;
+            font-size: 0.8rem;
+        }
+        .brand-foot {
+            color: rgba(216,243,220,0.6);
+            font-size: 0.8rem;
+        }
 
-<style>
-    body {
-        background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 50%, #40916c 100%);
-        min-height: 100vh;
-    }
-    .login-card {
-        border-radius: 1rem;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-    }
-    .brand-circle {
-        width: 72px;
-        height: 72px;
-        background: linear-gradient(135deg, #40916c, #2d6a4f);
-        border-radius: 50%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 2.25rem;
-        color: #fff;
-        box-shadow: 0 4px 12px rgba(45,106,79,0.4);
-    }
-    .btn-login {
-        background-color: #2d6a4f;
-        border-color: #2d6a4f;
-    }
-    .btn-login:hover {
-        background-color: #1b4332;
-        border-color: #1b4332;
-    }
-    .form-control:focus {
-        border-color: #40916c;
-        box-shadow: 0 0 0 0.2rem rgba(64,145,108,0.25);
-    }
-</style>
+        .form-side {
+            padding: 2.25rem 1.75rem 2rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        @@media (min-width: 768px) { .form-side { padding: 3rem 3.25rem 2.5rem; } }
 
-<div class="container d-flex justify-content-center align-items-center py-5" style="min-height: 100vh;">
-    <div class="col-md-10 col-lg-6 col-xl-5">
-        <div class="card login-card border-0">
-            <div class="card-body p-5">
-                <div class="text-center mb-4">
-                    <div class="brand-circle mb-3">🌾</div>
-                    <h2 class="fw-bold mb-1" style="color: #1b4332;">Livestock Manager</h2>
-                    <p class="text-muted small mb-0">Farm operations made simple</p>
+        .mobile-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            margin-bottom: 2rem;
+        }
+        @@media (min-width: 992px) { .mobile-brand { display: none; } }
+        .mobile-brand .badge-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, var(--lg-mid), var(--lg-primary));
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.5rem;
+            box-shadow: 0 8px 20px rgba(27,67,50,0.35);
+        }
+        .mobile-brand .m-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--lg-mid);
+            margin: 0;
+        }
+        .mobile-brand .m-sub {
+            font-size: 0.8rem;
+            color: #52b788;
+            margin: 0;
+        }
+
+        .form-head h2 {
+            font-size: 1.7rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--lg-dark);
+            margin: 0 0 0.35rem;
+        }
+        .form-head p {
+            color: #6c757d;
+            margin: 0;
+            font-size: 0.95rem;
+        }
+        .form-head { margin-bottom: 1.75rem; }
+
+        .alert-login {
+            border: 1px solid #f5c2c7;
+            background: linear-gradient(180deg, #fff5f5, #ffe9ec);
+            color: #842029;
+            padding: 0.75rem 1rem;
+            border-radius: 0.75rem;
+            font-size: 0.88rem;
+            margin-bottom: 1.25rem;
+            animation: shake 0.4s ease;
+        }
+        .alert-login ul { margin: 0.35rem 0 0 1rem; padding: 0; }
+        .alert-login li { margin-bottom: 0.1rem; }
+        @@keyframes shake {
+            0%,100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            75% { transform: translateX(6px); }
+        }
+
+        .form-floating-agri {
+            position: relative;
+            margin-bottom: 1.1rem;
+        }
+        .form-floating-agri .form-label-float {
+            position: absolute;
+            top: 0;
+            left: 48px;
+            transform: translateY(16px);
+            font-size: 0.92rem;
+            color: #6c757d;
+            pointer-events: none;
+            transition: all 0.2s ease;
+            background: transparent;
+            padding: 0 0.25rem;
+            max-width: calc(100% - 64px);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .form-floating-agri .form-control {
+            padding: 1.05rem 1rem 0.5rem 2.75rem;
+            height: auto;
+            min-height: 54px;
+            border-radius: 0.85rem;
+            border: 1.5px solid #dee2e6;
+            font-size: 1rem;
+            background: #fff;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+        }
+        .form-floating-agri .form-control:focus {
+            outline: none;
+            border-color: var(--lg-primary);
+            background: #fbfff9;
+            box-shadow: 0 0 0 4px rgba(45,106,79,0.12);
+        }
+        .form-floating-agri .form-control:not(:placeholder-shown) ~ .form-label-float,
+        .form-floating-agri .form-control:focus ~ .form-label-float {
+            transform: translateY(6px) scale(0.82);
+            transform-origin: left top;
+            color: var(--lg-primary);
+            font-weight: 600;
+        }
+        .form-floating-agri .form-control::placeholder { color: transparent; }
+        .input-icon {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 22px;
+            height: 22px;
+            color: #adb5bd;
+            transition: color 0.2s;
+            pointer-events: none;
+        }
+        .form-floating-agri .form-control:focus ~ .input-icon { color: var(--lg-primary); }
+        .input-suffix-btn {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            width: 36px;
+            height: 36px;
+            border-radius: 0.5rem;
+            color: #6c757d;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.15s, color 0.15s;
+        }
+        .input-suffix-btn:hover { background: #e9ecef; color: var(--lg-primary); }
+        .field-validation-error {
+            display: block;
+            color: #dc3545;
+            font-size: 0.8rem;
+            margin-top: 0.35rem;
+            padding-left: 0.35rem;
+        }
+
+        .row-options {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 0.4rem 0 1.5rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .form-check input { accent-color: var(--lg-primary); }
+        .form-check-label { color: #6c757d; font-size: 0.9rem; }
+
+        .btn-login {
+            width: 100%;
+            height: 54px;
+            border-radius: 0.85rem;
+            border: 0;
+            background: linear-gradient(135deg, var(--lg-mid) 0%, var(--lg-primary) 100%);
+            color: #fff;
+            font-size: 1.02rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            box-shadow: 0 12px 24px rgba(27,67,50,0.30), inset 0 1px 0 rgba(255,255,255,0.15);
+            transition: transform 0.12s ease, box-shadow 0.2s, filter 0.2s;
+        }
+        .btn-login:hover {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+            box-shadow: 0 16px 30px rgba(27,67,50,0.35);
+        }
+        .btn-login:active { transform: translateY(0); }
+        .btn-login[data-loading="true"] {
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin: 1.75rem 0 1rem;
+            color: #adb5bd;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-weight: 600;
+        }
+        .divider::before, .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, #e9ecef, transparent);
+        }
+
+        .demo-chip-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .demo-chip {
+            flex: 1 1 auto;
+            min-width: 130px;
+            border: 1.5px solid #e9ecef;
+            background: #fff;
+            border-radius: 0.75rem;
+            padding: 0.6rem 0.75rem;
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.2s, background 0.2s, transform 0.15s, box-shadow 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+        .demo-chip:hover {
+            border-color: var(--lg-accent);
+            background: #f1faee;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 18px rgba(64,145,108,0.14);
+        }
+        .chip-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 0.6rem;
+            background: linear-gradient(135deg, #40916c, #2d6a4f);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+        }
+        .chip-body { min-width: 0; }
+        .chip-label {
+            font-size: 0.88rem;
+            font-weight: 600;
+            color: var(--lg-dark);
+            line-height: 1.1;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chip-role {
+            display: inline-block;
+            margin-top: 0.18rem;
+            font-size: 0.68rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            color: #40916c;
+            background: #d8f3dc;
+            padding: 0.1rem 0.45rem;
+            border-radius: 999px;
+            text-transform: uppercase;
+        }
+
+        .foot-note {
+            text-align: center;
+            color: #adb5bd;
+            font-size: 0.78rem;
+            margin-top: 1.75rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-wrap">
+        <div class="login-shell">
+            <div class="brand-side">
+                <div>
+                    <div class="brand-logo">🌾</div>
+                    <h1 class="brand-title">Livestock Manager</h1>
+                    <p class="brand-tagline">Everything you need to run a modern farm &mdash; livestock tracking, sales, purchases, losses and financial reporting in one place.</p>
+                    <ul class="feature-list">
+                        <li><span class="feature-bullet">✓</span><span>Track every animal from birth to sale</span></li>
+                        <li><span class="feature-bullet">✓</span><span>Profit &amp; Loss reports with period filters</span></li>
+                        <li><span class="feature-bullet">✓</span><span>Record losses, expenses &amp; vet visits</span></li>
+                        <li><span class="feature-bullet">✓</span><span>Role-based access for every team member</span></li>
+                        <li><span class="feature-bullet">✓</span><span>One-click CSV exports for your accountant</span></li>
+                    </ul>
                 </div>
-
-                <h5 class="mb-4 text-center text-dark">Sign in to continue</h5>
-
-                <form asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl" method="post">
-                    <div asp-validation-summary="All" class="alert alert-danger small mb-3"></div>
-
-                    <div class="mb-3">
-                        <label asp-for="Email" class="form-label fw-semibold text-muted small text-uppercase"></label>
-                        <input asp-for="Email" class="form-control form-control-lg" autocomplete="username" placeholder="name@farm.dev" />
-                        <span asp-validation-for="Email" class="text-danger small"></span>
-                    </div>
-
-                    <div class="mb-3">
-                        <label asp-for="Password" class="form-label fw-semibold text-muted small text-uppercase"></label>
-                        <input asp-for="Password" class="form-control form-control-lg" autocomplete="current-password" />
-                        <span asp-validation-for="Password" class="text-danger small"></span>
-                    </div>
-
-                    <div class="mb-4">
-                        <div class="form-check">
-                            <input asp-for="RememberMe" class="form-check-input" />
-                            <label asp-for="RememberMe" class="form-check-label text-muted small"></label>
-                        </div>
-                    </div>
-
-                    <div class="d-grid mb-3">
-                        <button type="submit" class="btn btn-login btn-lg text-white fw-semibold">Sign In</button>
-                    </div>
-                </form>
-
-                <div class="mt-4 pt-3 border-top">
-                    <p class="small text-muted mb-2 text-center"><strong>Demo Accounts</strong><br /><span class="fw-normal">Password: <code>Dev@12345678</code></span></p>
-                    <div class="small text-muted" style="font-size: 0.8rem;">
-                        <div class="d-flex justify-content-between py-1"><span>Viewer:</span><code>viewer@greenvalley.dev</code></div>
-                        <div class="d-flex justify-content-between py-1"><span>Data Entry:</span><code>dataentry@greenvalley.dev</code></div>
-                        <div class="d-flex justify-content-between py-1"><span>Company Admin:</span><code>companyadmin@greenvalley.dev</code></div>
-                        <div class="d-flex justify-content-between py-1"><span>System Admin:</span><code>sysadmin@system.dev</code></div>
-                    </div>
+                <div class="brand-foot">
+                    Built for small farms and commercial operations alike.
                 </div>
             </div>
-        </div>
-        <div class="text-center mt-4 text-white-50 small">
-            &copy; @DateTime.Now.Year &mdash; Livestock Manager
+
+            <div class="form-side">
+                <div class="mobile-brand">
+                    <div class="badge-logo">🌾</div>
+                    <div>
+                        <p class="m-title">Livestock Manager</p>
+                        <p class="m-sub">Farm operations made simple</p>
+                    </div>
+                </div>
+
+                <div class="form-head">
+                    <h2>Welcome back 👋</h2>
+                    <p>Sign in to your farm dashboard.</p>
+                </div>
+
+                <form asp-action="Login" asp-route-returnUrl="@Model.ReturnUrl" method="post" id="loginForm" novalidate>
+                    @Html.AntiForgeryToken()
+                    @if (hasErrors)
+                    {
+                        <div class="alert-login" role="alert">
+                            <strong>Login failed.</strong> Please check your credentials and try again.
+                            @if (ViewContext.ModelState != null)
+                            {
+                                var errors = ViewContext.ModelState
+                                    .SelectMany(x => (x.Value?.Errors ?? Enumerable.Empty<Microsoft.AspNetCore.Mvc.ModelBinding.ModelError>()))
+                                    .Where(e => !string.IsNullOrWhiteSpace(e.ErrorMessage))
+                                    .Select(e => e.ErrorMessage)
+                                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                                    .ToList();
+                                if (errors.Any())
+                                {
+                                    <ul>
+                                        @foreach (var e in errors) { <li>@e</li> }
+                                    </ul>
+                                }
+                            }
+                        </div>
+                    }
+
+                    <div class="form-floating-agri">
+                        <input asp-for="UserName"
+                               class="form-control"
+                               id="UserNameInput"
+                               placeholder="Username or email"
+                               autocomplete="username" />
+                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <label asp-for="UserName" class="form-label-float" for="UserNameInput"></label>
+                        <span asp-validation-for="UserName" class="field-validation-error"></span>
+                    </div>
+
+                    <div class="form-floating-agri">
+                        <input asp-for="Password"
+                               type="password"
+                               class="form-control"
+                               id="PasswordInput"
+                               placeholder="Password"
+                               autocomplete="current-password" />
+                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <label asp-for="Password" class="form-label-float" for="PasswordInput"></label>
+                        <button type="button" class="input-suffix-btn" id="pwdToggle" aria-label="Toggle password visibility" title="Show password">
+                            <svg id="eyeIcon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
+                        <span asp-validation-for="Password" class="field-validation-error"></span>
+                    </div>
+
+                    <div class="row-options">
+                        <div class="form-check">
+                            <input asp-for="RememberMe" class="form-check-input" id="RememberMeInput" />
+                            <label asp-for="RememberMe" class="form-check-label" for="RememberMeInput"></label>
+                        </div>
+                        <a class="small text-decoration-none" style="color: var(--lg-primary); font-weight: 600;" href="#">Forgot password?</a>
+                    </div>
+
+                    <button type="submit" class="btn-login" id="submitBtn">
+                        <span id="submitLabel">Sign In →</span>
+                    </button>
+
+                    <div class="divider"><span>Demo accounts</span></div>
+
+                    <div class="demo-chip-row">
+                        @foreach (var d in demoUsers)
+                        {
+                            var initials = new string(d.Label.Split(new[]{' '}, StringSplitOptions.RemoveEmptyEntries).Select(w => w[0]).Take(2).ToArray());
+                            <button type="button"
+                                    class="demo-chip"
+                                    data-user="@d.User"
+                                    aria-label="Sign in as @d.Label">
+                                <span class="chip-avatar">@initials</span>
+                                <span class="chip-body">
+                                    <span class="chip-label">@d.Label</span>
+                                    <br />
+                                    <span class="chip-role">@d.Badge</span>
+                                </span>
+                            </button>
+                        }
+                    </div>
+
+                    <p class="foot-note">
+                        &copy; @DateTime.Now.Year &mdash; Livestock Manager &middot; Demo accounts share a common developer password.
+                    </p>
+                </form>
+            </div>
         </div>
     </div>
-</div>
+
+    <script>
+        (function () {
+            var pwd = document.getElementById('PasswordInput');
+            var btn = document.getElementById('pwdToggle');
+            var eye = document.getElementById('eyeIcon');
+            var showTpl = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"></path><circle cx="12" cy="12" r="3"></circle>';
+            var hideTpl = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a19.37 19.37 0 0 1 4.17-5.17"></path><path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a19.5 19.5 0 0 1-2.16 3.19"></path><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            btn.addEventListener('click', function () {
+                if (pwd.type === 'password') {
+                    pwd.type = 'text';
+                    btn.setAttribute('title', 'Hide password');
+                    eye.innerHTML = hideTpl;
+                } else {
+                    pwd.type = 'password';
+                    btn.setAttribute('title', 'Show password');
+                    eye.innerHTML = showTpl;
+                }
+                pwd.focus();
+            });
+
+            var form = document.getElementById('loginForm');
+            var userInput = document.getElementById('UserNameInput');
+            var pwdInput = document.getElementById('PasswordInput');
+            var submitBtn = document.getElementById('submitBtn');
+            var submitLabel = document.getElementById('submitLabel');
+            var DEMO_PASSWORD = 'Dev@123456';
+
+            form.addEventListener('submit', function () {
+                submitBtn.setAttribute('data-loading', 'true');
+                submitLabel.textContent = 'Signing in…';
+            });
+
+            document.querySelectorAll('.demo-chip').forEach(function (chip) {
+                chip.addEventListener('click', function () {
+                    var u = chip.getAttribute('data-user');
+                    if (u) userInput.value = u;
+                    pwdInput.value = DEMO_PASSWORD;
+                    var evt = new Event('input', { bubbles: true });
+                    userInput.dispatchEvent(evt);
+                    pwdInput.dispatchEvent(evt);
+                    submitBtn.click();
+                });
+            });
+        })();
+    </script>
+</body>
+</html>

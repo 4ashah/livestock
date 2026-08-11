@@ -1,5 +1,4 @@
 using System.Globalization;
-using System.Reflection;
 using System.Text;
 using LivestockManager.Domain.Abstractions;
 using LivestockManager.Domain.Entities;
@@ -21,7 +20,6 @@ public class FormattedPdfWriter : IPdfGenerator
     private const float FooterReserved = 120f;
     private const float BodyHeight = PageHeight - HeaderReserved - FooterReserved;
     private const float BodyYTop = PageHeight - HeaderReserved;
-    private const float BodyYBottom = FooterReserved;
 
     private static readonly CultureInfo EnUs = new("en-US");
 
@@ -196,9 +194,9 @@ public class FormattedPdfWriter : IPdfGenerator
             companyAddress, currencySymbol));
     }
 
-    #region ReceiptHelper (Internal for future module)
+    #region ReceiptHelper
 
-    internal async Task<byte[]> GenerateReceiptPdfAsync(
+    public async Task<byte[]> GenerateReceiptPdfAsync(
         Payment payment, Receipt receipt, Company company, Customer customer)
     {
         var companyAddress = FormatAddress(company.Address);
@@ -215,7 +213,7 @@ public class FormattedPdfWriter : IPdfGenerator
 
     private sealed class PageLayout
     {
-        public List<int> ItemIndices { get; } = new();
+        public List<int> ItemIndices { get; } = new List<int>();
     }
 
     private static byte[] BuildMultiPageInvoicePdf(
@@ -579,41 +577,6 @@ public class FormattedPdfWriter : IPdfGenerator
         return sb.ToString();
     }
 
-    private static string ToWinAnsiEscaped(string s)
-    {
-        if (string.IsNullOrEmpty(s)) return "()";
-        var sb = new StringBuilder(s.Length + 2);
-        sb.Append('(');
-        foreach (var c in s)
-        {
-            switch (c)
-            {
-                case '\\': sb.Append("\\\\"); break;
-                case '(': sb.Append("\\("); break;
-                case ')': sb.Append("\\)"); break;
-                case '\r': sb.Append("\\r"); break;
-                case '\n': sb.Append("\\n"); break;
-                case '\t': sb.Append("\\t"); break;
-                default:
-                    if (c <= 126 && c >= 32)
-                    {
-                        sb.Append(c);
-                    }
-                    else if (c <= 255)
-                    {
-                        sb.AppendFormat("\\{0}", Convert.ToString((int)c, 8).PadLeft(3, '0'));
-                    }
-                    else
-                    {
-                        sb.Append('?');
-                    }
-                    break;
-            }
-        }
-        sb.Append(')');
-        return sb.ToString();
-    }
-
     private static void WriteText(StringBuilder content, string text, bool useUnicode)
     {
         if (useUnicode)
@@ -774,12 +737,12 @@ public class FormattedPdfWriter : IPdfGenerator
             AddDictObj(f2Obj, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
         }
 
-        var ordered = new List<(int Num, byte[] Bytes)>();
+        var ordered = new List<(int Num, byte[] Bytes)>(objectNumbers.Count);
         for (int i = 0; i < objectNumbers.Count; i++)
         {
             ordered.Add((objectNumbers[i], objectBytes[i]));
         }
-        ordered = ordered.OrderBy(o => o.Num).ToList();
+        ordered.Sort((a, b) => a.Num.CompareTo(b.Num));
 
         var xref = new StringBuilder();
         xref.AppendLine("xref");

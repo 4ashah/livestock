@@ -687,6 +687,87 @@ public class ReportService : IReportService
 
         return Task.FromResult(Encoding.UTF8.GetBytes(sb.ToString()));
     }
+
+    public async Task<ProfitLossReportDto> ProfitLossAsync(Guid companyId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    {
+        var result = new ProfitLossReportDto
+        {
+            FromDate = from,
+            ToDate = to
+        };
+
+        SaleStatus[] validSaleStatuses = [SaleStatus.Confirmed, SaleStatus.Completed];
+        var salesWithinPeriod = await _db.Sales
+            .Where(s => s.CompanyId == companyId
+                && s.Date >= from
+                && s.Date <= to
+                && validSaleStatuses.Contains(s.Status))
+            .Select(s => new { s.Id, s.Date, s.GrandTotal })
+            .ToListAsync(ct);
+
+        result.TotalSales = salesWithinPeriod.Sum(s => s.GrandTotal);
+        result.SalesCount = salesWithinPeriod.Count;
+
+        var saleIds = salesWithinPeriod.Select(s => s.Id).ToList();
+        if (saleIds.Count > 0)
+        {
+            result.SoldHead = await _db.SaleItems
+                .Where(si => saleIds.Contains(si.SaleId) && si.LivestockId.HasValue)
+                .CountAsync(ct);
+        }
+
+        var purchasesWithinPeriod = await _db.Purchases
+            .Where(p => p.CompanyId == companyId
+                && p.PurchaseDate >= from
+                && p.PurchaseDate <= to
+                && p.Status == PurchaseStatus.Posted)
+            .Select(p => new { p.Id, p.GrandTotal })
+            .ToListAsync(ct);
+
+        result.TotalPurchases = purchasesWithinPeriod.Sum(p => p.GrandTotal);
+        result.PurchaseCount = purchasesWithinPeriod.Count;
+
+        var lossesWithinPeriod = await _db.LivestockLosses
+            .Where(l => l.CompanyId == companyId
+                && l.LossDate >= from
+                && l.LossDate <= to
+                && !l.IsReversed)
+            .Select(l => new { l.Id, l.LossAmount })
+            .ToListAsync(ct);
+
+        result.TotalLosses = lossesWithinPeriod.Sum(l => l.LossAmount);
+        result.LossCount = lossesWithinPeriod.Count;
+
+        var dischargedLostLivestock = await _db.Livestock
+            .CountAsync(l =>
+                l.CompanyId == companyId
+                && (l.Status == LivestockStatus.DischargedLost
+                    || l.Status == LivestockStatus.DischargedStolen
+                    || l.Status == LivestockStatus.DischargedDeceased
+                    || l.Status == LivestockStatus.DischargedOther)
+                && l.DischargeDate.HasValue
+                && l.DischargeDate.Value >= from
+                && l.DischargeDate.Value <= to, ct);
+
+        result.LostHead = Math.Max(result.LossCount, dischargedLostLivestock);
+
+        var expensesWithinPeriod = await _db.Expenses
+            .Where(e => e.CompanyId == companyId
+                && !e.IsDeleted
+                && e.ExpenseDate >= from
+                && e.ExpenseDate <= to)
+            .Select(e => new { e.Id, e.Total })
+            .ToListAsync(ct);
+
+        result.TotalExpenses = expensesWithinPeriod.Sum(e => e.Total);
+        result.ExpenseCount = expensesWithinPeriod.Count;
+
+        result.GrossProfit = result.TotalSales - result.TotalPurchases;
+        result.OperatingProfit = result.GrossProfit - result.TotalExpenses;
+        result.NetProfit = result.OperatingProfit - result.TotalLosses;
+
+        return result;
+    }
 }
 
 public class PurchaseCsvRow

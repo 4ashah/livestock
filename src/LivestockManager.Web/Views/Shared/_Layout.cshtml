@@ -76,6 +76,21 @@
             letter-spacing: 1px;
             padding: 1rem 1.25rem 0.35rem;
             font-weight: 700;
+            cursor: pointer;
+            user-select: none;
+            transition: color .2s ease;
+        }
+        .sidebar .nav-section-title:hover { color: #fff; }
+        .sidebar .nav-section-title.collapsed .section-chevron {
+            transform: rotate(-90deg);
+        }
+        .sidebar .section-chevron {
+            transition: transform .2s ease;
+            opacity: .7;
+            font-size: .7rem;
+        }
+        .sidebar .nav-section-body.collapsed {
+            display: none;
         }
         .main-content {
             margin-left: var(--sidebar-width);
@@ -153,29 +168,51 @@
                 var canViewOperational = isViewer || isDataEntry || isFarmManager || isAccounts || isCompanyAdmin || isSystemAdmin;
                 var canManageLivestock = isDataEntry || isFarmManager || isCompanyAdmin || isSystemAdmin;
                 var canManageSales = isFarmManager || isAccounts || isCompanyAdmin || isSystemAdmin;
+                var canManagePurchases = canManageSales;
+                var canManageLosses = canManageSales;
                 var canManageAccounting = isAccounts || isCompanyAdmin || isSystemAdmin;
+                var canManageExpenses = canManageSales;
                 var canManageCompany = isCompanyAdmin || isSystemAdmin;
                 var canViewFinancial = isAccounts || isFarmManager || isCompanyAdmin || isSystemAdmin;
                 var canWrite = canManageLivestock || canManageAccounting || canManageCompany;
+
+                var currentController = (ViewContext.RouteData.Values["controller"] as string ?? string.Empty).ToLowerInvariant();
+
+                string ActiveIf(params string[] names)
+                {
+                    foreach (var n in names)
+                    {
+                        if (string.Equals(n, currentController, StringComparison.OrdinalIgnoreCase))
+                            return "active";
+                    }
+                    return string.Empty;
+                }
 
                 <div class="nav-section-title">Main</div>
                 <ul class="nav flex-column">
                     @if (canViewOperational)
                     {
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">
+                            <a class="nav-link @ActiveIf("Home")" asp-area="" asp-controller="Home" asp-action="Index">
                                 <span>&#128202;</span><span>Dashboard</span>
                             </a>
                         </li>
                     }
                 </ul>
 
-                <div class="nav-section-title">Operations</div>
-                <ul class="nav flex-column">
+                <div class="nav-section-title"
+                     role="button"
+                     tabindex="0"
+                     data-toggle-section="ops"
+                     aria-expanded="true">
+                    <span>Operations</span>
+                    <span class="float-end section-chevron" aria-hidden="true">▾</span>
+                </div>
+                <ul class="nav flex-column nav-section-body" data-section="ops">
                     @if (canManageCompany)
                     {
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Farms" asp-action="Index">
+                            <a class="nav-link @ActiveIf("Farms")" asp-area="" asp-controller="Farms" asp-action="Index">
                                 <span>&#127969;</span><span>Farms</span>
                             </a>
                         </li>
@@ -183,7 +220,7 @@
                     @if (canViewOperational)
                     {
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Livestock" asp-action="Index">
+                            <a class="nav-link @ActiveIf("Livestock")" asp-area="" asp-controller="Livestock" asp-action="Index">
                                 <span>&#128017;</span><span>Livestock</span>
                             </a>
                         </li>
@@ -191,7 +228,7 @@
                     @if (!isViewer)
                     {
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Customers" asp-action="Index">
+                            <a class="nav-link @ActiveIf("Customers")" asp-area="" asp-controller="Customers" asp-action="Index">
                                 <span>&#128101;</span><span>Customers</span>
                             </a>
                         </li>
@@ -199,8 +236,16 @@
                     @if (canManageAccounting)
                     {
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Suppliers" asp-action="Index">
+                            <a class="nav-link @ActiveIf("Suppliers")" asp-area="" asp-controller="Suppliers" asp-action="Index">
                                 <span>&#127973;</span><span>Suppliers</span>
+                            </a>
+                        </li>
+                    }
+                    @if (canViewOperational)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @ActiveIf("Documents")" asp-area="" asp-controller="Documents" asp-action="Index">
+                                <span>&#128193;</span><span>Documents</span>
                             </a>
                         </li>
                     }
@@ -208,36 +253,75 @@
 
                 @if (canViewFinancial)
                 {
-                    <div class="nav-section-title">Finance</div>
-                    <ul class="nav flex-column">
-                        @if (canManageSales || canViewFinancial)
-                        {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Sales" asp-action="Index">
-                                    <span>&#128176;</span><span>Sales</span>
-                                </a>
-                            </li>
-                        }
+                    <div class="nav-section-title"
+                         role="button"
+                         tabindex="0"
+                         data-toggle-section="fin"
+                         aria-expanded="true">
+                        <span>Finance</span>
+                        <span class="float-end section-chevron" aria-hidden="true">▾</span>
+                    </div>
+                    <ul class="nav flex-column nav-section-body" data-section="fin">
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Invoices" asp-action="Index">
+                            <a class="nav-link @ActiveIf("Sales")" asp-area="" asp-controller="Sales" asp-action="Index">
+                                <span>&#128176;</span><span>Sales</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @ActiveIf("Purchases")" asp-area="" asp-controller="Purchases" asp-action="Index">
+                                <span>&#128722;</span><span>Purchases</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @ActiveIf("Invoices")" asp-area="" asp-controller="Invoices" asp-action="Index">
                                 <span>&#128196;</span><span>Invoices</span>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Payments" asp-action="Index">
+                            <a class="nav-link @ActiveIf("Payments")" asp-area="" asp-controller="Payments" asp-action="Index">
                                 <span>&#128179;</span><span>Payments</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @ActiveIf("Receipts")" asp-area="" asp-controller="Receipts" asp-action="Index">
+                                <span>&#129534;</span><span>Receipts</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @ActiveIf("Expenses")" asp-area="" asp-controller="Expenses" asp-action="Index">
+                                <span>&#128176;</span><span>Expenses</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @ActiveIf("LivestockLosses")" asp-area="" asp-controller="LivestockLosses" asp-action="Index">
+                                <span>&#128128;</span><span>Losses</span>
                             </a>
                         </li>
                     </ul>
                 }
 
-                <div class="nav-section-title">Reporting</div>
-                <ul class="nav flex-column">
+                <div class="nav-section-title"
+                     role="button"
+                     tabindex="0"
+                     data-toggle-section="rep"
+                     aria-expanded="true">
+                    <span>Reporting</span>
+                    <span class="float-end section-chevron" aria-hidden="true">▾</span>
+                </div>
+                <ul class="nav flex-column nav-section-body" data-section="rep">
                     @if (canViewOperational)
                     {
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Reports" asp-action="Index">
+                            <a class="nav-link @ActiveIf("Reports")" asp-area="" asp-controller="Reports" asp-action="Index">
                                 <span>&#128200;</span><span>Reports</span>
+                            </a>
+                        </li>
+                    }
+                    @if (canViewFinancial)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @(string.Equals(currentController, "reports", StringComparison.OrdinalIgnoreCase) && string.Equals(ViewContext.RouteData.Values["action"] as string ?? string.Empty, "profitloss", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)" asp-area="" asp-controller="Reports" asp-action="ProfitLoss">
+                                <span>💰</span><span>P &amp; L Statement</span>
                             </a>
                         </li>
                     }
@@ -245,15 +329,35 @@
 
                 @if (canManageCompany)
                 {
-                    <div class="nav-section-title">Administration</div>
-                    <ul class="nav flex-column">
+                    <div class="nav-section-title"
+                         role="button"
+                         tabindex="0"
+                         data-toggle-section="adm"
+                         aria-expanded="true">
+                        <span>Administration</span>
+                        <span class="float-end section-chevron" aria-hidden="true">▾</span>
+                    </div>
+                    <ul class="nav flex-column nav-section-body" data-section="adm">
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Audit" asp-action="Index">
+                            <a class="nav-link @ActiveIf("Audit")" asp-area="" asp-controller="Audit" asp-action="Index">
                                 <span>&#128195;</span><span>Audit Logs</span>
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Settings" asp-action="Index">
+                            <a class="nav-link @ActiveIf("UserManagement")" asp-area="" asp-controller="UserManagement" asp-action="Index">
+                                <span>&#128101;</span><span>Users</span>
+                            </a>
+                        </li>
+                        @if (isSystemAdmin)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Companies")" asp-area="" asp-controller="Companies" asp-action="Index">
+                                    <span>&#127970;</span><span>Companies</span>
+                                </a>
+                            </li>
+                        }
+                        <li class="nav-item">
+                            <a class="nav-link @ActiveIf("Settings")" asp-area="" asp-controller="Settings" asp-action="Index">
                                 <span>&#9881;</span><span>Settings</span>
                             </a>
                         </li>
@@ -304,6 +408,57 @@
                 toggleSidebar(!sidebar.classList.contains('open'));
             });
             if (backdrop) backdrop.addEventListener('click', function () { toggleSidebar(false); });
+
+            function applySectionState(section, collapsed) {
+                var title = document.querySelector('[data-toggle-section="' + section + '"]');
+                var body = document.querySelector('[data-section="' + section + '"]');
+                if (!title || !body) return;
+                if (collapsed) {
+                    title.classList.add('collapsed');
+                    title.setAttribute('aria-expanded', 'false');
+                    body.classList.add('collapsed');
+                } else {
+                    title.classList.remove('collapsed');
+                    title.setAttribute('aria-expanded', 'true');
+                    body.classList.remove('collapsed');
+                }
+            }
+            function saveSectionState(section, collapsed) {
+                try {
+                    var key = 'sb:section:' + section;
+                    if (collapsed) localStorage.setItem(key, '1');
+                    else localStorage.removeItem(key);
+                } catch (e) {}
+            }
+            function toggleSection(section) {
+                var title = document.querySelector('[data-toggle-section="' + section + '"]');
+                if (!title) return;
+                var willCollapse = !title.classList.contains('collapsed');
+                applySectionState(section, willCollapse);
+                saveSectionState(section, willCollapse);
+            }
+            var isMobile = window.matchMedia && window.matchMedia('(max-width: 991.98px)').matches;
+            document.querySelectorAll('[data-toggle-section]').forEach(function (el) {
+                var section = el.getAttribute('data-toggle-section');
+                var collapsed = false;
+                try {
+                    if (localStorage.getItem('sb:section:' + section) === '1') collapsed = true;
+                } catch (e) {}
+                if (!collapsed && isMobile) collapsed = true;
+                var activeInThis = document.querySelector('[data-section="' + section + '"] a.nav-link.active');
+                if (activeInThis) collapsed = false;
+                applySectionState(section, collapsed);
+                el.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    toggleSection(section);
+                });
+                el.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleSection(section);
+                    }
+                });
+            });
         })();
     </script>
     <script src="~/js/site.js" asp-append-version="true"></script>

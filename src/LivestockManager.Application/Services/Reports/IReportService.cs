@@ -23,4 +23,5 @@ public interface IReportService
     Task<IList<(Guid? FarmId, string? FarmName, int Count, decimal TotalValue)>> DischargesAsync(Guid companyId, DateTimeOffset from, DateTimeOffset to, DischargeCondition? condition, CancellationToken ct);
     Task<IList<(Guid CustomerId, string CustomerName, decimal Balance)>> OutstandingBalancesAsync(Guid companyId, CancellationToken ct);
     Task<byte[]> ExportCsv<T>(IEnumerable<T> rows);
+    Task<ProfitLossReportDto> ProfitLossAsync(Guid companyId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct);
 }

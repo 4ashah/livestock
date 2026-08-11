@@ -13,15 +13,27 @@ public class ReceiptService : IReceiptService
     private readonly IAppDbContext _db;
     private readonly IDateTime _dateTime;
     private readonly ISequenceGenerator _sequenceGenerator;
+    private readonly IPdfGenerator _pdfGenerator;
 
     public ReceiptService(
         IAppDbContext db,
         IDateTime dateTime,
-        ISequenceGenerator sequenceGenerator)
+        ISequenceGenerator sequenceGenerator,
+        IPdfGenerator? pdfGenerator = null)
     {
         _db = db;
         _dateTime = dateTime;
         _sequenceGenerator = sequenceGenerator;
+        _pdfGenerator = pdfGenerator ?? new StubNullPdfGenerator();
+    }
+
+    private sealed class StubNullPdfGenerator : IPdfGenerator
+    {
+        public Task<byte[]> GenerateInvoicePdfAsync(Invoice invoice, Company company)
+            => Task.FromResult(Array.Empty<byte>());
+
+        public Task<byte[]> GenerateReceiptPdfAsync(Payment payment, Receipt receipt, Company company, Customer customer)
+            => Task.FromResult(Array.Empty<byte>());
     }
 
     public async Task<ReceiptDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
@@ -74,6 +86,30 @@ public class ReceiptService : IReceiptService
                     join c in _db.Customers on r.CustomerId equals c.Id into cs
                     from c in cs.DefaultIfEmpty()
                     where r.CompanyId == companyId && r.CustomerId == customerId
+                    orderby r.ReceiptDate descending
+                    select new ReceiptSummaryDto
+                    {
+                        Id = r.Id,
+                        ReceiptNumber = r.ReceiptNumber,
+                        ReceiptDate = r.ReceiptDate,
+                        PaymentId = r.PaymentId,
+                        CustomerId = r.CustomerId,
+                        CustomerName = r.CustomerName ?? (c != null ? c.Name : null),
+                        AmountReceived = r.AmountReceived,
+                        Currency = r.Currency,
+                        RunningInvoiceBalance = r.RunningInvoiceBalance,
+                        Status = r.Status,
+                        CreatedAt = r.CreatedAt
+                    };
+        return await query.ToListAsync(ct);
+    }
+
+    public async Task<IList<ReceiptSummaryDto>> ListAsync(Guid companyId, CancellationToken ct)
+    {
+        var query = from r in _db.Receipts
+                    join c in _db.Customers on r.CustomerId equals c.Id into cs
+                    from c in cs.DefaultIfEmpty()
+                    where r.CompanyId == companyId
                     orderby r.ReceiptDate descending
                     select new ReceiptSummaryDto
                     {
@@ -206,6 +242,27 @@ public class ReceiptService : IReceiptService
             await tx.RollbackAsync(ct);
             throw;
         }
+    }
+
+    public async Task<byte[]> GetPdfAsync(Guid receiptId, Guid companyId, CancellationToken ct)
+    {
+        var receipt = await _db.Receipts
+            .FirstOrDefaultAsync(r => r.Id == receiptId && r.CompanyId == companyId, ct)
+            ?? throw new DomainException("Receipt not found.");
+
+        var company = await _db.Companies
+            .FirstOrDefaultAsync(c => c.Id == receipt.CompanyId, ct)
+            ?? throw new DomainException("Company not found.");
+
+        var payment = await _db.Payments
+            .FirstOrDefaultAsync(p => p.Id == receipt.PaymentId && p.CompanyId == companyId, ct)
+            ?? throw new DomainException("Payment not found for receipt.");
+
+        var customer = await _db.Customers
+            .FirstOrDefaultAsync(c => c.Id == receipt.CustomerId, ct)
+            ?? new Customer(receipt.CompanyId, "UNKNOWN", receipt.CustomerName ?? "Customer");
+
+        return await _pdfGenerator.GenerateReceiptPdfAsync(payment, receipt, company, customer);
     }
 
     private static string? FormatAddress(Domain.ValueObjects.Address? address)

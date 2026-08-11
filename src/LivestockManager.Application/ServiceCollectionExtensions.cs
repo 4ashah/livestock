@@ -17,6 +17,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Services.Receipts.IReceiptService, Services.Receipts.ReceiptService>();
         services.AddScoped<Services.Suppliers.ISupplierService, Services.Suppliers.SupplierService>();
         services.AddScoped<Services.Purchases.IPurchaseService, Services.Purchases.PurchaseService>();
+        services.AddScoped<Services.LivestockLosses.ILivestockLossService, Services.LivestockLosses.LivestockLossService>();
         services.AddScoped<Services.Companies.ICompanyService, Services.Companies.CompanyService>();
         services.AddScoped<Services.Farms.IFarmService, Services.Farms.FarmService>();
 

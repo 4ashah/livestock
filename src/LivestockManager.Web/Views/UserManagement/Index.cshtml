@@ -1,0 +1,96 @@
+@model UserManagementListViewModel
+@{
+    ViewData["Title"] = "Users";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">👥 User Management</h1>
+        <div class="text-muted small">Manage team members and access</div>
+    </div>
+    <a asp-action="AddUser" class="btn btn-primary"><span class="me-1">+</span> Invite User</a>
+</div>
+
+@if (Model.SuccessMessage != null)
+{
+    <div class="alert alert-success mb-4">@Model.SuccessMessage</div>
+}
+
+@if (Model.ErrorMessage != null)
+{
+    <div class="alert alert-danger mb-4">@Model.ErrorMessage</div>
+}
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Email</th>
+                        <th>Roles</th>
+                        <th>Status</th>
+                        <th>Last Login</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model.Items)
+                    {
+                        <tr>
+                            <td><code>@item.UserName</code></td>
+                            <td>@item.FullName</td>
+                            <td>@item.Email</td>
+                            <td>
+                                @foreach (var role in item.Roles)
+                                {
+                                    <span class="badge rounded-pill bg-secondary ms-1">@role</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.IsEnabled)
+                                {
+                                    <span class="badge bg-success">Enabled</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-danger">Disabled</span>
+                                }
+                            </td>
+                            <td>
+                                @if (item.LastLoginAt.HasValue)
+                                {
+                                    <span class="small text-muted">@item.LastLoginAt.Value.ToString("yyyy-MM-dd HH:mm")</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted small">—</span>
+                                }
+                            </td>
+                            <td><span class="small text-muted">@item.CreatedAt.ToString("yyyy-MM-dd")</span></td>
+                            <td class="text-end">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <form asp-action="ResetPassword" method="post" class="d-inline">
+                                        <input type="hidden" asp-route-id="@item.Id" />
+                                        <button type="submit" class="btn btn-sm btn-warning">Reset Password</button>
+                                    </form>
+                                    <form asp-action="ToggleEnabled" method="post" class="d-inline">
+                                        <input type="hidden" asp-route-id="@item.Id" />
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">Toggle Enabled</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Items.Any())
+                    {
+                        <tr><td colspan="8" class="text-center py-5 text-muted small">No users found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

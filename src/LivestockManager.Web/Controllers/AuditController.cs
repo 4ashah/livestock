@@ -74,13 +74,13 @@ public class AuditController : Controller
 
         if (from.HasValue)
         {
-            var fromOffset = new DateTimeOffset(from.Value.Date, TimeSpan.Zero);
+            var fromOffset = from.Value.AsUtcDayStart();
             query = query.Where(a => a.CreatedAt >= fromOffset);
         }
 
         if (to.HasValue)
         {
-            var toOffset = new DateTimeOffset(to.Value.Date.AddDays(1).AddTicks(-1), TimeSpan.Zero);
+            var toOffset = to.Value.AsUtcDayEnd();
             query = query.Where(a => a.CreatedAt <= toOffset);
         }
 

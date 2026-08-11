@@ -700,4 +700,10 @@ public class TestIsolationPdfGenerator : IPdfGenerator
         var stub = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x31, 0x2E, 0x34 };
         return Task.FromResult(stub);
     }
+
+    public Task<byte[]> GenerateReceiptPdfAsync(Payment payment, Receipt receipt, Company company, Customer customer)
+    {
+        var stub = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x31, 0x2E, 0x34 };
+        return Task.FromResult(stub);
+    }
 }

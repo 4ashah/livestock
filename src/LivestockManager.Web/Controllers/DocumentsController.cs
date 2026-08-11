@@ -205,6 +205,10 @@ public class DocumentsController : Controller
 
     [HttpGet]
     [Authorize(Policy = "CanViewOperationalData")]
+    public IActionResult Index() => RedirectToAction(nameof(List));
+
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();

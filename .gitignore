@@ -59,6 +59,13 @@ artifacts/publish/
 artifacts/production-publish/
 artifacts/backups/
 artifacts/logs/
+artifacts/release/
+artifacts/pdf-samples-round2/
+artifacts/demo-screenshots/
+artifacts/backup-abs-j10/
+artifacts/pdf-samples/
+artifacts/pdf-samples-live/
+artifacts/live-screenshots-2a/
 
 # E2E Playwright outputs + local browser install
 artifacts/e2e/results/
@@ -66,6 +73,7 @@ artifacts/e2e/screenshots/
 artifacts/e2e/traces/
 artifacts/e2e/videos/
 artifacts/e2e/.playwright-browsers/
+artifacts/playwright-browsers/
 
 # Fonts: Genuine font TTFs and the OFL.txt license are explicitly tracked
 # in src/LivestockManager.Infrastructure/Resources/Fonts/. All other *.ttf

@@ -1,0 +1,130 @@
+@using LivestockManager.Domain.Enums
+@model LivestockManager.Application.DTOs.LivestockLosses.LivestockLossDetailDto
+@{
+    ViewData["Title"] = "Loss " + Model.LossNumber;
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">&#128128; Loss @Model.LossNumber</h1>
+        <div class="text-muted small">
+            @Model.LossDate.ToString("yyyy-MM-dd HH:mm")
+            @if (Model.IsReversed)
+            { <span class="badge bg-secondary ms-2">REVERSED</span> }
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">&larr; Loss List</a>
+        @if (canEdit && !Model.IsReversed)
+        {
+            <button class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reverseModal">Reverse Loss</button>
+        }
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white py-2">
+                <h6 class="mb-0 fw-semibold">Loss Details</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small">Loss Number</dt>
+                    <dd class="col-sm-8"><code>@Model.LossNumber</code></dd>
+
+                    <dt class="col-sm-4 text-muted small">Loss Date</dt>
+                    <dd class="col-sm-8">@Model.LossDate.ToString("yyyy-MM-dd HH:mm")</dd>
+
+                    <dt class="col-sm-4 text-muted small">Loss Type</dt>
+                    <dd class="col-sm-8">
+                        @if (Model.LossType == DischargeCondition.Deceased)
+                        { <span class="badge bg-secondary">Deceased</span> }
+                        else if (Model.LossType == DischargeCondition.Lost)
+                        { <span class="badge bg-warning text-dark">Lost (Missing)</span> }
+                        else if (Model.LossType == DischargeCondition.Stolen)
+                        { <span class="badge bg-danger">Stolen</span> }
+                        else
+                        { <span class="badge bg-info text-dark">@Model.LossType</span> }
+                    </dd>
+
+                    <dt class="col-sm-4 text-muted small">Farm</dt>
+                    <dd class="col-sm-8">@(Model.FarmName ?? "(none)")</dd>
+
+                    <dt class="col-sm-4 text-muted small">Currency</dt>
+                    <dd class="col-sm-8">@Model.Currency</dd>
+
+                    <dt class="col-sm-4 text-muted small">Reason</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Reason) ? "<span class='text-muted'>(none)</span>" : Model.Reason)</dd>
+
+                    <dt class="col-sm-4 text-muted small">Notes</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Notes) ? "<span class='text-muted'>(none)</span>" : Model.Notes)</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white py-2">
+                <h6 class="mb-0 fw-semibold">Livestock Affected</h6>
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small">Livestock ID</dt>
+                    <dd class="col-sm-8"><code>@(Model.LivestockDisplayId ?? Model.LivestockCode ?? "(deleted)")</code></dd>
+
+                    <dt class="col-sm-4 text-muted small">Type</dt>
+                    <dd class="col-sm-8">@Model.LivestockType</dd>
+
+                    <dt class="col-sm-4 text-muted small">Book Value</dt>
+                    <dd class="col-sm-8 fw-semibold">$@Model.BookValue.ToString("F2")</dd>
+
+                    <dt class="col-sm-4 text-muted small">Salvage Value</dt>
+                    <dd class="col-sm-8">@(Model.SalvageValue.HasValue ? "$" + Model.SalvageValue.Value.ToString("F2") : "-")</dd>
+
+                    <dt class="col-sm-4 text-muted small">Total Loss</dt>
+                    <dd class="col-sm-8 text-danger fw-bold fs-5">$@Model.LossAmount.ToString("F2")</dd>
+                </dl>
+            </div>
+        </div>
+
+        @if (Model.IsReversed)
+        {
+            <div class="card shadow-sm border-0 border-start border-4 border-secondary">
+                <div class="card-body">
+                    <h6 class="fw-semibold mb-2">Reversed</h6>
+                    <div class="small text-muted mb-1">Reversed @(Model.ReversedAt?.ToString("yyyy-MM-dd HH:mm") ?? "")</div>
+                    <div class="small">Reason: @(string.IsNullOrWhiteSpace(Model.ReversalReason) ? "(none)" : Model.ReversalReason)</div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (canEdit && !Model.IsReversed)
+{
+    <div class="modal fade" id="reverseModal" tabindex="-1" aria-labelledby="reverseModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form asp-action="Reverse" method="post">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="reverseModalLabel">Reverse Loss @Model.LossNumber</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small text-muted mb-3">This will restore the livestock to <strong>Active</strong> status and mark the loss record as reversed. This operation is non-destructive.</p>
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <label class="form-label small fw-semibold mb-1">Reversal Reason *</label>
+                        <textarea name="reason" class="form-control" rows="3" required placeholder="e.g. Found alive, duplicate entry, data error..."></textarea>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Confirm Reverse</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+}

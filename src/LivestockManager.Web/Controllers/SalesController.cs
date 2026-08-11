@@ -65,12 +65,12 @@ public class SalesController : Controller
 
         if (from.HasValue)
         {
-            var fromDto = new DateTimeOffset(from.Value.Date, TimeSpan.Zero);
+            var fromDto = from.Value.AsUtcDayStart();
             sales = sales.Where(s => s.Date >= fromDto).ToList();
         }
         if (to.HasValue)
         {
-            var toDto = new DateTimeOffset(to.Value.Date.AddDays(1).AddTicks(-1), TimeSpan.Zero);
+            var toDto = to.Value.AsUtcDayEnd();
             sales = sales.Where(s => s.Date <= toDto).ToList();
         }
         if (customerId.HasValue)

@@ -25,6 +25,15 @@ public class DocumentNumberGenerator
         return $"PUR-{year}-{number:D5}";
     }
 
+    public async Task<string> GenerateLossNumberAsync(Guid companyId, CancellationToken ct = default)
+    {
+        var year = DateTimeOffset.UtcNow.Year.ToString();
+        var scopedKey = $"LOSS:{year}";
+        var raw = await _sequenceGenerator.GenerateDocumentNumberAsync(companyId, scopedKey, ct);
+        var number = ExtractNumericSuffix(raw, scopedKey);
+        return $"LOSS-{year}-{number:D5}";
+    }
+
     public async Task<string> GeneratePaymentNumberAsync(Guid companyId, CancellationToken ct = default)
     {
         var year = DateTimeOffset.UtcNow.Year.ToString();

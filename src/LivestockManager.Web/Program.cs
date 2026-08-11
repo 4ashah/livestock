@@ -147,6 +147,18 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("CanManageSales", policy =>
         policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 
+    options.AddPolicy("CanManagePurchases", policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts,
+                            RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy("CanManageLosses", policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts,
+                            RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy("CanManageExpenses", policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts,
+                            RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
     options.AddPolicy("CanManageAccounting", policy =>
         policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 

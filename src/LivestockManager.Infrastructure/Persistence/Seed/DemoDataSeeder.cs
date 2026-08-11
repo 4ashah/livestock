@@ -210,11 +210,15 @@ public static class DemoDataSeeder
     private static async Task SeedAdminUserAsync(UserManager<ApplicationUser> userManager, Guid companyId)
     {
         const string adminEmail = "admin@livestock.dev";
+        const string adminUserName = "admin";
         LastUsersEnumeratedCount++;
-        var existing = await userManager.FindByEmailAsync(adminEmail);
+        var existing = await userManager.FindByEmailAsync(adminEmail)
+                     ?? await userManager.FindByNameAsync(adminUserName);
         if (existing != null)
         {
             var now = DateTimeOffset.UtcNow;
+            existing.UserName = adminUserName;
+            existing.NormalizedUserName = adminUserName.ToUpperInvariant();
             existing.LockoutEnd = null;
             existing.AccessFailedCount = 0;
             existing.LockoutEnabled = true;
@@ -252,7 +256,7 @@ public static class DemoDataSeeder
 
         var user = new ApplicationUser
         {
-            UserName = adminEmail,
+            UserName = adminUserName,
             Email = adminEmail,
             EmailConfirmed = true,
             FullName = "System Admin",
@@ -274,11 +278,11 @@ public static class DemoDataSeeder
     {
         var otherUsers = new[]
         {
-            new { Email = "accounts@livestock.dev", Name = "Accounts User", Role = RoleNames.Accounts },
-            new { Email = "farmmanager@livestock.dev", Name = "Farm Manager", Role = RoleNames.FarmManager },
-            new { Email = "dataentry@livestock.dev", Name = "Data Entry Clerk", Role = RoleNames.DataEntry },
-            new { Email = "viewer@livestock.dev", Name = "View-only Viewer", Role = RoleNames.Viewer },
-            new { Email = "sysadmin@livestock.dev", Name = "System Administrator", Role = RoleNames.SystemAdministrator }
+            new { UserName = "accounts",    Email = "accounts@livestock.dev",    Name = "Accounts User",         Role = RoleNames.Accounts },
+            new { UserName = "farmmanager", Email = "farmmanager@livestock.dev", Name = "Farm Manager",          Role = RoleNames.FarmManager },
+            new { UserName = "dataentry",   Email = "dataentry@livestock.dev",   Name = "Data Entry Clerk",      Role = RoleNames.DataEntry },
+            new { UserName = "viewer",      Email = "viewer@livestock.dev",      Name = "View-only Viewer",      Role = RoleNames.Viewer },
+            new { UserName = "sysadmin",    Email = "sysadmin@livestock.dev",    Name = "System Administrator",  Role = RoleNames.SystemAdministrator }
         };
 
         const string standardPwd = DevPassword;
@@ -286,9 +290,12 @@ public static class DemoDataSeeder
         foreach (var spec in otherUsers)
         {
             LastUsersEnumeratedCount++;
-            var existing = await userManager.FindByEmailAsync(spec.Email);
+            var existing = await userManager.FindByEmailAsync(spec.Email)
+                         ?? await userManager.FindByNameAsync(spec.UserName);
             if (existing != null)
             {
+                existing.UserName = spec.UserName;
+                existing.NormalizedUserName = spec.UserName.ToUpperInvariant();
                 existing.LockoutEnd = null;
                 existing.AccessFailedCount = 0;
                 existing.LockoutEnabled = true;
@@ -319,7 +326,7 @@ public static class DemoDataSeeder
 
             var user = new ApplicationUser
             {
-                UserName = spec.Email,
+                UserName = spec.UserName,
                 Email = spec.Email,
                 EmailConfirmed = true,
                 FullName = spec.Name,

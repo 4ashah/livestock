@@ -43,7 +43,18 @@ public class AccountController : Controller
             return View(model);
         }
 
-        var user = await _userManager.FindByEmailAsync(model.Email);
+        var credential = (model.UserName ?? string.Empty).Trim();
+
+        ApplicationUser? user = null;
+        if (!string.IsNullOrWhiteSpace(credential))
+        {
+            user = await _userManager.FindByNameAsync(credential);
+            if (user == null && credential.Contains('@'))
+            {
+                user = await _userManager.FindByEmailAsync(credential);
+            }
+        }
+
         if (user == null)
         {
             ModelState.AddModelError(string.Empty, "Invalid login attempt.");
@@ -56,8 +67,9 @@ public class AccountController : Controller
             return View(model);
         }
 
+        var signInUser = user.UserName ?? credential;
         var result = await _signInManager.PasswordSignInAsync(
-            model.Email,
+            signInUser,
             model.Password,
             model.RememberMe,
             lockoutOnFailure: true);
@@ -67,12 +79,12 @@ public class AccountController : Controller
             user.LastLoginAt = DateTimeOffset.UtcNow;
             await _userManager.UpdateAsync(user);
 
-            _logger.LogInformation("User logged in: {Email}", model.Email);
+            _logger.LogInformation("User logged in: {UserName}", user.UserName);
             return RedirectToLocal(returnUrl);
         }
         if (result.IsLockedOut)
         {
-            _logger.LogWarning("User account locked out: {Email}", model.Email);
+            _logger.LogWarning("User account locked out: {UserName}", user.UserName);
             ModelState.AddModelError(string.Empty, "This account has been locked out. Please try again later.");
             return View(model);
         }

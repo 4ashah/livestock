@@ -52,12 +52,12 @@ public class InvoicesController : Controller
 
         if (from.HasValue)
         {
-            var fromDto = new DateTimeOffset(from.Value.Date, TimeSpan.Zero);
+            var fromDto = from.Value.AsUtcDayStart();
             invoices = invoices.Where(i => i.InvoiceDate >= fromDto).ToList();
         }
         if (to.HasValue)
         {
-            var toDto = new DateTimeOffset(to.Value.Date.AddDays(1).AddTicks(-1), TimeSpan.Zero);
+            var toDto = to.Value.AsUtcDayEnd();
             invoices = invoices.Where(i => i.InvoiceDate <= toDto).ToList();
         }
         if (customerId.HasValue)

@@ -1,0 +1,68 @@
+@model UserAddViewModel
+@{
+    ViewData["Title"] = "Invite User";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">👥 Invite User</h1>
+        <div class="text-muted small">Create a new team member account</div>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">← Back to list</a>
+</div>
+
+<form asp-action="AddUser" method="post" class="row g-3" novalidate>
+    @if (ViewContext.ModelState != null && ViewContext.ModelState.Any(x => x.Value != null && x.Value.Errors != null && x.Value.Errors.Count > 0))
+    {
+        <div asp-validation-summary="All" class="col-12 alert alert-danger"></div>
+    }
+
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body row g-3">
+                <div class="col-md-12">
+                    <label asp-for="UserName" class="form-label small fw-semibold"></label>
+                    <input asp-for="UserName" class="form-control" />
+                    <span asp-validation-for="UserName" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="FullName" class="form-label small fw-semibold"></label>
+                    <input asp-for="FullName" class="form-control" />
+                    <span asp-validation-for="FullName" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="Email" class="form-label small fw-semibold"></label>
+                    <input asp-for="Email" type="email" class="form-control" />
+                    <span asp-validation-for="Email" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="SelectedRole" class="form-label small fw-semibold"></label>
+                    <select asp-for="SelectedRole" asp-items="Model.RoleOptions" class="form-select"></select>
+                    <span asp-validation-for="SelectedRole" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-12">
+                    <div class="alert alert-info mb-0">
+                    <div class="small text-muted"><strong>Temporary auto-generated password:</strong></div>
+                        <code class="fw-semibold">@Model.TemporaryPassword</code>
+                        <div class="small text-muted mt-1">The user must reset this password after first login.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12 pt-3">
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">Create User</button>
+            <a asp-action="Index" class="btn btn-outline-secondary px-4">Cancel</a>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

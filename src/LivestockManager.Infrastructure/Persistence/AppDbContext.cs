@@ -41,6 +41,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<Receipt> Receipts => Set<Receipt>();
     public DbSet<InvoiceAdditionalCharge> InvoiceAdditionalCharges => Set<InvoiceAdditionalCharge>();
     public DbSet<Document> Documents => Set<Document>();
+    public DbSet<LivestockLoss> LivestockLosses => Set<LivestockLoss>();
     #endregion
 
     async Task<IDbContextTransactionFacade> IAppDbContext.BeginTransactionAsync(CancellationToken cancellationToken)

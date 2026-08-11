@@ -1,0 +1,145 @@
+@model LivestockManager.Application.DTOs.Expenses.ExpenseDetailDto
+@using LivestockManager.Domain.Enums
+@{
+    ViewData["Title"] = "Expense Details";
+    var canEdit = ViewData["CanEdit"] is true;
+
+    bool ModelHasErrors() => ViewContext.ModelState.ErrorCount > 0;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">🧾 Expense · Details</h1>
+        <div class="text-muted small">
+            Recorded @Model.CreatedAt.LocalDateTime.ToString("g")
+            @if (Model.ModifiedAt.HasValue)
+            {
+                <span>· Updated @Model.ModifiedAt.Value.LocalDateTime.ToString("g")</span>
+            }
+        </div>
+    </div>
+    <div class="d-flex gap-2 mt-2 mt-sm-0">
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Index">← Back to List</a>
+        @if (canEdit)
+        {
+            <a class="btn btn-outline-primary btn-sm" asp-action="Edit" asp-route-id="@Model.Id">✏️ Edit</a>
+            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#deleteModal">🗑 Delete</button>
+        }
+    </div>
+</div>
+
+@if (ModelHasErrors())
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>⚠ Errors:</strong>
+        <ul class="mb-0 mt-1">
+            @foreach (var err in ViewContext.ModelState.SelectMany(m => m.Value!.Errors.Select(e => e.ErrorMessage)).Where(e => !string.IsNullOrWhiteSpace(e)).Cast<string>())
+            {
+                <li>@err</li>
+            }
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-4">
+    <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-semibold">Expense Details</h6>
+                <span class="badge rounded-pill text-bg-secondary">@Model.Category</span>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small text-muted">Date</label>
+                        <div class="fw-semibold">@Model.ExpenseDate.LocalDateTime.ToString("dddd, MMMM d, yyyy · HH:mm")</div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small text-muted">Payment Method</label>
+                        <div class="fw-semibold">@Model.PaymentMethod</div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small text-muted">Farm</label>
+                        <div class="fw-semibold">@(ViewData["FarmName"] as string ?? "—")</div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small text-muted">Supplier</label>
+                        <div class="fw-semibold">@(ViewData["SupplierName"] as string ?? "—")</div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small text-muted">Related Livestock</label>
+                        <div class="fw-semibold">@(ViewData["LivestockCode"] as string ?? "—")</div>
+                    </div>
+                    <div class="col-12 col-sm-6">
+                        <label class="form-label small text-muted">Reference</label>
+                        <div class="fw-semibold">@(string.IsNullOrWhiteSpace(Model.Reference) ? "—" : Model.Reference)</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small text-muted">Description</label>
+                        <div>@(string.IsNullOrWhiteSpace(Model.Description) ? "—" : Model.Description)</div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small text-muted">Notes</label>
+                        <div class="small">@(string.IsNullOrWhiteSpace(Model.Notes) ? "—" : Model.Notes)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="card border-start border-5 border-danger border-0 shadow-sm h-100" style="border-left-color:#dc3545;">
+            <div class="card-body d-flex flex-column justify-content-between">
+                <div>
+                    <label class="form-label small text-muted text-uppercase">Financial Breakdown</label>
+                    <div class="mb-3 d-flex justify-content-between align-items-baseline">
+                        <span class="text-muted">Amount</span>
+                        <span class="fs-5 fw-semibold">$@Model.Amount.ToString("F2")</span>
+                    </div>
+                    <div class="mb-3 d-flex justify-content-between align-items-baseline">
+                        <span class="text-muted">Tax Rate</span>
+                        <span>@((Model.TaxRate * 100).ToString("F2"))%</span>
+                    </div>
+                    <div class="mb-3 d-flex justify-content-between align-items-baseline">
+                        <span class="text-muted">Tax Amount</span>
+                        <span>$@Model.TaxAmount.ToString("F2")</span>
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between align-items-baseline">
+                        <span class="text-uppercase small fw-bold text-muted">Total Expense</span>
+                        <span class="fs-3 fw-bold text-danger">$@Model.Total.ToString("F2")</span>
+                    </div>
+                    <div class="mt-2 small text-muted text-end">Currency: @Model.Currency</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (canEdit)
+{
+    <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <form asp-action="Delete" method="post" class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="deleteModalLabel">⚠ Delete Expense</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger">
+                        Deleting removes this expense from all reporting (soft-delete). A deletion reason is required for the audit trail.
+                    </div>
+                    <input type="hidden" asp-for="Id" />
+                    <label class="form-label small">Reason for deletion <span class="text-danger">*</span></label>
+                    <textarea name="reason" class="form-control" rows="3" placeholder="e.g. Duplicate entry, wrong amount, etc." required></textarea>
+                    <span asp-validation-for="Id" class="text-danger small"></span>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger">🗑 Permanently Remove</button>
+                </div>
+            </form>
+        </div>
+    </div>
+}

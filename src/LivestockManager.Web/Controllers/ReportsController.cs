@@ -68,10 +68,10 @@ public class ReportsController : Controller
     {
         var companyId = await GetCompanyIdAsync();
         var fromDate = from.HasValue
-            ? new DateTimeOffset(from.Value.Date, TimeSpan.Zero)
-            : new DateTimeOffset(DateTime.Today.AddDays(-30), TimeSpan.Zero);
+            ? from.Value.AsUtcDayStart()
+            : DateTime.Today.AddDays(-30).AsUtcDayStart();
         var toDate = to.HasValue
-            ? new DateTimeOffset(to.Value.Date.AddDays(1).AddTicks(-1), TimeSpan.Zero)
+            ? to.Value.AsUtcDayEnd()
             : DateTimeOffset.UtcNow;
 
         var discharges = await _reportService.DischargesAsync(companyId, fromDate, toDate,
@@ -128,5 +128,46 @@ public class ReportsController : Controller
         }
 
         return View(rows);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
+    public async Task<IActionResult> ProfitLoss(DateTime? from, DateTime? to, string? format, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+
+        var fromDate = from.HasValue
+            ? from.Value.AsUtcDayStart()
+            : monthStart.AsUtcDayStart();
+        var toDate = to.HasValue
+            ? to.Value.AsUtcDayEnd()
+            : DateTimeOffset.UtcNow;
+
+        var report = await _reportService.ProfitLossAsync(companyId, fromDate, toDate, ct);
+
+        ViewData["From"] = from?.ToString("yyyy-MM-dd") ?? fromDate.ToString("yyyy-MM-dd");
+        ViewData["To"] = to?.ToString("yyyy-MM-dd") ?? toDate.ToString("yyyy-MM-dd");
+
+        if (format?.Equals("csv", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            var rows = new[]
+            {
+                new { Metric = "Total Sales", Value = report.TotalSales.ToString("F2"), Count = report.SalesCount.ToString() },
+                new { Metric = "Total Purchases", Value = report.TotalPurchases.ToString("F2"), Count = report.PurchaseCount.ToString() },
+                new { Metric = "Total Livestock Losses", Value = report.TotalLosses.ToString("F2"), Count = report.LossCount.ToString() },
+                new { Metric = "Total Expenses", Value = report.TotalExpenses.ToString("F2"), Count = report.ExpenseCount.ToString() },
+                new { Metric = "Gross Profit (Sales - Purchases)", Value = report.GrossProfit.ToString("F2"), Count = "" },
+                new { Metric = "Operating Profit (Gross - Expenses)", Value = report.OperatingProfit.ToString("F2"), Count = "" },
+                new { Metric = "Net Profit (After Losses)", Value = report.NetProfit.ToString("F2"), Count = "" },
+                new { Metric = "Sold Head", Value = report.SoldHead.ToString(), Count = "" },
+                new { Metric = "Lost Head", Value = report.LostHead.ToString(), Count = "" }
+            };
+            var bytes = CsvExporter.Write(rows, new[] { "Metric", "Value", "Count" });
+            return File(bytes, "text/csv", $"ProfitLoss_{fromDate:yyyyMMdd}_{toDate:yyyyMMdd}.csv");
+        }
+
+        return View(report);
     }
 }

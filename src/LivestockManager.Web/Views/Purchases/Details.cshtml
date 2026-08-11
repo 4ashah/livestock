@@ -1,0 +1,176 @@
+@model LivestockManager.Application.DTOs.Purchases.PurchaseDetailDto
+@{
+    ViewData["Title"] = "Purchase Details";
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">
+            @if (Model.Status == PurchaseStatus.Draft)
+            { <span class="badge bg-light text-dark border me-2">Draft</span> }
+            else if (Model.Status == PurchaseStatus.Posted)
+            { <span class="badge bg-success me-2">Posted</span> }
+            else if (Model.Status == PurchaseStatus.Voided)
+            { <span class="badge bg-secondary me-2">Voided</span> }
+            else
+            { <span class="badge bg-info text-dark me-2">@Model.Status</span> }
+            Purchase @Model.PurchaseNumber
+        </h1>
+        <div class="text-muted small">@Model.PurchaseDate.ToString("yyyy-MM-dd")</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">← List</a>
+        @if (canEdit && Model.Status == PurchaseStatus.Draft)
+        {
+            <form asp-action="PostPurchase" asp-route-id="@Model.Id" method="post" class="d-inline">
+                <button type="submit" class="btn btn-success" onclick="return confirm('Post this purchase? This finalizes amounts and status.');">
+                    ✅ Post Purchase
+                </button>
+            </form>
+            <form asp-action="Void" asp-route-id="@Model.Id" method="post" class="d-inline">
+                <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Void this purchase?');">
+                    Void
+                </button>
+            </form>
+        }
+        @if (canEdit && Model.Status == PurchaseStatus.Posted)
+        {
+            <form asp-action="Void" asp-route-id="@Model.Id" method="post" class="d-inline">
+                <input type="hidden" name="reason" value="Manual void" />
+                <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Void this posted purchase?');">
+                    Void
+                </button>
+            </form>
+        }
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-bottom"><h6 class="mb-0 fw-bold">🏢 Supplier</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4 text-muted small fw-semibold">Supplier Id</dt>
+                    <dd class="col-sm-8">@Model.SupplierId</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Supplier Ref</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.SupplierReference) ? "—" : Model.SupplierReference)</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Farm Id</dt>
+                    <dd class="col-sm-8">@(Model.FarmId.HasValue ? Model.FarmId.ToString() : "—")</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Currency</dt>
+                    <dd class="col-sm-8">@Model.Currency</dd>
+                    <dt class="col-sm-4 text-muted small fw-semibold">Notes</dt>
+                    <dd class="col-sm-8">@(string.IsNullOrWhiteSpace(Model.Notes) ? "—" : Model.Notes)</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-transparent border-bottom"><h6 class="mb-0 fw-bold">💰 Totals &amp; Payment</h6></div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-6 text-muted small fw-semibold">Subtotal</dt>
+                    <dd class="col-sm-6 text-end">$@Model.Subtotal.ToString("F2")</dd>
+                    @if (Model.DiscountPct > 0)
+                    {
+                        <dt class="col-sm-6 text-muted small fw-semibold">Discount @(Model.DiscountPct * 100).ToString("0.##")%</dt>
+                        <dd class="col-sm-6 text-end">- $@((Model.Subtotal * Model.DiscountPct).ToString("F2"))</dd>
+                    }
+                    <dt class="col-sm-6 text-muted small fw-semibold">Tax @(Model.TaxRate * 100).ToString("0.##")%</dt>
+                    <dd class="col-sm-6 text-end">+ $@Model.TaxTotal.ToString("F2")</dd>
+                    <hr class="my-1" />
+                    <dt class="col-sm-6 fw-bold">Grand Total</dt>
+                    <dd class="col-sm-6 text-end fw-bold fs-5">$@Model.GrandTotal.ToString("F2")</dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Amount Paid</dt>
+                    <dd class="col-sm-6 text-end">$@Model.AmountPaid.ToString("F2")</dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Outstanding</dt>
+                    <dd class="col-sm-6 text-end @(Model.OutstandingAmount > 0 ? "text-danger fw-semibold" : "")">
+                        $@Model.OutstandingAmount.ToString("F2")
+                    </dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Payment Status</dt>
+                    <dd class="col-sm-6 text-end">
+                        @if (!string.IsNullOrWhiteSpace(Model.PaymentStatus) && Model.PaymentStatus.Equals("Paid", StringComparison.OrdinalIgnoreCase))
+                        { <span class="badge bg-success">Paid</span> }
+                        else if (!string.IsNullOrWhiteSpace(Model.PaymentStatus) && Model.PaymentStatus.Equals("Partial", StringComparison.OrdinalIgnoreCase))
+                        { <span class="badge bg-warning text-dark">Partial</span> }
+                        else
+                        { <span class="badge bg-danger">Unpaid</span> }
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-transparent border-bottom">
+        <h6 class="mb-0 fw-bold">📋 Items (@Model.Items.Count)</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th class="text-end">Qty</th>
+                        <th class="text-end">Weight</th>
+                        <th class="text-end">Unit Cost</th>
+                        <th class="text-end">Disc %</th>
+                        <th class="text-end">Tax %</th>
+                        <th class="text-end">Line Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var (it, idx) in Model.Items.Select((x, i) => (x, i)))
+                    {
+                        <tr>
+                            <td>@(it.LineNo > 0 ? it.LineNo : idx + 1)</td>
+                            <td>
+                                @if (it.ItemType == PurchaseItemType.Livestock)
+                                { <span class="badge bg-primary">Livestock</span> }
+                                else if (it.ItemType == PurchaseItemType.Feed)
+                                { <span class="badge bg-success">Feed</span> }
+                                else if (it.ItemType == PurchaseItemType.VeterinarySupplies)
+                                { <span class="badge bg-info text-dark">Vet Supplies</span> }
+                                else if (it.ItemType == PurchaseItemType.Medication)
+                                { <span class="badge bg-warning text-dark">Medication</span> }
+                                else if (it.ItemType == PurchaseItemType.Equipment)
+                                { <span class="badge bg-secondary">Equipment</span> }
+                                else if (it.ItemType == PurchaseItemType.Transportation)
+                                { <span class="badge bg-dark">Transport</span> }
+                                else if (it.ItemType == PurchaseItemType.General)
+                                { <span class="badge bg-info text-dark">General</span> }
+                                else
+                                { <span class="badge bg-secondary">@it.ItemType</span> }
+                            </td>
+                            <td>
+                                @it.Description
+                                @if (it.LivestockId.HasValue)
+                                { <span class="d-block small text-muted">Livestock Id: @it.LivestockId.Value</span> }
+                            </td>
+                            <td class="text-end">@it.Quantity</td>
+                            <td class="text-end">
+                                @if (it.UnitWeight > 0)
+                                { @($"{it.UnitWeight:F2} {it.WeightUnit}") }
+                                else
+                                { <span class="text-muted">—</span> }
+                            </td>
+                            <td class="text-end">$@it.UnitCost.ToString("F2")</td>
+                            <td class="text-end">@(it.DiscountPct * 100).ToString("0.##")%</td>
+                            <td class="text-end">@(it.TaxRate * 100).ToString("0.##")%</td>
+                            <td class="text-end fw-semibold">$@it.LineTotal.ToString("F2")</td>
+                        </tr>
+                    }
+                    @if (!Model.Items.Any())
+                    {
+                        <tr><td colspan="9" class="text-center py-5 text-muted small">No line items on this purchase.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

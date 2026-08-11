@@ -1,5 +1,6 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using LivestockManager.Domain.Abstractions;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Enums;
@@ -111,12 +112,26 @@ public class EfSequenceGenerator : ISequenceGenerator
                 if (conn.State != ConnectionState.Open)
                     await conn.OpenAsync(ct);
 
-                using var dbTxn = await conn.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
+                var efTxn = _dbContext.Database.CurrentTransaction;
+                var haveOuterTxn = efTxn != null;
+                DbTransaction? innerTxn = null;
+                DbTransaction? cmdTxn = null;
+
+                if (haveOuterTxn)
+                {
+                    cmdTxn = efTxn!.GetDbTransaction();
+                }
+                else
+                {
+                    innerTxn = await conn.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
+                    cmdTxn = innerTxn;
+                }
 
                 try
                 {
                     await using var updateCmd = conn.CreateCommand();
-                    updateCmd.Transaction = dbTxn;
+                    if (cmdTxn != null)
+                        updateCmd.Transaction = cmdTxn;
                     updateCmd.CommandText = @"
 UPDATE SequenceCounters WITH (ROWLOCK, UPDLOCK, HOLDLOCK)
 SET LastValue = LastValue + 1, LastUpdatedAt = GETUTCDATE()
@@ -135,7 +150,8 @@ WHERE CompanyId = @CompanyId AND Prefix = @Prefix;";
                     if (result == 0)
                     {
                         await using var insertCmd = conn.CreateCommand();
-                        insertCmd.Transaction = dbTxn;
+                        if (cmdTxn != null)
+                            insertCmd.Transaction = cmdTxn;
                         insertCmd.CommandText = @"
 INSERT INTO SequenceCounters (Id, CompanyId, Prefix, LastValue, LastUpdatedAt, CreatedAt, IsDeleted)
 OUTPUT INSERTED.LastValue
@@ -155,12 +171,14 @@ VALUES (@Id, @CompanyId, @Prefix, 1, GETUTCDATE(), GETUTCDATE(), 0);";
                             result = 1;
                     }
 
-                    await dbTxn.CommitAsync(ct);
+                    if (!haveOuterTxn && innerTxn != null)
+                        await innerTxn.CommitAsync(ct);
                     return result;
                 }
                 catch
                 {
-                    await dbTxn.RollbackAsync(ct);
+                    if (!haveOuterTxn && innerTxn != null)
+                        await innerTxn.RollbackAsync(ct);
                     throw;
                 }
             }

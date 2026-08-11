@@ -7,7 +7,7 @@
     var getStatusBadge = (Func<LivestockStatus, string>)ViewData["GetStatusBadgeClass"]!;
     var getStatusDesc = (Func<LivestockStatus, string>)ViewData["GetStatusDescription"]!;
     var getTypeDesc = (Func<LivestockType, string>)ViewData["GetLivestockTypeDescription"]!;
-    var canEdit = User.IsInRole("Administrator") || User.IsInRole("Manager");
+    var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
     var canDataEntry = canEdit || User.IsInRole("DataEntry");
     var isActive = Model.Status == LivestockStatus.Active;
 }

@@ -1,9 +1,10 @@
 @using LivestockManager.Web.Models.FarmViewModels
+@using LivestockManager.Domain.Common;
 @model IEnumerable<FarmListViewModel>
 @{
     ViewData["Title"] = "Farms";
     var search = ViewData["Search"] as string;
-    var canEdit = User.IsInRole("Administrator") || User.IsInRole("Manager");
+    var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">

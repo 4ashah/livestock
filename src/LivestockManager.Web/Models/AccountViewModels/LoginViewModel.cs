@@ -1,13 +1,12 @@
-using System.ComponentModel.DataAnnotations;
+ using System.ComponentModel.DataAnnotations;
 
 namespace LivestockManager.Web.Models.AccountViewModels;
 
 public class LoginViewModel
 {
     [Required]
-    [EmailAddress]
-    [Display(Name = "Email")]
-    public string Email { get; set; } = string.Empty;
+    [Display(Name = "Username")]
+    public string UserName { get; set; } = string.Empty;
 
     [Required]
     [DataType(DataType.Password)]

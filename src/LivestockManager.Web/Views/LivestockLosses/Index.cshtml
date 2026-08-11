@@ -1,0 +1,181 @@
+@using LivestockManager.Domain.Enums
+@model IEnumerable<LivestockManager.Application.DTOs.LivestockLosses.LivestockLossSummaryDto>
+@{
+    ViewData["Title"] = "Livestock Losses";
+    var from = ViewData["From"] as string;
+    var to = ViewData["To"] as string;
+    var selFarmId = ViewData["FarmId"] as Guid?;
+    var selLivestockId = ViewData["LivestockId"] as Guid?;
+    var selLossType = ViewData["LossType"] as DischargeCondition?;
+    var includeReversed = (bool?)ViewData["IncludeReversed"] ?? false;
+    var farms = ViewData["Farms"] as System.Collections.IEnumerable;
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+    var totalLossAmount = Model.Sum(m => m.LossAmount);
+    var totalHeadLost = Model.Count();
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">&#128128; Livestock Losses</h1>
+        <div class="text-muted small">
+            Record losses (deceased, lost, stolen, other) — automatically discharge livestock.
+            @if (!string.IsNullOrWhiteSpace(from) && !string.IsNullOrWhiteSpace(to))
+            { <span>· Period @from → @to · <strong class="text-danger">@totalHeadLost head</strong> lost, book value loss <strong class="text-danger">$@totalLossAmount.ToString("F2")</strong></span> }
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        @if (canEdit)
+        {
+            <a asp-action="Create" class="btn btn-outline-danger">+ Record Loss</a>
+        }
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body p-3">
+        <form asp-action="Index" method="get" class="row g-2 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">From</label>
+                <input type="date" name="from" class="form-control" value="@from" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">To</label>
+                <input type="date" name="to" class="form-control" value="@to" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">Farm</label>
+                <select name="farmId" class="form-select">
+                    <option value="">Any</option>
+                    @if (farms != null)
+                    {
+                        foreach (var f in (dynamic)farms)
+                        {
+                            Guid fid = f.Id;
+                            if (selFarmId == fid)
+                            {
+                                <option value="@f.Id" selected>@f.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@f.Id">@f.Name</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">Loss Type</label>
+                <select name="lossType" class="form-select">
+                    <option value="">Any</option>
+                    @{
+                        var types = new[]
+                        {
+                            new { Value = (int)DischargeCondition.Deceased, Label = "Deceased" },
+                            new { Value = (int)DischargeCondition.Lost, Label = "Lost (Missing)" },
+                            new { Value = (int)DischargeCondition.Stolen, Label = "Stolen" },
+                            new { Value = (int)DischargeCondition.Other, Label = "Other" }
+                        };
+                        foreach (var t in types)
+                        {
+                            var isSel = selLossType.HasValue && (int)selLossType.Value == t.Value;
+                            if (isSel)
+                            {
+                                <option value="@t.Value" selected>@t.Label</option>
+                            }
+                            else
+                            {
+                                <option value="@t.Value">@t.Label</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">&nbsp;</label>
+                <div class="form-check">
+                    <input type="checkbox" name="includeReversed" id="includeReversed" class="form-check-input" value="true" @(includeReversed ? "checked" : "") />
+                    <label class="form-check-label small" for="includeReversed">Include reversed</label>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary w-100" type="submit">&#128269; Filter</button>
+                    <a asp-action="Index" class="btn btn-outline-danger">&#10005;</a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Loss #</th>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Livestock</th>
+                        <th>Farm</th>
+                        <th>Book Value</th>
+                        <th>Salvage</th>
+                        <th class="text-end">Loss Amount</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var l in Model)
+                    {
+                        <tr class="@(l.IsReversed ? "table-secondary text-muted" : "")">
+                            <td>
+                                <code>@l.LossNumber</code>
+                                @if (l.IsReversed)
+                                { <span class="badge bg-secondary ms-1">REVERSED</span> }
+                            </td>
+                            <td>@l.LossDate.ToString("yyyy-MM-dd")</td>
+                            <td>
+                                @if (l.LossType == DischargeCondition.Deceased)
+                                { <span class="badge bg-secondary">Deceased</span> }
+                                else if (l.LossType == DischargeCondition.Lost)
+                                { <span class="badge bg-warning text-dark">Lost</span> }
+                                else if (l.LossType == DischargeCondition.Stolen)
+                                { <span class="badge bg-danger">Stolen</span> }
+                                else
+                                { <span class="badge bg-info text-dark">@l.LossType</span> }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(l.LivestockDisplayId))
+                                { <span class="fw-semibold">@l.LivestockDisplayId</span> }
+                                else
+                                { <span class="text-muted small">(deleted)</span> }
+                                <span class="d-block small text-muted">@l.LivestockType</span>
+                            </td>
+                            <td>@(l.FarmName ?? "(none)")</td>
+                            <td>$@l.BookValue.ToString("F2")</td>
+                            <td>@(l.SalvageValue.HasValue ? "$" + l.SalvageValue.Value.ToString("F2") : "-")</td>
+                            <td class="text-end fw-semibold text-danger">$@l.LossAmount.ToString("F2")</td>
+                            <td class="text-end">
+                                <a asp-action="Details" asp-route-id="@l.Id" class="btn btn-sm btn-outline-primary">View</a>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="9" class="text-center py-5 text-muted small">No losses recorded in this period. Use <strong>+ Record Loss</strong> (top-right) when livestock is lost.</td></tr>
+                    }
+                </tbody>
+                @if (Model.Any())
+                {
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="7">TOTAL (@Model.Count() records)</td>
+                            <td class="text-end text-danger">$@totalLossAmount.ToString("F2")</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                }
+            </table>
+        </div>
+    </div>
+</div>

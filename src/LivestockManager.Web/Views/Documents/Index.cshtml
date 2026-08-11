@@ -1,0 +1,38 @@
+@{
+    ViewData["Title"] = "Documents - Livestock Manager";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">📁 Documents</h1>
+        <div class="text-muted small">Upload and manage documents</div>
+    </div>
+    @{ var canUpload = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("Accounts") || User.IsInRole("FarmManager") || User.IsInRole("DataEntry"); }
+    @if (canUpload)
+    {
+        <a asp-action="Upload" asp-controller="Documents" class="btn btn-primary"><span class="me-1">+</span> Upload Documents</a>
+    }
+</div>
+
+<div class="row g-4">
+    <div class="col-12 col-sm-6 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body p-5 text-center">
+                <div class="display-5 mb-3 text-muted">📤</div>
+                <h5 class="card-title mb-2">Upload</h5>
+                <p class="card-text text-muted small mb-4">Upload new documents to the system</p>
+                <a asp-action="Upload" asp-controller="Documents" class="btn btn-primary">Upload Documents</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-md-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body p-5 text-center">
+                <div class="display-5 mb-3 text-muted">📂</div>
+                <h5 class="card-title mb-2">Browse All Documents</h5>
+                <p class="card-text text-muted small mb-4">View and manage existing documents</p>
+                <a asp-action="List" asp-controller="Documents" class="btn btn-outline-primary">Browse All</a>
+            </div>
+        </div>
+    </div>
+</div>

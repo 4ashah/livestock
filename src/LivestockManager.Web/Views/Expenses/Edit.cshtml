@@ -1,0 +1,273 @@
+@model LivestockManager.Application.DTOs.Expenses.ExpenseUpdateDto
+@using LivestockManager.Domain.Enums
+@{
+    ViewData["Title"] = "Edit Expense";
+    var farms = ViewData["Farms"] as IEnumerable<LivestockManager.Application.DTOs.Farms.FarmSummaryDto> ?? Enumerable.Empty<LivestockManager.Application.DTOs.Farms.FarmSummaryDto>();
+    var suppliers = ViewData["Suppliers"] as IEnumerable<LivestockManager.Application.DTOs.Suppliers.SupplierSummaryDto> ?? Enumerable.Empty<LivestockManager.Application.DTOs.Suppliers.SupplierSummaryDto>();
+    var activeLivestock = ViewData["ActiveLivestock"] as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+    var expenseId = ViewContext.RouteData.Values["id"]?.ToString() ?? string.Empty;
+
+    bool ModelHasErrors() => ViewContext.ModelState.ErrorCount > 0;
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4">
+    <div>
+        <h1 class="h3 mb-1">✏️ Edit Expense</h1>
+        <div class="text-muted small">Adjust expense details</div>
+    </div>
+    <div class="d-flex gap-2">
+        <a class="btn btn-outline-secondary btn-sm" asp-action="Details" asp-route-id="@expenseId">← Cancel & View</a>
+        <a class="btn btn-sm btn-outline-danger" asp-action="Details" asp-route-id="@expenseId">🗑 Delete</a>
+    </div>
+</div>
+
+@if (ModelHasErrors())
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <strong>⚠ Errors:</strong>
+        <ul class="mb-0 mt-1">
+            @foreach (var err in ViewContext.ModelState.SelectMany(m => m.Value!.Errors.Select(e => e.ErrorMessage)).Where(e => !string.IsNullOrWhiteSpace(e)).Cast<string>())
+            {
+                <li>@err</li>
+            }
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<form asp-action="Edit" method="post" id="expenseForm" asp-route-id="@expenseId" class="row g-4">
+    <input type="hidden" asp-for="ExpenseDate" id="ExpenseDate" />
+
+    <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom">
+                <h6 class="mb-0 fw-semibold">📋 Expense Details</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label class="form-label small">Date <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" id="dateInput" value="@Model.ExpenseDate.LocalDateTime.ToString("yyyy-MM-dd")" required />
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label class="form-label small">Time</label>
+                        <input type="time" class="form-control" id="timeInput" value="@Model.ExpenseDate.LocalDateTime.ToString("HH:mm")" />
+                    </div>
+                    <div class="col-12 col-sm-12 col-md-4">
+                        <label class="form-label small">Category <span class="text-danger">*</span></label>
+                        <select asp-for="Category" class="form-select" required>
+                            @foreach (ExpenseCategory ec in Enum.GetValues(typeof(ExpenseCategory)))
+                            {
+                                if (Model.Category == ec)
+                                {
+                                    <option value="@((int)ec)" selected>@ec</option>
+                                }
+                                else
+                                {
+                                    <option value="@((int)ec)">@ec</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="Category" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label class="form-label small">Farm</label>
+                        <select asp-for="FarmId" class="form-select">
+                            <option value="">— Not tied to a farm —</option>
+                            @foreach (var f in farms)
+                            {
+                                if (Model.FarmId == f.Id)
+                                {
+                                    <option value="@f.Id" selected>@f.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@f.Id">@f.Name</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="FarmId" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-sm-6 col-md-4">
+                        <label class="form-label small">Supplier</label>
+                        <select asp-for="SupplierId" class="form-select">
+                            <option value="">— Not tied to a supplier —</option>
+                            @foreach (var s in suppliers)
+                            {
+                                if (Model.SupplierId == s.Id)
+                                {
+                                    <option value="@s.Id" selected>@s.Name</option>
+                                }
+                                else
+                                {
+                                    <option value="@s.Id">@s.Name</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="SupplierId" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12 col-sm-12 col-md-4">
+                        <label class="form-label small">Related Livestock</label>
+                        <select asp-for="LivestockId" class="form-select">
+                            <option value="">— Not animal specific —</option>
+                            @foreach (var l in activeLivestock)
+                            {
+                                var idVal = l.Id;
+                                var dispVal = l.Display;
+                                if (Model.LivestockId == (Guid?)idVal)
+                                {
+                                    <option value="@idVal" selected>@dispVal</option>
+                                }
+                                else
+                                {
+                                    <option value="@idVal">@dispVal</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="LivestockId" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Description</label>
+                        <input asp-for="Description" type="text" class="form-control" maxlength="1000" placeholder="e.g. Weekly feed delivery, vet callout, etc." />
+                        <span asp-validation-for="Description" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Reference / Invoice #</label>
+                        <input asp-for="Reference" type="text" class="form-control" maxlength="200" placeholder="Supplier invoice number, receipt ID, etc." />
+                        <span asp-validation-for="Reference" class="text-danger small"></span>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small">Notes</label>
+                        <textarea asp-for="Notes" class="form-control" rows="3" maxlength="2000" placeholder="Optional internal notes…"></textarea>
+                        <span asp-validation-for="Notes" class="text-danger small"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+        <div class="sticky-top" style="top:90px;">
+            <div class="card border-start border-5 border-primary border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom">
+                    <h6 class="mb-0 fw-semibold">💰 Amount & Payment</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label small">Pre-tax Amount <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">$</span>
+                            <input asp-for="Amount" type="number" step="0.01" min="0.01" class="form-control form-control-lg" id="amountInput" placeholder="0.00" required value="@Model.Amount.ToString("F2")" />
+                        </div>
+                        <span asp-validation-for="Amount" class="text-danger small"></span>
+                    </div>
+                    <div class="row g-3 mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">Tax Rate %</label>
+                            <div class="input-group">
+                                <input asp-for="TaxRate" type="number" step="0.01" min="0" max="100" class="form-control" id="taxRateInput" value="@((Model.TaxRate ?? 0m) * 100m).ToString("F2")" />
+                                <span class="input-group-text">%</span>
+                            </div>
+                            <span asp-validation-for="TaxRate" class="text-danger small"></span>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Tax Amount</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="text" class="form-control-plaintext px-2 border rounded" id="taxAmountPreview" readonly value="0.00" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Payment Method <span class="text-danger">*</span></label>
+                        <select asp-for="PaymentMethod" class="form-select" required>
+                            @foreach (PaymentMethod pm in Enum.GetValues(typeof(PaymentMethod)))
+                            {
+                                if (Model.PaymentMethod == pm)
+                                {
+                                    <option value="@((int)pm)" selected>@pm</option>
+                                }
+                                else
+                                {
+                                    <option value="@((int)pm)">@pm</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="PaymentMethod" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small">Currency</label>
+                        <select asp-for="Currency" class="form-select">
+                            <option value="">— (keep current) —</option>
+                            @foreach (Currency cu in Enum.GetValues(typeof(Currency)))
+                            {
+                                if (Model.Currency == cu)
+                                {
+                                    <option value="@((int)cu)" selected>@cu</option>
+                                }
+                                else
+                                {
+                                    <option value="@((int)cu)">@cu</option>
+                                }
+                            }
+                        </select>
+                        <span asp-validation-for="Currency" class="text-danger small"></span>
+                    </div>
+                    <hr />
+                    <div class="d-flex justify-content-between align-items-baseline mb-3">
+                        <span class="text-uppercase small fw-bold text-muted">Total Expense</span>
+                        <span class="fs-3 fw-bold text-danger" id="totalPreview">$0.00</span>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-lg w-100 mb-2" id="submitBtn">
+                        💾 Save Changes
+                    </button>
+                    <a asp-action="Details" asp-route-id="@expenseId" class="btn btn-outline-secondary w-100">Cancel</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<script>
+    (function () {
+        var amt = document.getElementById('amountInput');
+        var taxRate = document.getElementById('taxRateInput');
+        var taxPreview = document.getElementById('taxAmountPreview');
+        var total = document.getElementById('totalPreview');
+        var dateIn = document.getElementById('dateInput');
+        var timeIn = document.getElementById('timeInput');
+        var hidden = document.getElementById('ExpenseDate');
+        var submitBtn = document.getElementById('submitBtn');
+        var form = document.getElementById('expenseForm');
+
+        function recalc() {
+            var a = parseFloat(amt.value || '0');
+            var t = parseFloat(taxRate.value || '0') / 100;
+            var tax = a * t;
+            var tot = a + tax;
+            taxPreview.value = tax.toFixed(2);
+            total.textContent = '$' + tot.toFixed(2);
+        }
+        function combineDateTime() {
+            var d = dateIn.value || '@Model.ExpenseDate.LocalDateTime.ToString("yyyy-MM-dd")';
+            var ti = timeIn.value || '@Model.ExpenseDate.LocalDateTime.ToString("HH:mm")';
+            var iso = new Date(d + 'T' + ti + ':00');
+            var off = -iso.getTimezoneOffset();
+            var hrs = Math.floor(Math.abs(off) / 60);
+            var mins = Math.abs(off) % 60;
+            var sign = off >= 0 ? '+' : '-';
+            var pad = function (n) { return n < 10 ? '0' + n : '' + n; };
+            hidden.value = iso.toISOString().split('.')[0] + sign + pad(hrs) + ':' + pad(mins);
+        }
+        function onSubmit(e) {
+            combineDateTime();
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Saving…';
+        }
+
+        amt.addEventListener('input', recalc);
+        taxRate.addEventListener('input', recalc);
+        form.addEventListener('submit', onSubmit);
+        recalc();
+    })();
+</script>
