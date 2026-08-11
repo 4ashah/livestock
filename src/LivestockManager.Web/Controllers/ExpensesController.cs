@@ -92,6 +92,115 @@ public class ExpensesController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> MobileIndex(
+        DateTime? from,
+        DateTime? to,
+        Guid? farmId,
+        Guid? supplierId,
+        Guid? livestockId,
+        ExpenseCategory? category,
+        CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var list = await _expenseService.ListAsync(
+            companyId, farmId, supplierId, livestockId, category,
+            from.AsUtcDayStartOrDefault(), to.AsUtcDayEndOrDefault(), ct);
+        var categorySummary = await _expenseService.CategorySummaryAsync(
+            companyId, from.AsUtcDayStartOrDefault(), to.AsUtcDayEndOrDefault(), ct);
+        ViewData["From"] = from?.ToString("yyyy-MM-dd");
+        ViewData["To"] = to?.ToString("yyyy-MM-dd");
+        ViewData["FarmId"] = farmId;
+        ViewData["Category"] = category;
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+        ViewData["CanEdit"] = CanEdit;
+        ViewData["CategorySummary"] = categorySummary;
+        return View("MobileIndex", list);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanManageExpenses")]
+    public async Task<IActionResult> MobileCreate(CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        await PopulateSelectListsAsync(companyId, ct);
+        var dto = new ExpenseCreateDto
+        {
+            CompanyId = companyId,
+            ExpenseDate = DateTimeOffset.Now,
+            Category = ExpenseCategory.Feed,
+            Currency = Currency.USD,
+            PaymentMethod = PaymentMethod.Cash,
+            TaxRate = 0
+        };
+        return View("MobileCreate", dto);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanManageExpenses")]
+    public async Task<IActionResult> MobileCreate(ExpenseCreateDto dto, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        dto.CompanyId = companyId;
+        try
+        {
+            var created = await _expenseService.CreateAsync(dto, companyId, ct);
+            return RedirectToAction(nameof(MobileIndex));
+        }
+        catch (DomainException ex) { ModelState.AddModelError(string.Empty, ex.Message); }
+        catch (ArgumentException ex) { ModelState.AddModelError(string.Empty, ex.Message); }
+        await PopulateSelectListsAsync(companyId, ct);
+        return View("MobileCreate", dto);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanManageExpenses")]
+    public async Task<IActionResult> MobileEdit(Guid id, CancellationToken ct)
+    {
+        if (id == Guid.Empty) return NotFound();
+        var companyId = await GetCompanyIdAsync();
+        ExpenseDetailDto expense;
+        try { expense = await _expenseService.GetByIdAsync(id, companyId, ct); }
+        catch (DomainException) { return NotFound(); }
+        await PopulateSelectListsAsync(companyId, ct);
+        var dto = new ExpenseUpdateDto
+        {
+            FarmId = expense.FarmId,
+            SupplierId = expense.SupplierId,
+            LivestockId = expense.LivestockId,
+            Category = expense.Category,
+            ExpenseDate = expense.ExpenseDate,
+            Currency = expense.Currency,
+            Amount = expense.Amount,
+            TaxRate = expense.TaxRate,
+            PaymentMethod = expense.PaymentMethod,
+            Description = expense.Description,
+            Reference = expense.Reference,
+            DocumentId = expense.DocumentId,
+            Notes = expense.Notes
+        };
+        return View("MobileEdit", dto);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanManageExpenses")]
+    public async Task<IActionResult> MobileEdit(Guid id, ExpenseUpdateDto dto, CancellationToken ct)
+    {
+        if (id == Guid.Empty) return NotFound();
+        var companyId = await GetCompanyIdAsync();
+        try
+        {
+            await _expenseService.UpdateAsync(id, dto, companyId, ct);
+            return RedirectToAction(nameof(MobileIndex));
+        }
+        catch (DomainException ex) { ModelState.AddModelError(string.Empty, ex.Message); }
+        catch (ArgumentException ex) { ModelState.AddModelError(string.Empty, ex.Message); }
+        await PopulateSelectListsAsync(companyId, ct);
+        return View("MobileEdit", dto);
+    }
+
+    [HttpGet]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();

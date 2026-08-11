@@ -135,6 +135,92 @@ public class LivestockLossesController : Controller
         return View(dto);
     }
 
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
+    public async Task<IActionResult> MobileIndex(DateTime? from, DateTime? to, Guid? farmId, DischargeCondition? lossType, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var list = await _lossService.ListAsync(
+            companyId, farmId, null, lossType,
+            from.AsUtcDayStartOrDefault(), to.AsUtcDayEndOrDefault(), false, ct);
+        ViewData["From"] = from.HasValue ? from.Value.ToString("yyyy-MM-dd") : string.Empty;
+        ViewData["To"] = to.HasValue ? to.Value.ToString("yyyy-MM-dd") : string.Empty;
+        ViewData["FarmId"] = farmId;
+        ViewData["LossType"] = lossType;
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+        ViewData["CanEdit"] = CanEdit;
+        return View("MobileIndex", list);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanManageLosses")]
+    public async Task<IActionResult> MobileCreate(Guid? livestockId, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+
+        var activeLivestock = await _db.Livestock
+            .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
+            .OrderBy(l => l.LivestockId)
+            .Select(l => new
+            {
+                l.Id,
+                l.LivestockId,
+                l.LivestockTypeId,
+                FarmName = l.FarmId.HasValue ? l.Farm!.Name : null,
+                l.FarmId,
+                l.PurchaseAmount
+            })
+            .ToListAsync(ct);
+
+        ViewData["ActiveLivestock"] = activeLivestock;
+
+        var dto = new LivestockLossCreateDto
+        {
+            CompanyId = companyId,
+            LossDate = DateTimeOffset.Now,
+            LossType = DischargeCondition.Deceased,
+            Currency = Currency.USD
+        };
+
+        if (livestockId.HasValue)
+        {
+            var existing = activeLivestock.FirstOrDefault(l => l.Id == livestockId.Value);
+            if (existing != null)
+            {
+                dto.LivestockId = existing.Id;
+                dto.FarmId = existing.FarmId;
+                dto.BookValue = existing.PurchaseAmount;
+            }
+        }
+
+        return View("MobileCreate", dto);
+    }
+
+    [HttpPost]
+    [Authorize(Policy = "CanManageLosses")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MobileCreate(LivestockLossCreateDto dto, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        dto.CompanyId = companyId;
+        try
+        {
+            await _lossService.CreateAsync(dto, companyId, ct);
+            return RedirectToAction(nameof(MobileIndex));
+        }
+        catch (DomainException ex) { ModelState.AddModelError(string.Empty, ex.Message); }
+        catch (ArgumentException ex) { ModelState.AddModelError(string.Empty, ex.Message); }
+
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+        ViewData["ActiveLivestock"] = await _db.Livestock
+            .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
+            .OrderBy(l => l.LivestockId)
+            .Select(l => new { l.Id, l.LivestockId, l.LivestockTypeId })
+            .ToListAsync(ct);
+        return View("MobileCreate", dto);
+    }
+
     [HttpPost]
     [Authorize(Policy = "CanManageLosses")]
     [ValidateAntiForgeryToken]

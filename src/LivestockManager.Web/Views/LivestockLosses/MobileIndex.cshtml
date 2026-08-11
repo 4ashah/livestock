@@ -1,0 +1,170 @@
+@model IEnumerable<LivestockManager.Application.DTOs.LivestockLosses.LivestockLossSummaryDto>
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Application.DTOs.Farms
+@using LivestockManager.Application.DTOs.LivestockLosses
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Livestock Losses";
+    ViewData["PageIcon"] = "💀";
+    ViewData["PageSubtitle"] = "Record deceased, lost, stolen or discharged animals";
+    ViewData["DockKey"] = "loss";
+    ViewData["ActionLabel"] = "Record";
+    ViewData["ActionIcon"] = "＋";
+    ViewData["ActionClass"] = "danger";
+    ViewData["ActionUrl"] = Url.Action("MobileCreate", "LivestockLosses");
+
+    var fromStr = ViewData["From"] as string ?? string.Empty;
+    var toStr = ViewData["To"] as string ?? string.Empty;
+    var selFarmId = ViewData["FarmId"] as Guid?;
+    var selLossType = ViewData["LossType"] as DischargeCondition?;
+    var farms = ViewData["Farms"] as IEnumerable<FarmSummaryDto> ?? Enumerable.Empty<FarmSummaryDto>();
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+    var list = Model?.ToList() ?? new List<LivestockLossSummaryDto>();
+    var totalLoss = list.Sum(x => x.LossAmount);
+    var totalHead = list.Count;
+}
+
+<div class="mob-card">
+    <div class="mob-card-title">📅 Period & Filters</div>
+    <form method="get" asp-action="MobileIndex">
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>From</label>
+                    <input type="date" name="from" value="@fromStr" />
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>To</label>
+                    <input type="date" name="to" value="@toStr" />
+                </div>
+            </div>
+        </div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Farm</label>
+                    <select name="farmId">
+                        <option value="">Any farm</option>
+                        @foreach (var f in farms.OrderBy(x => x.Name))
+                        {
+                            <option value="@f.Id" selected="@(selFarmId == f.Id ? "selected" : null)">@f.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Loss Type</label>
+                    <select name="lossType">
+                        <option value="">Any type</option>
+                        @{
+                            var types = new[]
+                            {
+                                new { Value = (int)DischargeCondition.Deceased, Label = "Deceased" },
+                                new { Value = (int)DischargeCondition.Lost, Label = "Lost" },
+                                new { Value = (int)DischargeCondition.Stolen, Label = "Stolen" },
+                                new { Value = (int)DischargeCondition.Other, Label = "Other" }
+                            };
+                            foreach (var t in types)
+                            {
+                                <option value="@t.Value" selected="@(selLossType.HasValue && (int)selLossType.Value == t.Value ? "selected" : null)">@t.Label</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="f-row">
+            <a asp-action="MobileIndex" class="mob-btn ghost">Reset</a>
+            <button type="submit" class="mob-btn primary">🔍 Apply</button>
+        </div>
+    </form>
+</div>
+
+<div class="mob-totals-card warn">
+    <div class="label">Total Book-value Loss</div>
+    <div class="total">$@totalLoss.ToString("N2")</div>
+    <div class="breakdown">
+        <div><div class="k">Head Lost</div><div class="v">@totalHead</div></div>
+        <div><div class="k">Avg/Head</div><div class="v">$@(totalHead == 0 ? "0.00" : (totalLoss / totalHead).ToString("F0"))</div></div>
+    </div>
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#c81d25;">
+        <div class="k-label">Deceased</div>
+        <div class="k-value">@list.Count(x => x.LossType == DischargeCondition.Deceased)</div>
+        <div class="k-caption">Natural causes</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#8a5a00;">
+        <div class="k-label">Lost/Stolen</div>
+        <div class="k-value">@(list.Count(x => x.LossType == DischargeCondition.Lost || x.LossType == DischargeCondition.Stolen))</div>
+        <div class="k-caption">Missing/Theft</div>
+    </div>
+</div>
+
+<div class="mob-list-cards">
+    @if (!list.Any())
+    {
+        <div class="mob-empty">No losses in this period.</div>
+    }
+    else
+    {
+        @foreach (var l in list)
+        {
+            var lossPill = l.LossType switch
+            {
+                DischargeCondition.Deceased => ("Deceased", "bad"),
+                DischargeCondition.Lost => ("Lost", "warn"),
+                DischargeCondition.Stolen => ("Stolen", "bad"),
+                _ => ("Other", "idle")
+            };
+            <div class="mob-list-card" style="@(l.IsReversed ? "opacity:0.55;" : "")">
+                <div class="row-top">
+                    <div>
+                        <code>@l.LossNumber @(l.IsReversed ? "· REVERSED" : "")</code>
+                        <div class="pill-stack">
+                            <span class="pill @lossPill.Item2">@lossPill.Item1</span>
+                            @if (!string.IsNullOrWhiteSpace(l.FarmName))
+                            { <span class="pill info">@l.FarmName</span> }
+                        </div>
+                    </div>
+                    <div class="val-right">
+                        <div class="amt">$@l.LossAmount.ToString("F2")</div>
+                        <div class="sub">@l.LossDate.ToString("yyyy-MM-dd")</div>
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(l.LivestockDisplayId))
+                {
+                    <div class="pill-stack">
+                        <span class="pill idle">🐑 @l.LivestockDisplayId</span>
+                        <span class="pill info">@l.LivestockType</span>
+                    </div>
+                }
+                <div class="rows rows-3col">
+                    <div class="cell">
+                        <div class="label">Book Val</div>
+                        <div class="val">$@l.BookValue.ToString("F0")</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label">Salvage</div>
+                        <div class="val">@(l.SalvageValue.HasValue ? "$" + l.SalvageValue.Value.ToString("F0") : "—")</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label">Type</div>
+                        <div class="val">@lossPill.Item1</div>
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(l.Reason))
+                {
+                    <div class="body-copy">@l.Reason</div>
+                }
+                <div class="row-actions">
+                    <a asp-action="Details" asp-route-id="@l.Id" class="mob-btn">👁 View</a>
+                </div>
+            </div>
+        }
+    }
+</div>

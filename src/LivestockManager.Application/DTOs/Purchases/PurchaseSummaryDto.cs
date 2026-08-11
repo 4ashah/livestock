@@ -14,3 +14,14 @@ public class PurchaseSummaryDto
     public string? PaymentStatus { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
 }
+
+public class PurchaseListItemDto
+{
+    public Guid Id { get; set; }
+    public string? PurchaseNumber { get; set; }
+    public DateTimeOffset PurchaseDate { get; set; }
+    public string? SupplierName { get; set; }
+    public decimal GrandTotal { get; set; }
+    public PurchaseStatus Status { get; set; }
+    public int ItemCount { get; set; }
+}

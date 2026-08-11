@@ -173,21 +173,35 @@
     </style>
     <script>
         (function () {
-            var w = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth || 0;
-            var ua = navigator.userAgent || '';
+            var w = (typeof window !== 'undefined' && window.innerWidth)
+                || (typeof document !== 'undefined' && document.documentElement && document.documentElement.clientWidth)
+                || 0;
+            var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
             var mobileByUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
             var forceMobile = (w <= 767 || (mobileByUA && w <= 900));
-            var here = window.location.pathname + window.location.search;
+            var here = (typeof window !== 'undefined' ? window.location.pathname : '') || '';
+            var search = (typeof window !== 'undefined' ? window.location.search : '') || '';
+            var fullHere = here + search;
             var COOKIE = 'noMobileRedirect';
             try {
-                var bypass = (document.cookie || '').split(';').some(function (c) { return c.trim().indexOf(COOKIE + '=') === 0; });
+                var bypass = (typeof document !== 'undefined' && document.cookie || '').split(';').some(function (c) { return c.trim().indexOf(COOKIE + '=') === 0; });
                 if (bypass) return;
             } catch (e) { /* no-op */ }
-            if (forceMobile && (here === '/' || here === '/Home/Index' || here.indexOf('/Home/Index') === 0)) {
-                var noCache = '?m=' + Date.now().toString(36);
-                window.location.replace('/Home/MobileDashboard' + noCache);
-                throw new Error('redirecting to mobile dashboard');
-            }
+            if (!forceMobile) return;
+            var noCache = function (u) { return u + (u.indexOf('?') > -1 ? '&' : '?') + 'm=' + Date.now().toString(36); };
+            var dest = null;
+            if (here === '/' || here === '/Home/Index' || here.indexOf('/Home/Index') === 0) dest = '/Home/MobileDashboard';
+            else if (here === '/Expenses' || here === '/Expenses/Index' || here.indexOf('/Expenses/Index') === 0) dest = '/Expenses/MobileIndex' + search;
+            else if (here === '/Expenses/Create' || here.indexOf('/Expenses/Create') === 0) dest = '/Expenses/MobileCreate';
+            else if (/^\/Expenses\/Edit\/[^\/]+\/?$/i.test(here)) dest = here.replace(/\/Expenses\/Edit\//i, '/Expenses/MobileEdit/');
+            else if (here === '/Livestock' || here === '/Livestock/Index' || here.indexOf('/Livestock/Index') === 0) dest = '/Livestock/MobileIndex' + search;
+            else if (here === '/Livestock/Register' || here.indexOf('/Livestock/Register') === 0) dest = '/Livestock/MobileRegister';
+            else if (here === '/Purchases' || here === '/Purchases/Index' || here.indexOf('/Purchases/Index') === 0) dest = '/Purchases/MobileIndex';
+            else if (here === '/Purchases/Create' || here.indexOf('/Purchases/Create') === 0) dest = '/Purchases/MobileCreate';
+            else if (here === '/LivestockLosses' || here === '/LivestockLosses/Index' || here.indexOf('/LivestockLosses/Index') === 0) dest = '/LivestockLosses/MobileIndex' + search;
+            else if (here === '/LivestockLosses/Create' || here.indexOf('/LivestockLosses/Create') === 0) dest = '/LivestockLosses/MobileCreate' + search;
+            else if (here === '/Reports/ProfitLoss' || here.indexOf('/Reports/ProfitLoss') === 0) dest = '/Reports/MobileProfitLoss' + search;
+            if (dest && typeof window !== 'undefined' && dest !== fullHere) window.location.replace(noCache(dest));
         })();
     </script>
     @await RenderSectionAsync("Styles", required: false)

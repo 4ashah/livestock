@@ -1,0 +1,191 @@
+@model IEnumerable<LivestockManager.Web.Models.LivestockViewModels.LivestockListItemDto>
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Application.DTOs.Livestock
+@using LivestockManager.Application.DTOs.Farms
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Livestock";
+    ViewData["PageIcon"] = "🐑";
+    ViewData["PageSubtitle"] = "Herd registry, status and weights";
+    ViewData["DockKey"] = "stock";
+    ViewData["ActionLabel"] = "Register";
+    ViewData["ActionIcon"] = "＋";
+    ViewData["ActionUrl"] = Url.Action("MobileRegister", "Livestock");
+
+    var farmId = ViewData["FarmId"] as Guid?;
+    var typeId = ViewData["LivestockTypeId"] as LivestockType?;
+    var status = ViewData["Status"] as LivestockStatus?;
+    var search = ViewData["SearchString"] as string;
+    var farmOptions = ViewData["FarmOptions"] as SelectList;
+    var getTypeDesc = ViewData["GetLivestockTypeDescription"] as Func<LivestockType, string>;
+    var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
+    var canDataEntry = canEdit || User.IsInRole("DataEntry");
+
+    var list = Model?.ToList() ?? new List<LivestockListItemDto>();
+    var activeCount = list.Count(x => x.Status == LivestockStatus.Active);
+    var avgWeight = list.Where(x => x.Status == LivestockStatus.Active && x.CurrentWeight.HasValue)
+                        .Select(x => x.CurrentWeight!.Value)
+                        .DefaultIfEmpty(0)
+                        .Average();
+    var totalPnl = list.Sum(x => x.BasicProfitLoss ?? 0);
+}
+
+<div class="mob-card">
+    <div class="mob-card-title">🔍 Search & Filters</div>
+    <form method="get" asp-action="MobileIndex">
+        <div class="mob-field">
+            <label>Search</label>
+            <input type="text" name="searchString" value="@search" placeholder="Livestock ID or comment..." />
+        </div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Farm</label>
+                    <select name="farmId">
+                        <option value="">All farms</option>
+                        @if (farmOptions != null)
+                        {
+                            @foreach (var f in farmOptions)
+                            {
+                                <option value="@f.Value" selected="@(farmId.HasValue && farmId.Value.ToString() == f.Value ? "selected" : null)">@f.Text</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Type</label>
+                    <select name="livestockTypeId">
+                        <option value="">All types</option>
+                        @foreach (var t in Enum.GetValues(typeof(LivestockType)).OfType<LivestockType>())
+                        {
+                            <option value="@t" selected="@(typeId == t ? "selected" : null)">@t</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label>Status</label>
+            <select name="status">
+                <option value="">All statuses</option>
+                @foreach (var s in Enum.GetValues(typeof(LivestockStatus)).OfType<LivestockStatus>())
+                {
+                    <option value="@s" selected="@(status == s ? "selected" : null)">@s</option>
+                }
+            </select>
+        </div>
+        <div class="f-row">
+            <a asp-action="MobileIndex" class="mob-btn ghost">Reset</a>
+            <button type="submit" class="mob-btn primary">🔍 Apply</button>
+        </div>
+    </form>
+</div>
+
+<div class="mob-totals-card">
+    <div class="label">Active Herd</div>
+    <div class="total">@activeCount</div>
+    <div class="breakdown">
+        <div><div class="k">Avg Weight</div><div class="v">@avgWeight.ToString("F1") kg</div></div>
+        <div><div class="k">P&amp;L</div><div class="v">@(totalPnl >= 0 ? "+" : "-")$@Math.Abs(totalPnl).ToString("N0")</div></div>
+    </div>
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#2d6a4f;">
+        <div class="k-label">Active</div>
+        <div class="k-value">@activeCount</div>
+        <div class="k-caption">In herd</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#3a6ea5;">
+        <div class="k-label">Discharged</div>
+        <div class="k-value">@(list.Count - activeCount)</div>
+        <div class="k-caption">Sold / Lost / Etc</div>
+    </div>
+</div>
+
+<div class="mob-list-cards">
+    @if (!list.Any())
+    {
+        <div class="mob-empty">
+            🐑<br />
+            No livestock found.
+            <br /><br />
+            Tap ＋ Register to add the first animal.
+        </div>
+    }
+    else
+    {
+        @foreach (var l in list)
+        {
+            var statusPill = l.Status switch
+            {
+                LivestockStatus.Active => ("Active", "ok"),
+                LivestockStatus.DischargedSold => ("Sold", "good"),
+                LivestockStatus.DischargedDeceased => ("Deceased", "bad"),
+                LivestockStatus.DischargedLost => ("Lost", "warn"),
+                LivestockStatus.DischargedStolen => ("Stolen", "bad"),
+                _ => (l.Status.ToString(), "idle")
+            };
+            var pnlVal = l.BasicProfitLoss ?? 0;
+            <div class="mob-list-card">
+                <div class="row-top">
+                    <div>
+                        <code>@l.LivestockId</code>
+                        <div class="pill-stack">
+                            <span class="pill @statusPill.Item2">@statusPill.Item1</span>
+                            @if (!string.IsNullOrWhiteSpace(l.FarmName))
+                            { <span class="pill info">@l.FarmName</span> }
+                        </div>
+                    </div>
+                    <div class="val-right">
+                        <div class="sub">@l.LivestockType</div>
+                        <div class="amt">
+                            @if (l.CurrentWeight.HasValue)
+                            {
+                                <text>@(l.CurrentWeight.Value.ToString("F1")) kg</text>
+                            }
+                            else
+                            { <span class="code-muted">— kg</span> }
+                        </div>
+                    </div>
+                </div>
+                <div class="rows rows-3col">
+                    <div class="cell">
+                        <div class="label">Acquired</div>
+                        <div class="val">@l.AcquisitionDate.ToString("yyyy-MM-dd")</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label">Days</div>
+                        <div class="val">@l.DaysInHerd</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label">P&amp;L</div>
+                        <div class="val">
+                            @if (l.Status != LivestockStatus.Active)
+                            {
+                                var sign = pnlVal >= 0 ? "+" : "";
+                                <text>@sign$@(pnlVal.ToString("F0"))</text>
+                            }
+                            else
+                            { <span class="code-muted">—</span> }
+                        </div>
+                    </div>
+                </div>
+                <div class="row-actions">
+                    <a asp-action="Details" asp-route-id="@l.Id" class="mob-btn">👁 View</a>
+                    @if (canDataEntry && l.Status == LivestockStatus.Active)
+                    {
+                        <a asp-action="AddWeight" asp-route-id="@l.Id" class="mob-btn primary">⚖ Weight</a>
+                    }
+                    @if (canEdit && l.Status == LivestockStatus.Active)
+                    {
+                        <a asp-controller="LivestockLosses" asp-action="MobileCreate" asp-route-livestockId="@l.Id" class="mob-btn danger">💀 Loss</a>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>

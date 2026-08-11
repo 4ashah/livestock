@@ -1,0 +1,211 @@
+@model LivestockManager.Application.DTOs.Expenses.ExpenseCreateDto
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Application.DTOs.Farms
+@using LivestockManager.Application.DTOs.Suppliers
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "New Expense";
+    ViewData["PageIcon"] = "💸";
+    ViewData["PageSubtitle"] = "Record operating expenditure";
+    ViewData["DockKey"] = "expense";
+
+    var farms = ViewData["Farms"] as IEnumerable<FarmSummaryDto> ?? Enumerable.Empty<FarmSummaryDto>();
+    var suppliers = ViewData["Suppliers"] as IEnumerable<SupplierSummaryDto> ?? Enumerable.Empty<SupplierSummaryDto>();
+    var activeLivestock = ViewData["ActiveLivestock"] as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+
+    bool ModelHasErrors() => ViewContext.ModelState.ErrorCount > 0;
+}
+
+@if (ModelHasErrors())
+{
+    <div class="mob-val">
+        ⚠ Please correct these before saving:
+        <ul>
+            @foreach (var err in ViewContext.ModelState
+                .SelectMany(m => m.Value?.Errors.Select(e => e.ErrorMessage) ?? Enumerable.Empty<string>())
+                .Where(e => !string.IsNullOrWhiteSpace(e)))
+            {
+                <li>@err</li>
+            }
+        </ul>
+    </div>
+}
+
+<form asp-action="MobileCreate" method="post" id="expenseForm">
+    <input type="hidden" asp-for="CompanyId" />
+
+    <div class="mob-card">
+        <div class="mob-card-title">📋 Expense Details</div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Date <span class="text-danger">*</span></label>
+                    <input type="date" asp-for="ExpenseDate"
+                           value="@Model.ExpenseDate.LocalDateTime.ToString("yyyy-MM-dd")"
+                           id="dateInput" required />
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Time</label>
+                    <input type="time" id="timeInput"
+                           value="@Model.ExpenseDate.LocalDateTime.ToString("HH:mm")" />
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label>Category <span class="text-danger">*</span></label>
+            <select asp-for="Category" required>
+                @foreach (ExpenseCategory ec in Enum.GetValues(typeof(ExpenseCategory)))
+                {
+                    <option value="@ec" selected="@(Model.Category == ec)">@ec</option>
+                }
+            </select>
+            <span asp-validation-for="Category" class="text-danger"></span>
+        </div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Farm</label>
+                    <select asp-for="FarmId">
+                        <option value="">— General / Not tied —</option>
+                        @foreach (var f in farms.OrderBy(x => x.Name))
+                        {
+                            <option value="@f.Id">@f.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Supplier</label>
+                    <select asp-for="SupplierId">
+                        <option value="">— None —</option>
+                        @foreach (var s in suppliers.OrderBy(x => x.Name))
+                        {
+                            <option value="@s.Id">@s.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label>Description</label>
+            <textarea asp-for="Description" rows="2" placeholder="What was this for?"></textarea>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">💰 Amount & Payment</div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Amount <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" min="0" asp-for="Amount" id="amountInput" required />
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Tax %</label>
+                    <input type="number" step="0.01" min="0" max="100" asp-for="TaxRate" id="taxInput" />
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label>Cur.</label>
+            <select asp-for="Currency">
+                @foreach (var c in Enum.GetValues(typeof(Currency)).OfType<Currency>())
+                {
+                    <option value="@c">@c</option>
+                }
+            </select>
+        </div>
+        <div class="mob-field">
+            <label>Payment method <span class="text-danger">*</span></label>
+            <select asp-for="PaymentMethod" required>
+                @foreach (var pm in Enum.GetValues(typeof(PaymentMethod)).OfType<PaymentMethod>())
+                {
+                    <option value="@pm">@pm</option>
+                }
+            </select>
+        </div>
+        <div class="mob-field">
+            <label>Reference #</label>
+            <input asp-for="Reference" placeholder="Invoice #, receipt #, PO #..." />
+        </div>
+
+        <div class="mob-totals-card">
+            <div class="label">Total (incl. tax)</div>
+            <div class="total" id="totalOut">$@((Model.Amount * (1 + (Model.TaxRate ?? 0m) / 100m)).ToString("F2"))</div>
+            <div class="breakdown">
+                <div><div class="k">Subtotal</div><div class="v" id="subtotalOut">$@Model.Amount.ToString("F2")</div></div>
+                <div><div class="k">Tax</div><div class="v" id="taxOut">$@((Model.Amount * (Model.TaxRate ?? 0m) / 100m).ToString("F2"))</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">🔗 Attach / Link</div>
+        <div class="mob-field">
+            <label>Link to livestock (optional)</label>
+            <select asp-for="LivestockId">
+                <option value="">— No link —</option>
+                @foreach (dynamic l in activeLivestock)
+                {
+                    <option value="@l.Id">@l.LivestockId (@l.LivestockTypeId)</option>
+                }
+            </select>
+        </div>
+        <div class="mob-field" style="margin-bottom:0;">
+            <label>Notes</label>
+            <textarea asp-for="Notes" rows="2"></textarea>
+        </div>
+    </div>
+
+    <div class="mob-submit-row">
+        <div class="sub-row">
+            <a asp-action="MobileIndex" class="mob-submit-btn small-sub">Cancel</a>
+            <button type="submit" class="mob-submit-btn small-sub danger">💸 Save Expense</button>
+        </div>
+        <button type="submit" class="mob-submit-btn">💸 Record Expense</button>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        (function () {
+            var amt = document.getElementById('amountInput');
+            var tax = document.getElementById('taxInput');
+            var sub = document.getElementById('subtotalOut');
+            var to = document.getElementById('totalOut');
+            var to2 = document.getElementById('taxOut');
+            function fmt(v) { return '$' + (isNaN(v) ? '0.00' : v.toFixed(2)); }
+            function calc() {
+                var a = parseFloat(amt ? amt.value : '0') || 0;
+                var t = parseFloat(tax ? tax.value : '0') || 0;
+                var tx = a * (t / 100);
+                if (sub) sub.textContent = fmt(a);
+                if (to2) to2.textContent = fmt(tx);
+                if (to) to.textContent = fmt(a + tx);
+            }
+            if (amt) amt.addEventListener('input', calc);
+            if (tax) tax.addEventListener('input', calc);
+            calc();
+
+            var dateInput = document.getElementById('dateInput');
+            var timeInput = document.getElementById('timeInput');
+            var hidden = document.getElementById('ExpenseDate');
+            function syncDate() {
+                if (!dateInput || !hidden) return;
+                var d = (dateInput.value || '').split('-');
+                var t = (timeInput ? timeInput.value : '') || '00:00';
+                if (d.length === 3) {
+                    hidden.value = new Date(parseInt(d[0]), parseInt(d[1]) - 1, parseInt(d[2]), parseInt(t.split(':')[0] || '0'), parseInt(t.split(':')[1] || '0'), 0).toISOString();
+                }
+            }
+            if (dateInput) dateInput.addEventListener('change', syncDate);
+            if (timeInput) timeInput.addEventListener('change', syncDate);
+            syncDate();
+        })();
+    </script>
+}

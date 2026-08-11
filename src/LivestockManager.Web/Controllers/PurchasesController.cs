@@ -211,4 +211,111 @@ public class PurchasesController : Controller
         }
         return RedirectToAction(nameof(Details), new { id });
     }
+
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
+    public async Task<IActionResult> MobileIndex(CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var list = await _db.Purchases
+            .Where(p => p.CompanyId == companyId)
+            .Include(p => p.Supplier)
+            .OrderByDescending(p => p.PurchaseDate)
+            .Take(100)
+            .Select(p => new PurchaseListItemDto
+            {
+                Id = p.Id,
+                PurchaseNumber = p.PurchaseNumber,
+                PurchaseDate = p.PurchaseDate,
+                SupplierName = p.Supplier != null ? p.Supplier.Name : null,
+                GrandTotal = p.GrandTotal,
+                Status = p.Status,
+                ItemCount = p.Items.Count
+            })
+            .AsNoTracking()
+            .ToListAsync(ct);
+        ViewData["CanEdit"] = CanEdit;
+        return View("MobileIndex", list);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanManagePurchases")]
+    public async Task<IActionResult> MobileCreate(CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        ViewData["Suppliers"] = await _supplierService.ListAsync(companyId, ct);
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+        ViewData["ActiveLivestock"] = await _db.Livestock
+            .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
+            .Select(l => new
+            {
+                l.Id,
+                l.LivestockId,
+                l.LivestockTypeId,
+                l.FarmId,
+                l.PurchaseAmount,
+                Display = l.LivestockId + " (" + l.LivestockTypeId + ")"
+            })
+            .ToListAsync(ct);
+        var dto = new PurchaseCreateDto
+        {
+            CompanyId = companyId,
+            Currency = Currency.USD
+        };
+        return View("MobileCreate", dto);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanManagePurchases")]
+    public async Task<IActionResult> MobileCreate(PurchaseCreateDto dto, string[] lineDesc, int[] lineQty, decimal[] lineUnitCost, Guid[] lineLivestockId, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        dto.CompanyId = companyId;
+        dto.PurchaseDate = DateTimeOffset.UtcNow;
+        dto.Items = new List<PurchaseItemCreateDto>();
+
+        if (lineDesc != null)
+        {
+            for (int i = 0; i < lineDesc.Length; i++)
+            {
+                if (!string.IsNullOrWhiteSpace(lineDesc[i]))
+                {
+                    var qty = lineQty != null && i < lineQty.Length && lineQty[i] > 0 ? lineQty[i] : 1;
+                    var cost = lineUnitCost != null && i < lineUnitCost.Length ? lineUnitCost[i] : 0;
+                    var item = new PurchaseItemCreateDto
+                    {
+                        LineNo = i + 1,
+                        ItemType = PurchaseItemType.General,
+                        Description = lineDesc[i],
+                        Quantity = qty,
+                        UnitCost = cost
+                    };
+                    if (lineLivestockId != null && i < lineLivestockId.Length && lineLivestockId[i] != Guid.Empty)
+                    {
+                        item.LivestockId = lineLivestockId[i];
+                        item.ItemType = PurchaseItemType.Livestock;
+                    }
+                    dto.Items.Add(item);
+                }
+            }
+        }
+
+        try
+        {
+            await _purchaseService.CreateDraftAsync(dto, companyId, ct);
+            return RedirectToAction(nameof(MobileIndex));
+        }
+        catch (DomainException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            ViewData["Suppliers"] = await _supplierService.ListAsync(companyId, ct);
+            ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+            ViewData["ActiveLivestock"] = await _db.Livestock
+                .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
+                .Select(l => new { l.Id, Display = l.LivestockId + " (" + l.LivestockTypeId + ")" })
+                .ToListAsync(ct);
+            return View("MobileCreate", dto);
+        }
+    }
 }

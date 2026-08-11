@@ -1,0 +1,146 @@
+@model LivestockManager.Application.DTOs.Reports.ProfitLossReportDto
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Profit & Loss";
+    ViewData["PageIcon"] = "📈";
+    ViewData["PageSubtitle"] = "Revenue, costs and net operating result";
+    ViewData["DockKey"] = "pnl";
+
+    var fromStr = ViewData["From"] as string ?? string.Empty;
+    var toStr = ViewData["To"] as string ?? string.Empty;
+}
+
+<div class="mob-card">
+    <div class="mob-card-title">📅 Period</div>
+    <form method="get" asp-action="MobileProfitLoss">
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>From</label>
+                    <input type="date" name="from" value="@fromStr" />
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>To</label>
+                    <input type="date" name="to" value="@toStr" />
+                </div>
+            </div>
+        </div>
+        <div class="chip-tabs">
+            @{
+                var today = DateTime.Today;
+                var monthStart = new DateTime(today.Year, today.Month, 1);
+                var lastMoStart = monthStart.AddMonths(-1);
+                var lastMoEnd = monthStart.AddDays(-1);
+                var lastYrStart = new DateTime(today.Year - 1, 1, 1);
+                var lastYrEnd = new DateTime(today.Year - 1, 12, 31);
+                var ytdStart = new DateTime(today.Year, 1, 1);
+                var ytdEnd = new DateTime(today.Year, 12, 31);
+            }
+            <a asp-action="MobileProfitLoss" asp-route-from="@monthStart.ToString("yyyy-MM-dd")" asp-route-to="@today.ToString("yyyy-MM-dd")" class="chip-tab">MTD</a>
+            <a asp-action="MobileProfitLoss" asp-route-from="@lastMoStart.ToString("yyyy-MM-dd")" asp-route-to="@lastMoEnd.ToString("yyyy-MM-dd")" class="chip-tab">Last Mo</a>
+            <a asp-action="MobileProfitLoss" asp-route-from="@lastYrStart.ToString("yyyy-MM-dd")" asp-route-to="@lastYrEnd.ToString("yyyy-MM-dd")" class="chip-tab">Last Yr</a>
+            <a asp-action="MobileProfitLoss" asp-route-from="@ytdStart.ToString("yyyy-MM-dd")" asp-route-to="@ytdEnd.ToString("yyyy-MM-dd")" class="chip-tab">YTD</a>
+        </div>
+        <div class="f-row">
+            <a asp-action="MobileProfitLoss" class="mob-btn ghost">Reset</a>
+            <button type="submit" class="mob-btn primary">🔍 Apply</button>
+        </div>
+    </form>
+</div>
+
+<div class="mob-totals-card @(Model.NetProfit < 0 ? " warn" : "")">
+    <div class="label">Net @(Model.NetProfit >= 0 ? "Profit" : "Loss")</div>
+    <div class="total">@(Model.NetProfit >= 0 ? "+" : "-")$@Math.Abs(Model.NetProfit).ToString("N2")</div>
+    <div class="breakdown">
+        <div><div class="k">Period</div><div class="v">@fromStr → @toStr</div></div>
+        <div><div class="k">Sold Head</div><div class="v">@Model.SoldHead · @Model.SalesCount sales</div></div>
+    </div>
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#00a896;">
+        <div class="k-label">Revenue · Sales</div>
+        <div class="k-value">$@Model.TotalSales.ToString("N0")</div>
+        <div class="k-caption">@Model.SalesCount txns · @Model.SoldHead head sold</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#c81d25;">
+        <div class="k-label">COGS · Purchases</div>
+        <div class="k-value">$@Model.TotalPurchases.ToString("N0")</div>
+        <div class="k-caption">@Model.PurchaseCount posted purchases</div>
+    </div>
+</div>
+
+<div class="mob-card">
+    <div class="mob-card-title">📊 Gross Profit</div>
+    <div class="mob-kpi-row" style="margin-bottom:0;">
+        <div class="mob-kpi" style="--kpi-color:#3a6ea5;">
+            <div class="k-label">Gross Profit</div>
+            <div class="k-value">@(Model.GrossProfit >= 0 ? "+" : "-")$@Math.Abs(Model.GrossProfit).ToString("N0")</div>
+        </div>
+    </div>
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#d97706;">
+        <div class="k-label">Op. Expenses</div>
+        <div class="k-value">$@Model.TotalExpenses.ToString("N0")</div>
+        <div class="k-caption">@Model.ExpenseCount records</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#c81d25;">
+        <div class="k-label">Livestock Losses</div>
+        <div class="k-value">$@Model.TotalLosses.ToString("N0")</div>
+        <div class="k-caption">@Model.LossCount records · @Model.LostHead head</div>
+    </div>
+</div>
+
+<div class="mob-card">
+    <div class="mob-card-title">📋 P&amp;L Breakdown</div>
+    <div style="display:flex;flex-direction:column;gap:0.65rem;">
+        <div class="rows">
+            <div class="cell">
+                <div class="label">+ Revenue: Sales</div>
+                <div class="val">@Model.SalesCount txns</div>
+            </div>
+            <div class="cell val-right">
+                <div class="val">$@Model.TotalSales.ToString("F2")</div>
+            </div>
+        </div>
+        <div class="rows">
+            <div class="cell">
+                <div class="label">− Purchases (COGS)</div>
+                <div class="val">@Model.PurchaseCount posted</div>
+            </div>
+            <div class="cell val-right">
+                <div class="val">−$@Model.TotalPurchases.ToString("F2")</div>
+            </div>
+        </div>
+        <div class="mob-totals-card" style="margin-bottom:0;">
+            <div class="label">Gross Profit</div>
+            <div class="total">@(Model.GrossProfit >= 0 ? "+" : "")$@Model.GrossProfit.ToString("F2")</div>
+        </div>
+        <div class="rows">
+            <div class="cell">
+                <div class="label">− Operating Expenses</div>
+                <div class="val">@Model.ExpenseCount records</div>
+            </div>
+            <div class="cell val-right">
+                <div class="val">−$@Model.TotalExpenses.ToString("F2")</div>
+            </div>
+        </div>
+        <div class="rows">
+            <div class="cell">
+                <div class="label">− Livestock Losses</div>
+                <div class="val">@Model.LossCount rec · @Model.LostHead head</div>
+            </div>
+            <div class="cell val-right">
+                <div class="val">−$@Model.TotalLosses.ToString("F2")</div>
+            </div>
+        </div>
+        <div class="mob-totals-card @(Model.NetProfit < 0 ? " warn" : "")" style="margin-bottom:0;">
+            <div class="label">NET @(Model.NetProfit >= 0 ? "PROFIT" : "LOSS") · @fromStr → @toStr</div>
+            <div class="total">@(Model.NetProfit >= 0 ? "+" : "−")$@Math.Abs(Model.NetProfit).ToString("F2")</div>
+        </div>
+    </div>
+</div>

@@ -3,702 +3,225 @@
 @using LivestockManager.Application.DTOs.Invoices
 @using LivestockManager.Domain.Enums
 @{
-    Layout = null;
+    Layout = "_MobileLayout";
     ViewData["Title"] = "Dashboard";
+    ViewData["PageIcon"] = "📊";
+    ViewData["PageSubtitle"] = Model.CompanyName + " · " + Model.TodayUtc.LocalDateTime.ToString("ddd, MMM d");
+    ViewData["DockKey"] = "dashboard";
     var recentLivestock = ViewData["RecentLivestock"] as IEnumerable<LivestockSummaryDto>;
     var recentInvoices = ViewData["RecentInvoices"] as IEnumerable<InvoiceSummaryDto>;
-    var sat = "env(safe-area-inset-top, 0px)";
-    var sab = "env(safe-area-inset-bottom, 0px)";
-    var sal = "env(safe-area-inset-left, 0px)";
-    var sar = "env(safe-area-inset-right, 0px)";
 }
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5, user-scalable=no" />
-    <meta name="theme-color" content="#1b4332" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <title>Dashboard · Livestock Manager</title>
-    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
-    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <style>
-        :root {
-            --sat: @sat;
-            --sab: @sab;
-            --sal: @sal;
-            --sar: @sar;
-            --brand: #1b4332;
-            --brand2: #2d6a4f;
-            --accent: #52b788;
-            --ink: #1b2a1f;
-            --muted: #64748b;
-            --surface: #ffffff;
-            --bg-1: #f8fbf7;
-            --bg-2: #eef5ef;
-        }
-        * { -webkit-tap-highlight-color: transparent !important; }
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            width: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
-            background:
-                radial-gradient(120% 60% at 0% 0%, #e6f2ea 0%, transparent 60%),
-                radial-gradient(100% 50% at 100% 0%, #dbe9e0 0%, transparent 55%),
-                linear-gradient(180deg, var(--bg-1) 0%, var(--bg-2) 100%);
-            color: var(--ink);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            -webkit-font-smoothing: antialiased;
-            text-size-adjust: 100%;
-            -webkit-text-size-adjust: 100%;
-            touch-action: manipulation;
-        }
-        .app-shell {
-            position: fixed;
-            inset: 0;
-            display: grid;
-            grid-template-rows: auto auto 1fr auto;
-            padding-top: calc(var(--sat));
-            padding-bottom: calc(var(--sab));
-            padding-left: calc(var(--sal));
-            padding-right: calc(var(--sar));
-        }
-        /* Top bar */
-        .topbar {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.7rem 0.9rem 0.55rem;
-            min-height: calc(56px + var(--sat));
-        }
-        .topbar .left {
-            display: flex;
-            align-items: center;
-            gap: 0.55rem;
-            min-height: 48px;
-            touch-action: manipulation;
-        }
-        .brand-badge {
-            width: 40px; height: 40px; border-radius: 0.85rem;
-            background: linear-gradient(135deg, #2d6a4f, #52b788);
-            color: white; display: grid; place-items: center;
-            font-size: 1.2rem;
-            box-shadow: 0 4px 14px rgba(27, 67, 50, 0.28);
-        }
-        .topbar h1 {
-            font-size: 1.02rem;
-            font-weight: 800;
-            margin: 0;
-            letter-spacing: -0.01em;
-            line-height: 1.1;
-        }
-        .topbar .sub {
-            font-size: 0.7rem;
-            color: var(--muted);
-            margin-top: 2px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            max-width: 50vw;
-        }
-        .topbar .right { display: flex; align-items: center; gap: 0.55rem; }
-        .icon-btn {
-            min-width: 44px; min-height: 44px;
-            border-radius: 0.85rem;
-            background: rgba(255,255,255,0.82);
-            border: 1px solid #e2ece4;
-            backdrop-filter: blur(4px);
-            display: grid; place-items: center;
-            font-size: 1.1rem;
-            touch-action: manipulation;
-            transition: transform 0.1s ease;
-            color: var(--ink);
-            text-decoration: none;
-        }
-        .icon-btn:active { transform: scale(0.96); }
-        .avatar-badge {
-            width: 42px; height: 42px; border-radius: 999px;
-            background: #52b788; color: #0f2418; font-weight: 800;
-            display: grid; place-items: center;
-            box-shadow: 0 3px 12px rgba(82,183,136,0.35);
-        }
-        /* Tab bar (Operations vs Commercial) */
-        .tabs-wrap {
-            padding: 0.15rem 0.9rem 0.5rem;
-        }
-        .segmented {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            background: rgba(255,255,255,0.8);
-            border: 1px solid #dce7df;
-            border-radius: 999px;
-            padding: 4px;
-            min-height: 44px;
-        }
-        .seg {
-            border: 0;
-            background: transparent;
-            padding: 0.45rem 0.5rem;
-            border-radius: 999px;
-            font-weight: 700;
-            font-size: 0.82rem;
-            min-height: 40px;
-            color: var(--muted);
-            transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
-            touch-action: manipulation;
-            letter-spacing: 0.01em;
-        }
-        .seg.active {
-            background: linear-gradient(135deg, var(--brand), var(--brand2));
-            color: #fff;
-            box-shadow: 0 4px 14px rgba(27, 67, 50, 0.25);
-        }
-        .seg:active { transform: scale(0.98); }
-        /* KPI grid section */
-        .kpi-wrap {
-            overflow: hidden;
-            min-height: 0;
-            padding: 0.15rem 0.9rem 0.35rem;
-        }
-        .kpi-panel { display: none; height: 100%; }
-        .kpi-panel.active { display: grid; }
-        .kpi-panel { grid-template-columns: repeat(2, 1fr); grid-template-rows: repeat(2, 1fr); gap: 0.6rem; }
-        .tile {
-            position: relative;
-            min-height: 0;
-            background: rgba(255,255,255,0.92);
-            border: 1px solid #e2ece4;
-            border-radius: 1rem;
-            padding: 0.7rem 0.75rem 0.65rem;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(27, 67, 50, 0.05);
-            touch-action: manipulation;
-            transition: transform 0.12s ease;
-        }
-        .tile::before {
-            content: "";
-            position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 4px;
-            background: var(--tile-color, #2d6a4f);
-        }
-        .tile:active { transform: scale(0.985); }
-        .tile .icon {
-            position: absolute;
-            right: 0.6rem; top: 0.55rem;
-            width: 34px; height: 34px; border-radius: 0.8rem;
-            display: grid; place-items: center;
-            font-size: 1rem;
-            background: var(--tile-bg, rgba(45,106,79,0.1));
-            color: var(--tile-color, #2d6a4f);
-        }
-        .tile .label {
-            font-size: 0.65rem;
-            font-weight: 800;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: var(--muted);
-            padding-right: 40px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .tile .value {
-            font-size: 1.55rem;
-            font-weight: 800;
-            line-height: 1.05;
-            letter-spacing: -0.02em;
-            color: var(--ink);
-            margin-top: 0.35rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .tile .caption {
-            font-size: 0.62rem;
-            color: var(--muted);
-            margin-top: 0.25rem;
-            line-height: 1.2;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-        }
-        .tile[data-color="green"]   { --tile-color:#2d6a4f; --tile-bg:rgba(45,106,79,0.1); }
-        .tile[data-color="mint"]    { --tile-color:#40916c; --tile-bg:rgba(64,145,108,0.1); }
-        .tile[data-color="orange"]  { --tile-color:#e76f51; --tile-bg:rgba(231,111,81,0.1); }
-        .tile[data-color="yellow"]  { --tile-color:#c58b00; --tile-bg:rgba(233,196,106,0.18); }
-        .tile[data-color="red"]     { --tile-color:#c81d25; --tile-bg:rgba(200,29,37,0.09); }
-        .tile[data-color="blue"]    { --tile-color:#3a6ea5; --tile-bg:rgba(58,110,165,0.1); }
-        .tile[data-color="navy"]    { --tile-color:#1d3557; --tile-bg:rgba(29,53,87,0.1); }
-        .tile[data-color="teal"]    { --tile-color:#2a9d8f; --tile-bg:rgba(42,157,143,0.1); }
-        .tile[data-color="purple"]  { --tile-color:#8e44ad; --tile-bg:rgba(142,68,173,0.1); }
-        .tile[data-color="pink"]    { --tile-color:#d63384; --tile-bg:rgba(214,51,132,0.09); }
-        .tile[data-color="sky"]     { --tile-color:#028090; --tile-bg:rgba(2,128,144,0.1); }
-        .tile[data-color="amber"]   { --tile-color:#d97706; --tile-bg:rgba(217,119,6,0.12); }
-        .tile[data-color="jade"]    { --tile-color:#00a896; --tile-bg:rgba(0,168,150,0.1); }
-        .tile[data-color="ink"]     { --tile-color:#1b2a1f; --tile-bg:rgba(27,42,31,0.08); }
-        /* Recent section with swipe tabs */
-        .recent-wrap {
-            padding: 0.25rem 0.9rem 0.55rem;
-            display: grid;
-            grid-template-rows: auto 1fr;
-            min-height: 0;
-            overflow: hidden;
-        }
-        .recent-head {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0.1rem 0 0.3rem;
-        }
-        .recent-title {
-            font-size: 0.75rem;
-            font-weight: 800;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            color: var(--muted);
-        }
-        .recent-seg {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            background: rgba(255,255,255,0.75);
-            border: 1px solid #dce7df;
-            border-radius: 999px;
-            padding: 3px;
-            min-height: 36px;
-            gap: 3px;
-        }
-        .recent-seg button {
-            border: 0;
-            background: transparent;
-            padding: 0.35rem 0.4rem;
-            border-radius: 999px;
-            font-weight: 700;
-            font-size: 0.72rem;
-            min-height: 30px;
-            color: var(--muted);
-            touch-action: manipulation;
-        }
-        .recent-seg button.active {
-            background: var(--ink);
-            color: #fff;
-        }
-        .recent-panels {
-            position: relative;
-            min-height: 0;
-            overflow: hidden;
-        }
-        .recent-panel {
-            position: absolute; inset: 0;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-bottom: 0.4rem;
-            padding-right: 1px;
-            -webkit-overflow-scrolling: touch;
-            scrollbar-width: none;
-            transform: translateX(100%);
-            transition: transform 0.22s ease;
-        }
-        .recent-panel::-webkit-scrollbar { display: none; }
-        .recent-panel.active { transform: translateX(0%); }
-        .recent-panel.prev { transform: translateX(-100%); }
-        .row-card {
-            background: rgba(255,255,255,0.92);
-            border: 1px solid #e2ece4;
-            border-radius: 0.9rem;
-            padding: 0.55rem 0.7rem;
-            margin: 0 0 0.5rem;
-            box-shadow: 0 2px 8px rgba(27, 67, 50, 0.04);
-            touch-action: manipulation;
-        }
-        .row-card + .row-card { margin-top: 0; margin-bottom: 0.5rem; }
-        .row-card .top {
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 0.5rem;
-        }
-        .row-card code {
-            font-size: 0.78rem;
-            padding: 0.15rem 0.45rem;
-            border-radius: 0.5rem;
-            background: #eef5ef;
-            color: var(--brand);
-            font-weight: 700;
-        }
-        .row-card .pill {
-            font-size: 0.62rem;
-            padding: 0.2rem 0.55rem;
-            border-radius: 999px;
-            font-weight: 700;
-            letter-spacing: 0.01em;
-        }
-        .pill.ok { background: rgba(45,106,79,0.1); color: #2d6a4f; }
-        .pill.warn { background: rgba(233,196,106,0.35); color: #8a5a00; }
-        .pill.bad { background: rgba(200,29,37,0.1); color: #c81d25; }
-        .pill.idle { background: #eef2f7; color: #475569; border: 1px solid #e2e8f0; }
-        .pill.info { background: rgba(58,110,165,0.1); color: #3a6ea5; }
-        .row-card .meta {
-            display: flex;
-            align-items: flex-end;
-            justify-content: space-between;
-            margin-top: 0.35rem;
-        }
-        .row-card .meta .label { font-size: 0.6rem; color: var(--muted); }
-        .row-card .meta .val { font-size: 0.8rem; font-weight: 700; }
-        .row-card .meta .total { font-size: 1rem; font-weight: 800; letter-spacing: -0.02em; }
-        .empty { padding: 1.25rem 0.25rem; text-align: center; color: var(--muted); font-size: 0.8rem; }
-        /* Bottom dock nav */
-        .dock {
-            padding: 0.5rem 0.9rem 0.8rem;
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 0.35rem;
-            background: linear-gradient(180deg, rgba(238,245,239,0) 0%, rgba(238,245,239,0.92) 40%, rgba(220,233,224,0.96) 100%);
-        }
-        .dock-btn {
-            min-height: 56px;
-            background: rgba(255,255,255,0.9);
-            border: 1px solid #dce7df;
-            border-radius: 1rem;
-            color: var(--muted);
-            text-decoration: none;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 2px;
-            padding: 0.35rem 0.15rem;
-            touch-action: manipulation;
-            transition: transform 0.1s ease, background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-            font-weight: 700;
-        }
-        .dock-btn:active { transform: scale(0.96); }
-        .dock-btn.active {
-            color: #fff;
-            border-color: var(--brand2);
-            background: linear-gradient(135deg, var(--brand), var(--brand2));
-            box-shadow: 0 6px 16px rgba(27, 67, 50, 0.28);
-        }
-        .dock-btn .ic { font-size: 1.15rem; line-height: 1; }
-        .dock-btn .lbl { font-size: 0.6rem; letter-spacing: 0.01em; }
-        .dock-btn.active .lbl { color: rgba(255,255,255,0.95); }
-@@media (min-width: 768px) {
-            .app-shell::after {
-                content: "Mobile dashboard available on phone screens (< 768px). Use desktop dashboard for larger views.";
-                position: fixed;
-                inset: 0;
-                display: grid;
-                place-items: center;
-                padding: 2rem;
-                text-align: center;
-                background: #f8fbf7;
-                color: #1b2a1f;
-                font-weight: 600;
-                font-size: 0.95rem;
-                z-index: 999;
-            }
-        }
-    </style>
-</head>
-<body>
-    <div class="app-shell" id="appShell">
 
-        <!-- Top bar -->
-        <div class="topbar">
-            <div class="left">
-                <div class="brand-badge" aria-hidden="true">🌾</div>
-                <div>
-                    <h1>Livestock Manager</h1>
-                    <div class="sub">@Model.CompanyName · @Model.TodayUtc.LocalDateTime.ToString("ddd, MMM d")</div>
-                </div>
-            </div>
-            <div class="right">
-                <a class="icon-btn" asp-area="" asp-controller="Home" asp-action="Index" title="Desktop dashboard">🖥️</a>
-                <a class="icon-btn" asp-area="" asp-controller="Account" asp-action="Logout" title="Sign out">⎋</a>
-                <div class="avatar-badge" title="Signed in">A</div>
-            </div>
-        </div>
+<div style="margin-bottom:0.5rem;">
+    <div class="mob-card-title">⚡ Quick Nav</div>
+    <div class="quick-nav">
+        <a asp-action="MobileRegister" asp-controller="Livestock" class="qbtn p">
+            <span class="icn">🐑</span>
+            <span>Register</span>
+        </a>
+        <a asp-action="MobileCreate" asp-controller="LivestockLosses" class="qbtn d">
+            <span class="icn">💀</span>
+            <span>Record Loss</span>
+        </a>
+        <a asp-action="MobileCreate" asp-controller="Expenses" class="qbtn w">
+            <span class="icn">💰</span>
+            <span>Expense</span>
+        </a>
+        <a asp-action="MobileCreate" asp-controller="Purchases" class="qbtn b">
+            <span class="icn">🛒</span>
+            <span>Purchase</span>
+        </a>
+    </div>
+</div>
 
-        <!-- KPI segmented -->
-        <div class="tabs-wrap">
-            <div class="segmented" role="tablist" aria-label="Dashboard sections">
-                <button type="button" class="seg active" data-panel="ops" role="tab" aria-selected="true">Operations</button>
-                <button type="button" class="seg" data-panel="com" role="tab" aria-selected="false">Commercial</button>
-            </div>
-        </div>
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#2d6a4f;">
+        <div class="k-label">Active Herd</div>
+        <div class="k-value">@Model.ActiveLivestockCount.ToString("N0")</div>
+        <div class="k-caption">Live headcount</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#40916c;">
+        <div class="k-label">New Reg MTD</div>
+        <div class="k-value">@Model.NewRegistrationsThisMonth.ToString("N0")</div>
+        <div class="k-caption">Registrations this month</div>
+    </div>
+</div>
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#c81d25;">
+        <div class="k-label">Mort-30d</div>
+        <div class="k-value">@(Model.LivestockMortalityRate30dPct.HasValue ? Model.LivestockMortalityRate30dPct.Value.ToString("F1") + "%" : "—")</div>
+        <div class="k-caption">Mortality last 30d</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#3a6ea5;">
+        <div class="k-label">Weigh Due</div>
+        <div class="k-value">@Model.PendingWeighingsCount.ToString("N0")</div>
+        <div class="k-caption">Weighings overdue</div>
+    </div>
+</div>
 
-        <!-- KPI panels -->
-        <section class="kpi-wrap" aria-label="Key indicators">
-            <!-- OPERATIONAL: 4 tiles (2x2) -->
-            <div class="kpi-panel active" id="ops" data-color-group="ops">
-                <div class="tile" data-color="green">
-                    <div class="icon">🐑</div>
-                    <div class="label">Active</div>
-                    <div class="value">@Model.ActiveLivestockCount.ToString("N0")</div>
-                    <div class="caption">Live headcount</div>
-                </div>
-                <div class="tile" data-color="mint">
-                    <div class="icon">📝</div>
-                    <div class="label">New Reg</div>
-                    <div class="value">@Model.NewRegistrationsThisMonth.ToString("N0")</div>
-                    <div class="caption">Registrations this month</div>
-                </div>
-                <div class="tile" data-color="red">
-                    <div class="icon">💀</div>
-                    <div class="label">Mort-30</div>
-                    <div class="value">@(Model.LivestockMortalityRate30dPct.HasValue ? Model.LivestockMortalityRate30dPct.Value.ToString("F1") + "%" : "—")</div>
-                    <div class="caption">Mortality last 30d</div>
-                </div>
-                <div class="tile" data-color="blue">
-                    <div class="icon">📋</div>
-                    <div class="label">Pending</div>
-                    <div class="value">@Model.PendingWeighingsCount.ToString("N0")</div>
-                    <div class="caption">Weighings overdue</div>
-                </div>
-            </div>
-            <!-- COMMERCIAL: 4 tiles (2x2) -->
-            <div class="kpi-panel" id="com" data-color-group="com">
-                <div class="tile" data-color="teal">
-                    <div class="icon">💰</div>
-                    <div class="label">Rev MTD</div>
-                    <div class="value">$@Model.RevenueMonthToDate.ToString("N0")</div>
-                    <div class="caption">Invoices MTD</div>
-                </div>
-                <div class="tile" data-color="jade">
-                    <div class="icon">💵</div>
-                    <div class="label">Paid MTD</div>
-                    <div class="value">$@Model.PaidReceiptsMonthToDate.ToString("N0")</div>
-                    <div class="caption">Receipts MTD</div>
-                </div>
-                <div class="tile" data-color="purple">
-                    <div class="icon">📑</div>
-                    <div class="label">Out AR</div>
-                    <div class="value">$@Model.OutstandingInvoicesAmountTotal.ToString("N0")</div>
-                    <div class="caption">Outstanding receivables</div>
-                </div>
-                <div class="tile" data-color="amber">
-                    <div class="icon">🧮</div>
-                    <div class="label">Net OR</div>
-                    <div class="value" style="color: @(Model.NetOperatingResultMonthToDate >= 0 ? "#1b2a1f" : "#c81d25");">
-                        @(Model.NetOperatingResultMonthToDate >= 0 ? "$" : "-$")@Math.Abs(Model.NetOperatingResultMonthToDate).ToString("N0")
-                    </div>
-                    <div class="caption">Operating result MTD</div>
-                </div>
-            </div>
-        </section>
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#2a9d8f;">
+        <div class="k-label">Revenue MTD</div>
+        <div class="k-value">$@Model.RevenueMonthToDate.ToString("N0")</div>
+        <div class="k-caption">Invoices MTD</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#00a896;">
+        <div class="k-label">Paid MTD</div>
+        <div class="k-value">$@Model.PaidReceiptsMonthToDate.ToString("N0")</div>
+        <div class="k-caption">Receipts MTD</div>
+    </div>
+</div>
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#8e44ad;">
+        <div class="k-label">Out AR</div>
+        <div class="k-value">$@Model.OutstandingInvoicesAmountTotal.ToString("N0")</div>
+        <div class="k-caption">Outstanding receivables</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#d97706;">
+        <div class="k-label">Net OR MTD</div>
+        <div class="k-value">@(Model.NetOperatingResultMonthToDate >= 0 ? "+" : "-")$@Math.Abs(Model.NetOperatingResultMonthToDate).ToString("N0")</div>
+        <div class="k-caption">Operating result</div>
+    </div>
+</div>
 
-        <!-- Recent swipe section -->
-        <section class="recent-wrap" aria-label="Recent activity">
-            <div class="recent-head">
-                <div class="recent-title">Recent</div>
-                <div class="recent-seg" role="tablist">
-                    <button type="button" class="active" data-recent="stock" aria-selected="true">🐑 Livestock</button>
-                    <button type="button" data-recent="inv" aria-selected="false">📄 Invoices</button>
-                </div>
-            </div>
-            <div class="recent-panels" id="recentPanels">
-                <!-- Livestock list -->
-                <div class="recent-panel active" id="stock">
-                    @if (recentLivestock != null && recentLivestock.Any())
-                    {
-                        @foreach (var l in recentLivestock)
-                        {
-                            var pillClass = l.Status == LivestockStatus.Active ? "ok" : "idle";
-                            <div class="row-card">
-                                <div class="top">
-                                    <div>
-                                        <code>@l.LivestockId</code>
-                                        <div style="font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem;">@l.LivestockTypeId</div>
-                                    </div>
-                                    <span class="pill @pillClass">@l.Status</span>
-                                </div>
-                                <div class="meta">
-                                    <div>
-                                        <div class="label">Farm</div>
-                                        <div class="val">@(l.FarmId != null && l.FarmId != Guid.Empty ? l.FarmId.Value.ToString("N").Substring(0, 4) + "…" : "—")</div>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="label">Weight</div>
-                                        <div class="val">
-                                            @if (l.CurrentWeight.HasValue) { @l.CurrentWeight.Value.ToString("F1") @l.WeightUnit }
-                                            else { <span style="color:var(--muted)">—</span> }
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    }
-                    else
-                    {
-                        <div class="empty">No recent livestock registered.</div>
-                    }
-                </div>
-                <!-- Invoices list -->
-                <div class="recent-panel" id="inv">
-                    @if (recentInvoices != null && recentInvoices.Any())
-                    {
-                        @foreach (var i in recentInvoices)
-                        {
-                            var pill = i.Status switch
-                            {
-                                InvoiceStatus.Paid => ("Paid", "ok"),
-                                InvoiceStatus.PartiallyPaid => ("Partial", "info"),
-                                InvoiceStatus.Draft => ("Draft", "idle"),
-                                InvoiceStatus.Overdue => ("Overdue", "bad"),
-                                InvoiceStatus.Confirmed => ("Confirmed", "warn"),
-                                _ => (i.Status.ToString(), "idle")
-                            };
-                            <div class="row-card">
-                                <div class="top">
-                                    <div>
-                                        <code>@i.InvoiceNumber</code>
-                                        <div style="font-size: 0.7rem; color: var(--muted); margin-top: 0.2rem;">@i.InvoiceDate.ToString("yyyy-MM-dd")</div>
-                                    </div>
-                                    <span class="pill @pill.Item2">@pill.Item1</span>
-                                </div>
-                                <div class="meta">
-                                    <div>
-                                        <div class="label">Customer</div>
-                                        <div class="val" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-                                            @(string.IsNullOrWhiteSpace(i.CustomerName) ? "—" : i.CustomerName)
-                                        </div>
-                                    </div>
-                                    <div class="text-end">
-                                        <div class="label">Total</div>
-                                        <div class="total">$@i.GrandTotal.ToString("N2")</div>
-                                    </div>
-                                </div>
-                            </div>
-                        }
-                    }
-                    else
-                    {
-                        <div class="empty">No recent invoices.</div>
-                    }
-                </div>
-            </div>
-        </section>
+<div class="mob-totals-card @(Model.NetOperatingResultMonthToDate < 0 ? " warn" : "")">
+    <div class="label">Net Operating Result · MTD</div>
+    <div class="total">@(Model.NetOperatingResultMonthToDate >= 0 ? "+" : "")$@Model.NetOperatingResultMonthToDate.ToString("N2")</div>
+    <div class="breakdown">
+        <div><div class="k">Rev MTD</div><div class="v">$@Model.RevenueMonthToDate.ToString("N0")</div></div>
+        <div><div class="k">Paid MTD</div><div class="v">$@Model.PaidReceiptsMonthToDate.ToString("N0")</div></div>
+        <div><div class="k">Out AR</div><div class="v">$@Model.OutstandingInvoicesAmountTotal.ToString("N0")</div></div>
+        <div><div class="k">Active</div><div class="v">@Model.ActiveLivestockCount</div></div>
+    </div>
+</div>
 
-        <!-- Bottom dock -->
-        <nav class="dock" aria-label="Main">
-            <a class="dock-btn active" href="@Url.Action("MobileDashboard","Home")">
-                <div class="ic">📊</div><div class="lbl">Home</div>
-            </a>
-            <a class="dock-btn" href="@Url.Action("Index","Livestock")">
-                <div class="ic">🐑</div><div class="lbl">Stock</div>
-            </a>
-            <a class="dock-btn" href="@Url.Action("Index","Expenses")">
-                <div class="ic">💰</div><div class="lbl">Expense</div>
-            </a>
-            <a class="dock-btn" href="@Url.Action("Create","LivestockLosses")">
-                <div class="ic">💀</div><div class="lbl">Loss</div>
-            </a>
-            <a class="dock-btn" href="@Url.Action("ProfitLoss","Reports")">
-                <div class="ic">📈</div><div class="lbl">P&L</div>
-            </a>
-        </nav>
+<div class="mob-card">
+    <div class="mob-card-title">
+        <span>🕒 Recent Activity</span>
+        <span id="recStockBadge" class="pill ok" style="cursor:pointer;" onclick="switchRecent('stock')">🐑 Livestock</span>
+        <span id="recInvBadge" class="pill idle" style="cursor:pointer;" onclick="switchRecent('inv')">📄 Invoices</span>
     </div>
 
-    <script src="~/lib/jquery/dist/jquery.min.js"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <div id="recStock">
+        @if (recentLivestock != null && recentLivestock.Any())
+        {
+            <div class="mob-list-cards">
+                @foreach (var l in recentLivestock.Take(4))
+                {
+                    var pillClass = l.Status == LivestockStatus.Active ? "ok" : "idle";
+                    var pillLabel = l.Status == LivestockStatus.Active ? "Active" : l.Status.ToString();
+                    <div class="mob-list-card">
+                        <div class="row-top">
+                            <div>
+                                <code>@l.LivestockId</code>
+                                <div class="meta-caption">@l.LivestockTypeId · @l.AcquisitionDate.ToString("MMM d")</div>
+                            </div>
+                            <span class="pill @pillClass">@pillLabel</span>
+                        </div>
+                        <div class="rows">
+                            <div class="cell">
+                                <div class="label">Weight</div>
+                                <div class="val">
+                                    @if (l.CurrentWeight.HasValue) { @l.CurrentWeight.Value.ToString("F1") @l.WeightUnit }
+                                    else { <span class="code-muted">—</span> }
+                                </div>
+                            </div>
+                            <div class="cell">
+                                <div class="label">Purchased</div>
+                                <div class="val">$@l.PurchaseAmount.ToString("N0")</div>
+                            </div>
+                        </div>
+                        <div class="row-actions">
+                            <a asp-action="Details" asp-controller="Livestock" asp-route-id="@l.Id" class="mob-btn">👁 View</a>
+                            @if (l.Status == LivestockStatus.Active)
+                            {
+                                <a asp-action="AddWeight" asp-controller="Livestock" asp-route-id="@l.Id" class="mob-btn primary">⚖ Weight</a>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="text-center">
+                <a asp-action="MobileIndex" asp-controller="Livestock" class="mob-btn ghost">View all livestock →</a>
+            </div>
+        }
+        else
+        {
+            <div class="mob-empty">No recent livestock.</div>
+        }
+    </div>
+
+    <div id="recInv" style="display:none;">
+        @if (recentInvoices != null && recentInvoices.Any())
+        {
+            <div class="mob-list-cards">
+                @foreach (var i in recentInvoices.Take(4))
+                {
+                    var pill = i.Status switch
+                    {
+                        InvoiceStatus.Paid => ("Paid", "ok"),
+                        InvoiceStatus.PartiallyPaid => ("Partial", "info"),
+                        InvoiceStatus.Draft => ("Draft", "idle"),
+                        InvoiceStatus.Overdue => ("Overdue", "bad"),
+                        InvoiceStatus.Confirmed => ("Confirmed", "warn"),
+                        _ => (i.Status.ToString(), "idle")
+                    };
+                    <div class="mob-list-card">
+                        <div class="row-top">
+                            <div>
+                                <code>@i.InvoiceNumber</code>
+                                <div class="meta-caption">@i.InvoiceDate.ToString("yyyy-MM-dd")</div>
+                            </div>
+                            <span class="pill @pill.Item2">@pill.Item1</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(i.CustomerName))
+                        {
+                            <div class="body-copy">👤 @i.CustomerName</div>
+                        }
+                        <div class="rows">
+                            <div class="cell">
+                                <div class="label">Total</div>
+                                <div class="val big">$@i.GrandTotal.ToString("F2")</div>
+                            </div>
+                            <div class="cell">
+                                <div class="label">Owed</div>
+                                <div class="val">
+                                    @(i.OutstandingAmount > 0 ? "$" + i.OutstandingAmount.ToString("F0") : "✓ Paid")
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="text-center">
+                <a asp-action="Index" asp-controller="Invoices" class="mob-btn ghost">View all invoices →</a>
+            </div>
+        }
+        else
+        {
+            <div class="mob-empty">No recent invoices.</div>
+        }
+    </div>
+</div>
+
+@section Scripts {
     <script>
-        (function () {
-            // KPI segmented tabs
-            var segBtns = document.querySelectorAll('.segmented .seg');
-            var panels = document.querySelectorAll('.kpi-panel');
-            function activatePanel(key) {
-                panels.forEach(function (p) { p.classList.toggle('active', p.id === key); });
-                segBtns.forEach(function (b) {
-                    var on = b.getAttribute('data-panel') === key;
-                    b.classList.toggle('active', on);
-                    b.setAttribute('aria-selected', on ? 'true' : 'false');
-                });
+        function switchRecent(tab) {
+            var stock = document.getElementById('recStock');
+            var inv = document.getElementById('recInv');
+            var sb = document.getElementById('recStockBadge');
+            var ib = document.getElementById('recInvBadge');
+            if (tab === 'stock') {
+                stock.style.display = 'block';
+                inv.style.display = 'none';
+                sb.className = 'pill ok';
+                ib.className = 'pill idle';
+            } else {
+                stock.style.display = 'none';
+                inv.style.display = 'block';
+                ib.className = 'pill info';
+                sb.className = 'pill idle';
             }
-            segBtns.forEach(function (b) {
-                b.addEventListener('click', function () { activatePanel(b.getAttribute('data-panel')); });
-            });
-
-            // Recent segmented tabs (with slide) + swipe gesture
-            var recentSegBtns = document.querySelectorAll('.recent-seg button');
-            var recentPanels = document.querySelectorAll('.recent-panel');
-            function setRecent(activeId) {
-                var order = [];
-                recentPanels.forEach(function (p) { order.push(p.id); });
-                var activeIndex = order.indexOf(activeId);
-                recentPanels.forEach(function (p, i) {
-                    p.classList.remove('active', 'prev');
-                    if (i === activeIndex) p.classList.add('active');
-                    else if (i < activeIndex) p.classList.add('prev');
-                });
-                recentSegBtns.forEach(function (b) {
-                    var on = b.getAttribute('data-recent') === activeId;
-                    b.classList.toggle('active', on);
-                    b.setAttribute('aria-selected', on ? 'true' : 'false');
-                });
-            }
-            recentSegBtns.forEach(function (b) {
-                b.addEventListener('click', function () {
-                    setRecent(b.getAttribute('data-recent') === 'stock' ? 'stock' : 'inv');
-                });
-            });
-            // Initial state: make inv prev (right) of stock active
-            setRecent('stock');
-
-            // Swipe on recent section
-            var panelWrap = document.getElementById('recentPanels');
-            if (panelWrap) {
-                var startX = 0, startY = 0, tracking = false, movedX = 0;
-                panelWrap.addEventListener('touchstart', function (e) {
-                    if (e.touches.length !== 1) return;
-                    tracking = true;
-                    startX = e.touches[0].clientX;
-                    startY = e.touches[0].clientY;
-                    movedX = 0;
-                }, { passive: true });
-                panelWrap.addEventListener('touchmove', function (e) {
-                    if (!tracking) return;
-                    var dx = e.touches[0].clientX - startX;
-                    var dy = e.touches[0].clientY - startY;
-                    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 10) movedX = dx;
-                }, { passive: true });
-                panelWrap.addEventListener('touchend', function () {
-                    if (!tracking) return;
-                    tracking = false;
-                    if (Math.abs(movedX) < 50) return;
-                    var order = Array.from(recentPanels).map(function (p) { return p.id; });
-                    var cur = order.findIndex(function (id) { return document.getElementById(id).classList.contains('active'); });
-                    var next = cur;
-                    if (movedX < 0 && cur < order.length - 1) next = cur + 1;
-                    if (movedX > 0 && cur > 0) next = cur - 1;
-                    if (next !== cur) setRecent(order[next]);
-                });
-            }
-
-            // Prevent any pinch zoom / scroll leaks
-            document.addEventListener('gesturestart', function (e) { e.preventDefault(); });
-            document.addEventListener('dblclick', function (e) { e.preventDefault(); });
-
-            // Lock to 1 screen: ensure layout fits without scroll, minor compensations
-            function fit() {
-                var h = window.innerHeight;
-                var shell = document.getElementById('appShell');
-                if (shell) shell.style.setProperty('--vh', (h * 0.01).toFixed(2) + 'px');
-            }
-            fit();
-            window.addEventListener('resize', fit);
-            window.addEventListener('orientationchange', function () { setTimeout(fit, 120); });
-        })();
+        }
     </script>
-</body>
-</html>
+}

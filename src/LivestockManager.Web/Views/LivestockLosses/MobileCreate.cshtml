@@ -1,0 +1,205 @@
+@model LivestockManager.Application.DTOs.LivestockLosses.LivestockLossCreateDto
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Application.DTOs.Farms
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Record Loss";
+    ViewData["PageIcon"] = "💀";
+    ViewData["PageSubtitle"] = "Record loss and discharge livestock";
+    ViewData["DockKey"] = "loss";
+
+    var farms = ViewData["Farms"] as IEnumerable<FarmSummaryDto> ?? Enumerable.Empty<FarmSummaryDto>();
+    var activeLivestock = ViewData["ActiveLivestock"] as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+    var lsList = new List<dynamic>();
+    foreach (var x in activeLivestock) lsList.Add(x);
+
+    var defaultDate = Model.LossDate == default ? DateTime.Today.ToString("yyyy-MM-dd") : Model.LossDate.LocalDateTime.ToString("yyyy-MM-dd");
+    var defaultTime = Model.LossDate == default ? DateTime.Now.ToString("HH:mm") : Model.LossDate.LocalDateTime.ToString("HH:mm");
+
+    bool ModelHasErrors() => ViewContext.ModelState.ErrorCount > 0;
+}
+
+@if (ModelHasErrors())
+{
+    <div class="mob-val">
+        ⚠ Please correct these before saving:
+        <ul>
+            @foreach (var err in ViewContext.ModelState
+                .SelectMany(m => m.Value?.Errors.Select(e => e.ErrorMessage) ?? Enumerable.Empty<string>())
+                .Where(e => !string.IsNullOrWhiteSpace(e)))
+            {
+                <li>@err</li>
+            }
+        </ul>
+    </div>
+}
+
+<form asp-action="MobileCreate" method="post" id="lossForm">
+    <input type="hidden" asp-for="CompanyId" />
+    <input type="hidden" asp-for="LossDate" id="LossDate" value="" />
+
+    <div class="mob-card">
+        <div class="mob-card-title">📋 Loss Details</div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Loss Date <span class="text-danger">*</span></label>
+                    <input type="date" id="LossDateInput" value="@defaultDate" max="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Time</label>
+                    <input type="time" id="LossTimeInput" value="@defaultTime" />
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label>Loss Type <span class="text-danger">*</span></label>
+            <select asp-for="LossType" id="LossTypeSelect" required>
+                <option value="@((int)DischargeCondition.Deceased)" selected="@(Model.LossType == DischargeCondition.Deceased)">Deceased</option>
+                <option value="@((int)DischargeCondition.Lost)" selected="@(Model.LossType == DischargeCondition.Lost)">Lost (Missing)</option>
+                <option value="@((int)DischargeCondition.Stolen)" selected="@(Model.LossType == DischargeCondition.Stolen)">Stolen</option>
+                <option value="@((int)DischargeCondition.Other)" selected="@(Model.LossType == DischargeCondition.Other)">Other</option>
+            </select>
+            <span asp-validation-for="LossType" class="field-validation-error"></span>
+        </div>
+        <div class="mob-field">
+            <label>Livestock <span class="text-danger">*</span></label>
+            <select asp-for="LivestockId" id="LivestockSelect" required>
+                <option value="">-- Select active livestock --</option>
+                @foreach (dynamic ls in lsList)
+                {
+                    Guid lid = ls.Id;
+                    <option value="@ls.Id" selected="@(Model.LivestockId == lid ? "selected" : null)" data-purchase="@ls.PurchaseAmount" data-farm="@ls.FarmId">
+                        @ls.LivestockId · @ls.LivestockTypeId @(ls.FarmName != null ? " · " + ls.FarmName : "")
+                    </option>
+                }
+            </select>
+            <span asp-validation-for="LivestockId" class="field-validation-error"></span>
+            @if (lsList.Count == 0)
+            {
+                <div class="input-hint text-danger">⚠ No active livestock available.</div>
+            }
+        </div>
+        <div class="mob-field" style="margin-bottom:0;">
+            <label>Farm</label>
+            <select asp-for="FarmId" id="FarmSelect">
+                <option value="">(inherit from livestock)</option>
+                @foreach (dynamic f in farms)
+                {
+                    Guid fid = f.Id;
+                    <option value="@f.Id" selected="@(Model.FarmId == fid ? "selected" : null)">@f.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">💰 Book Value & Impact</div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Book Value ($) <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" min="0" asp-for="BookValue" id="BookValueInput" placeholder="Original cost" required />
+                    <span asp-validation-for="BookValue" class="field-validation-error"></span>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Salvage Value ($)</label>
+                    <input type="number" step="0.01" min="0" asp-for="SalvageValue" id="SalvageInput" placeholder="0 if none" />
+                    <span asp-validation-for="SalvageValue" class="field-validation-error"></span>
+                </div>
+            </div>
+        </div>
+        <div class="mob-totals-card warn">
+            <div class="label">Estimated Loss</div>
+            <div class="total" id="LossPreview">$0.00</div>
+            <div class="breakdown">
+                <div><div class="k">Book Value</div><div class="v" id="PreviewBook">$0.00</div></div>
+                <div><div class="k">Less Salvage</div><div class="v" id="PreviewSalvage">$0.00</div></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">📝 Reason & Notes</div>
+        <div class="mob-field">
+            <label>Reason</label>
+            <input asp-for="Reason" placeholder="Brief explanation (e.g. disease, predation)" />
+            <span asp-validation-for="Reason" class="field-validation-error"></span>
+        </div>
+        <div class="mob-field" style="margin-bottom:0;">
+            <label>Notes</label>
+            <textarea asp-for="Notes" rows="3" placeholder="Additional details..."></textarea>
+            <span asp-validation-for="Notes" class="field-validation-error"></span>
+        </div>
+    </div>
+
+    <div class="mob-submit-row">
+        <div class="sub-row">
+            <a asp-action="MobileIndex" class="mob-submit-btn small-sub">Cancel</a>
+            <button type="submit" class="mob-submit-btn small-sub danger">💀 Record Loss</button>
+        </div>
+        <button type="submit" class="mob-submit-btn danger">💀 Record Loss &amp; Discharge</button>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        (function () {
+            var dtInp = document.getElementById('LossDateInput');
+            var tmInp = document.getElementById('LossTimeInput');
+            var lossDt = document.getElementById('LossDate');
+            var lsSel = document.getElementById('LivestockSelect');
+            var farmSel = document.getElementById('FarmSelect');
+            var bookInp = document.getElementById('BookValueInput');
+            var salvInp = document.getElementById('SalvageInput');
+            var prevBook = document.getElementById('PreviewBook');
+            var prevSalv = document.getElementById('PreviewSalvage');
+            var prevLoss = document.getElementById('LossPreview');
+
+            function fmt(n) { return '$' + Number(n || 0).toFixed(2); }
+
+            function combineDateTime() {
+                var d = dtInp.value || new Date().toISOString().slice(0, 10);
+                var t = tmInp.value || '00:00';
+                lossDt.value = d + 'T' + t + ':00.000Z';
+            }
+
+            function recalc() {
+                combineDateTime();
+                var b = parseFloat(bookInp.value || '0');
+                var s = parseFloat(salvInp.value || '0');
+                if (isNaN(b)) b = 0; if (isNaN(s)) s = 0;
+                var l = Math.max(0, b - s);
+                prevBook.textContent = fmt(b);
+                prevSalv.textContent = fmt(s);
+                prevLoss.textContent = fmt(l);
+            }
+
+            if (lsSel) {
+                lsSel.addEventListener('change', function () {
+                    var opt = lsSel.selectedOptions[0];
+                    if (opt) {
+                        var pur = opt.getAttribute('data-purchase');
+                        var farm = opt.getAttribute('data-farm');
+                        if ((!bookInp.value || bookInp.value === '0') && pur) {
+                            bookInp.value = pur;
+                        }
+                        if (farm && !farmSel.value) {
+                            farmSel.value = farm;
+                        }
+                    }
+                    recalc();
+                });
+            }
+            if (dtInp) dtInp.addEventListener('change', recalc);
+            if (tmInp) tmInp.addEventListener('change', recalc);
+            if (bookInp) bookInp.addEventListener('input', recalc);
+            if (salvInp) salvInp.addEventListener('input', recalc);
+            recalc();
+        })();
+    </script>
+}

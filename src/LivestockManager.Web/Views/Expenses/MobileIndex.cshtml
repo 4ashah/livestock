@@ -1,0 +1,170 @@
+@model IEnumerable<ExpenseSummaryDto>
+@using LivestockManager.Application.DTOs.Expenses
+@using LivestockManager.Application.DTOs.Farms
+@using LivestockManager.Domain.Enums
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Expenses";
+    ViewData["PageIcon"] = "💰";
+    ViewData["PageSubtitle"] = "All farm costs and financial entries";
+    ViewData["DockKey"] = "expense";
+    ViewData["ActionLabel"] = "New";
+    ViewData["ActionIcon"] = "＋";
+    ViewData["ActionUrl"] = Url.Action("MobileCreate", "Expenses");
+    var list = Model?.ToList() ?? new List<ExpenseSummaryDto>();
+    var farms = ViewData["Farms"] as IEnumerable<FarmSummaryDto> ?? new List<FarmSummaryDto>();
+    var cats = ViewData["CategorySummary"] as IEnumerable<ExpenseCategorySummaryDto> ?? new List<ExpenseCategorySummaryDto>();
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+    var fromStr = ViewData["From"] as string;
+    var toStr = ViewData["To"] as string;
+}
+
+<div class="mob-card">
+    <div class="mob-card-title">📅 Period & Filters</div>
+    <form method="get" asp-action="MobileIndex">
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>From</label>
+                    <input type="date" name="from" value="@fromStr" />
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>To</label>
+                    <input type="date" name="to" value="@toStr" />
+                </div>
+            </div>
+        </div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Farm</label>
+                    <select name="farmId">
+                        <option value="">All farms</option>
+                        @foreach (var f in farms.OrderBy(x => x.Name))
+                        {
+                            <option value="@f.Id">@f.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Category</label>
+                    <select name="category">
+                        <option value="">All categories</option>
+                        @foreach (var c in Enum.GetValues(typeof(ExpenseCategory)).OfType<ExpenseCategory>())
+                        {
+                            <option value="@c">@c</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="f-row">
+            <a asp-action="MobileIndex" class="mob-btn ghost">Reset</a>
+            <button type="submit" class="mob-btn primary">🔍 Apply filters</button>
+        </div>
+    </form>
+</div>
+
+@{
+    var total = list.Sum(x => x.Total);
+    var count = list.Count;
+    var byCatTop = list
+        .GroupBy(x => x.Category)
+        .Select(g => new { Cat = g.Key, Amt = g.Sum(x => x.Total), Cnt = g.Count() })
+        .OrderByDescending(x => x.Amt)
+        .Take(4)
+        .ToList();
+    var colorMap = new Dictionary<ExpenseCategory, string> {
+        { ExpenseCategory.Feed, "#2d6a4f" },
+        { ExpenseCategory.Veterinary, "#c81d25" },
+        { ExpenseCategory.Transportation, "#3a6ea5" },
+        { ExpenseCategory.Labor, "#8e44ad" },
+        { ExpenseCategory.Maintenance, "#d97706" },
+        { ExpenseCategory.Utilities, "#028090" },
+        { ExpenseCategory.Medication, "#7c3aed" },
+        { ExpenseCategory.Equipment, "#d63384" },
+        { ExpenseCategory.Insurance, "#0891b2" },
+        { ExpenseCategory.Other, "#475569" },
+    };
+}
+<div class="mob-totals-card @(total < 0 ? " warn" : "")">
+    <div class="label">Total Expenses</div>
+    <div class="total">$@total.ToString("N2")</div>
+    <div class="breakdown">
+        <div><div class="k">Entries</div><div class="v">@count</div></div>
+        <div><div class="k">Average</div><div class="v">$@(count == 0 ? "0.00" : (total / count).ToString("F2"))</div></div>
+    </div>
+</div>
+
+@if (byCatTop.Count > 0)
+{
+    <div class="mob-kpi-row">
+        @foreach (var c in byCatTop)
+        {
+            var clr = colorMap.TryGetValue(c.Cat, out var col) ? col : "#1b2a1f";
+            <div class="mob-kpi" style="--kpi-color:@clr;">
+                <div class="k-label">@c.Cat</div>
+                <div class="k-value">$@c.Amt.ToString("N0")</div>
+                <div class="k-caption">@c.Cnt items</div>
+            </div>
+        }
+    </div>
+}
+
+<div class="mob-list-cards">
+    @if (!list.Any())
+    {
+        <div class="mob-empty">No expenses for this period. Tap ＋ New to record one.</div>
+    }
+    else
+    {
+        @foreach (var e in list)
+        {
+            var pill = (e.Category) switch
+            {
+                ExpenseCategory.Feed => ("Feed", "ok"),
+                ExpenseCategory.Veterinary => ("Vet", "bad"),
+                ExpenseCategory.Transportation => ("Transp", "info"),
+                ExpenseCategory.Labor => ("Labor", "idle"),
+                ExpenseCategory.Maintenance => ("Maint", "warn"),
+                ExpenseCategory.Utilities => ("Util", "info"),
+                ExpenseCategory.Medication => ("Meds", "info"),
+                ExpenseCategory.Equipment => ("Equip", "idle"),
+                ExpenseCategory.Insurance => ("Insur", "info"),
+                _ => ("Other", "idle")
+            };
+            <div class="mob-list-card">
+                <div class="row-top">
+                    <div>
+                        <code>@e.ExpenseDate.ToString("yyyy-MM-dd") · #@e.Id.ToString("N").Substring(0, 6)</code>
+                        <div class="pill-stack">
+                            <span class="pill @pill.Item2">@pill.Item1</span>
+                            @if (!string.IsNullOrWhiteSpace(e.FarmName))
+                            { <span class="pill info">@e.FarmName</span> }
+                        </div>
+                    </div>
+                    <div class="val-right">
+                        <div class="amt">$@e.Total.ToString("F2")</div>
+                        <div class="sub">@e.PaymentMethod</div>
+                    </div>
+                </div>
+                @if (!string.IsNullOrWhiteSpace(e.Description))
+                {
+                    <div class="body-copy">@e.Description</div>
+                }
+                <div class="row-actions">
+                    <a asp-action="Details" asp-route-id="@e.Id" class="mob-btn">👁 View</a>
+                    @if (canEdit)
+                    {
+                        <a asp-action="MobileEdit" asp-route-id="@e.Id" class="mob-btn primary">✏️ Edit</a>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>

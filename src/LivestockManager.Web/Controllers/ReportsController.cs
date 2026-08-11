@@ -170,4 +170,26 @@ public class ReportsController : Controller
 
         return View(report);
     }
+
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
+    public async Task<IActionResult> MobileProfitLoss(DateTime? from, DateTime? to, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var today = DateTime.Today;
+        var monthStart = new DateTime(today.Year, today.Month, 1);
+
+        var fromDate = from.HasValue
+            ? from.Value.AsUtcDayStart()
+            : monthStart.AsUtcDayStart();
+        var toDate = to.HasValue
+            ? to.Value.AsUtcDayEnd()
+            : DateTimeOffset.UtcNow;
+
+        var report = await _reportService.ProfitLossAsync(companyId, fromDate, toDate, ct);
+
+        ViewData["From"] = from?.ToString("yyyy-MM-dd") ?? fromDate.ToString("yyyy-MM-dd");
+        ViewData["To"] = to?.ToString("yyyy-MM-dd") ?? toDate.ToString("yyyy-MM-dd");
+        return View("MobileProfitLoss", report);
+    }
 }

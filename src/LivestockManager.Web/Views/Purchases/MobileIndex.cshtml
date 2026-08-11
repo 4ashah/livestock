@@ -1,0 +1,94 @@
+@model IEnumerable<LivestockManager.Application.DTOs.Purchases.PurchaseListItemDto>
+@using LivestockManager.Application.DTOs.Purchases
+@using LivestockManager.Domain.Enums
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Purchases";
+    ViewData["PageIcon"] = "🛒";
+    ViewData["PageSubtitle"] = "Supplier purchases and livestock buy-ins";
+    ViewData["DockKey"] = "expense";
+    ViewData["ActionLabel"] = "New";
+    ViewData["ActionIcon"] = "＋";
+    ViewData["ActionUrl"] = Url.Action("MobileCreate", "Purchases");
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+    var list = Model?.ToList() ?? new List<PurchaseListItemDto>();
+}
+
+<div class="mob-totals-card">
+    <div class="label">Total Purchases</div>
+    <div class="total">$@list.Sum(x => x.GrandTotal).ToString("N2")</div>
+    <div class="breakdown">
+        <div><div class="k">Records</div><div class="v">@list.Count</div></div>
+        <div><div class="k">Items</div><div class="v">@list.Sum(x => x.ItemCount)</div></div>
+    </div>
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#2d6a4f;">
+        <div class="k-label">Draft</div>
+        <div class="k-value">@list.Count(x => x.Status == PurchaseStatus.Draft)</div>
+        <div class="k-caption">Awaiting posting</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#00a896;">
+        <div class="k-label">Posted</div>
+        <div class="k-value">@list.Count(x => x.Status == PurchaseStatus.Posted)</div>
+        <div class="k-caption">Recorded in books</div>
+    </div>
+</div>
+
+<div class="mob-list-cards">
+    @if (!list.Any())
+    {
+        <div class="mob-empty">No purchases yet. Tap ＋ New to record a supplier buy.</div>
+    }
+    else
+    {
+        @foreach (var p in list)
+        {
+            var statusPill = p.Status switch
+            {
+                PurchaseStatus.Draft => ("Draft", "idle"),
+                PurchaseStatus.Posted => ("Posted", "ok"),
+                PurchaseStatus.Voided => ("Voided", "bad"),
+                _ => (p.Status.ToString(), "idle")
+            };
+            <div class="mob-list-card">
+                <div class="row-top">
+                    <div>
+                        <code>@p.PurchaseNumber</code>
+                        <div class="pill-stack">
+                            <span class="pill @statusPill.Item2">@statusPill.Item1</span>
+                            @if (!string.IsNullOrWhiteSpace(p.SupplierName))
+                            { <span class="pill info">@p.SupplierName</span> }
+                        </div>
+                    </div>
+                    <div class="val-right">
+                        <div class="amt">$@p.GrandTotal.ToString("F2")</div>
+                        <div class="sub">@p.PurchaseDate.ToString("yyyy-MM-dd")</div>
+                    </div>
+                </div>
+                <div class="rows rows-3col">
+                    <div class="cell">
+                        <div class="label">Items</div>
+                        <div class="val">@p.ItemCount</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label"># Ref</div>
+                        <div class="val">@(p.Id.ToString("N").Substring(0, 6))</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label">Status</div>
+                        <div class="val">@statusPill.Item1</div>
+                    </div>
+                </div>
+                <div class="row-actions">
+                    <a asp-action="Details" asp-route-id="@p.Id" class="mob-btn">👁 View</a>
+                    @if (canEdit && p.Status == PurchaseStatus.Draft)
+                    {
+                        <a asp-action="Edit" asp-route-id="@p.Id" class="mob-btn primary">✏️ Edit</a>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>

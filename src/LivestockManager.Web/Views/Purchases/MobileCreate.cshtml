@@ -1,0 +1,282 @@
+@model LivestockManager.Application.DTOs.Purchases.PurchaseCreateDto
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Application.DTOs.Farms
+@using LivestockManager.Application.DTOs.Suppliers
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "New Purchase";
+    ViewData["PageIcon"] = "🛒";
+    ViewData["PageSubtitle"] = "Record supplier buy or livestock purchase";
+    ViewData["DockKey"] = "expense";
+
+    var suppliers = ViewData["Suppliers"] as IEnumerable<SupplierSummaryDto> ?? Enumerable.Empty<SupplierSummaryDto>();
+    var farms = ViewData["Farms"] as IEnumerable<FarmSummaryDto> ?? Enumerable.Empty<FarmSummaryDto>();
+    var activeLivestock = ViewData["ActiveLivestock"] as IEnumerable<dynamic> ?? Enumerable.Empty<dynamic>();
+
+    bool ModelHasErrors() => ViewContext.ModelState.ErrorCount > 0;
+}
+
+@if (ModelHasErrors())
+{
+    <div class="mob-val">
+        ⚠ Please correct these before saving:
+        <ul>
+            @foreach (var err in ViewContext.ModelState
+                .SelectMany(m => m.Value?.Errors.Select(e => e.ErrorMessage) ?? Enumerable.Empty<string>())
+                .Where(e => !string.IsNullOrWhiteSpace(e)))
+            {
+                <li>@err</li>
+            }
+        </ul>
+    </div>
+}
+
+<form asp-action="MobileCreate" method="post" id="purchaseForm">
+    <input type="hidden" asp-for="CompanyId" />
+
+    <div class="mob-card">
+        <div class="mob-card-title">📋 Purchase Details</div>
+        <div class="mob-field">
+            <label>Supplier <span class="text-danger">*</span></label>
+            <select asp-for="SupplierId" required>
+                <option value="">Select supplier...</option>
+                @foreach (var s in suppliers.OrderBy(x => x.Name))
+                {
+                    <option value="@s.Id">@s.Name @(string.IsNullOrWhiteSpace(s.Code) ? "" : $"({s.Code})")</option>
+                }
+            </select>
+            <span asp-validation-for="SupplierId" class="field-validation-error"></span>
+        </div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Farm</label>
+                    <select asp-for="FarmId">
+                        <option value="">— General —</option>
+                        @foreach (var f in farms.OrderBy(x => x.Name))
+                        {
+                            <option value="@f.Id">@f.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Currency</label>
+                    <select asp-for="Currency">
+                        @foreach (var c in Enum.GetValues(typeof(Currency)).OfType<Currency>())
+                        {
+                            <option value="@c">@c</option>
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label>Supplier Reference</label>
+            <input asp-for="SupplierReference" placeholder="PO #, invoice #, etc." />
+        </div>
+        <div class="mob-field" style="margin-bottom:0;">
+            <label>Notes</label>
+            <textarea asp-for="Notes" rows="2" placeholder="Additional details..."></textarea>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">🐑 Livestock Buy-ins (Active)</div>
+        <div id="livestockList">
+            @{ var lsIdx = 0; }
+            @foreach (var l in activeLivestock)
+            {
+                <div class="mob-check">
+                    <input type="checkbox" id="lsCheck_@lsIdx" class="ls-check" data-idx="@lsIdx" />
+                    <input type="hidden" name="lineLivestockId" value="@l.Id" class="ls-id" disabled />
+                    <span>
+                        <code>@l.LivestockId</code>
+                        <div class="meta-caption">@l.LivestockTypeId</div>
+                    </span>
+                </div>
+                <div class="ls-cost-wrap" id="lsCostWrap_@lsIdx" style="display:none;padding-left:2.2rem;">
+                    <div class="f-row">
+                        <div class="g ps">
+                            <div class="mob-field">
+                                <label>Unit Cost</label>
+                                <input type="number" step="0.01" name="lineUnitCost"
+                                       value="@(l.PurchaseAmount > 0 ? ((decimal)l.PurchaseAmount).ToString("F2") : "0.00")"
+                                       class="ls-cost" data-idx="@lsIdx" disabled />
+                            </div>
+                        </div>
+                        <div class="g pe">
+                            <div class="mob-field">
+                                <label>Qty</label>
+                                <input type="number" step="1" name="lineQty" value="1"
+                                       class="ls-qty d-none" data-idx="@lsIdx" disabled />
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="lineDesc" value="Livestock buy-in @l.LivestockId"
+                           class="ls-desc" data-idx="@lsIdx" disabled />
+                </div>
+                lsIdx++;
+            }
+            @if (!activeLivestock.Any())
+            {
+                <div class="mob-empty">No active livestock. Use Additional Items below.</div>
+            }
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">📦 Additional Line Items</div>
+        <div id="additionalLines">
+            @{ var lnIdx = 0; }
+            <div class="line-row" data-idx="@lnIdx">
+                <div class="mob-field">
+                    <label>Description</label>
+                    <input type="text" name="lineDesc" class="line-desc" placeholder="e.g. 50kg feed" />
+                </div>
+                <div class="f-row">
+                    <div class="g ps">
+                        <div class="mob-field">
+                            <label>Qty</label>
+                            <input type="number" name="lineQty" value="1" step="1" class="line-qty" />
+                        </div>
+                    </div>
+                    <div class="g">
+                        <div class="mob-field">
+                            <label>Unit Cost</label>
+                            <input type="number" name="lineUnitCost" value="0" step="0.01" class="line-cost" />
+                        </div>
+                    </div>
+                    <div class="g pe">
+                        <label>&nbsp;</label>
+                        <button type="button" class="mob-btn danger remove-line block">✕</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button type="button" class="mob-btn primary block" id="addLineBtn">＋ Add Item</button>
+    </div>
+
+    <div class="mob-totals-card">
+        <div class="label">Grand Total (Preview)</div>
+        <div class="total" id="grandTotal">$0.00</div>
+        <div class="breakdown">
+            <div><div class="k">Livestock</div><div class="v" id="lsSub">$0.00</div></div>
+            <div><div class="k">Items</div><div class="v" id="lnSub">$0.00</div></div>
+        </div>
+    </div>
+
+    <div class="mob-submit-row">
+        <div class="sub-row">
+            <a asp-action="MobileIndex" class="mob-submit-btn small-sub">Cancel</a>
+            <button type="submit" class="mob-submit-btn small-sub primary">💾 Save Draft</button>
+        </div>
+        <button type="submit" class="mob-submit-btn">🛒 Save Purchase</button>
+    </div>
+</form>
+
+@section Scripts {
+    <script>
+        (function () {
+            function fmt(n) { return '$' + (isNaN(n) ? '0.00' : n.toFixed(2)); }
+
+            function recalc() {
+                var ls = 0;
+                document.querySelectorAll('.ls-check').forEach(function (cb) {
+                    if (!cb.checked) return;
+                    var idx = cb.getAttribute('data-idx');
+                    var cost = parseFloat(document.querySelector('.ls-cost[data-idx="' + idx + '"]').value) || 0;
+                    var qty = 1;
+                    var q = document.querySelector('.ls-qty[data-idx="' + idx + '"]');
+                    if (q) qty = parseFloat(q.value) || 1;
+                    ls += qty * cost;
+                });
+                var ln = 0;
+                document.querySelectorAll('.line-row').forEach(function (row) {
+                    var d = row.querySelector('.line-desc').value;
+                    if (!d || !d.trim()) return;
+                    var q = parseFloat(row.querySelector('.line-qty').value) || 0;
+                    var c = parseFloat(row.querySelector('.line-cost').value) || 0;
+                    ln += q * c;
+                });
+                document.getElementById('lsSub').textContent = fmt(ls);
+                document.getElementById('lnSub').textContent = fmt(ln);
+                document.getElementById('grandTotal').textContent = fmt(ls + ln);
+            }
+
+            function syncLivestockRow(cb) {
+                var idx = cb.getAttribute('data-idx');
+                var cost = document.querySelector('.ls-cost[data-idx="' + idx + '"]');
+                var qty = document.querySelector('.ls-qty[data-idx="' + idx + '"]');
+                var desc = document.querySelector('.ls-desc[data-idx="' + idx + '"]');
+                var id = document.querySelector('.ls-id[data-idx="' + idx + '"]') || document.querySelectorAll('.ls-id')[parseInt(idx)];
+                var wrap = document.getElementById('lsCostWrap_' + idx);
+                var checked = cb.checked;
+                if (wrap) wrap.style.display = checked ? 'block' : 'none';
+                if (cost) cost.disabled = !checked;
+                if (qty) qty.disabled = !checked;
+                if (desc) desc.disabled = !checked;
+                if (id) id.disabled = !checked;
+            }
+
+            document.querySelectorAll('.ls-check').forEach(function (cb) {
+                cb.addEventListener('change', function () { syncLivestockRow(cb); recalc(); });
+            });
+            document.querySelectorAll('.ls-cost, .ls-qty').forEach(function (el) {
+                el.addEventListener('input', recalc);
+            });
+            document.querySelectorAll('.line-qty, .line-cost, .line-desc').forEach(function (el) {
+                el.addEventListener('input', recalc);
+            });
+
+            function attachRowEvents(row) {
+                row.querySelectorAll('.line-qty, .line-cost, .line-desc').forEach(function (el) {
+                    el.addEventListener('input', recalc);
+                });
+                row.querySelector('.remove-line')?.addEventListener('click', function () {
+                    row.remove();
+                    recalc();
+                });
+            }
+            document.querySelectorAll('.line-row').forEach(attachRowEvents);
+
+            document.getElementById('addLineBtn').addEventListener('click', function () {
+                var container = document.getElementById('additionalLines');
+                var rows = container.querySelectorAll('.line-row');
+                var nextIdx = rows.length;
+                var row = document.createElement('div');
+                row.className = 'line-row';
+                row.setAttribute('data-idx', nextIdx);
+                row.innerHTML = `
+                    <div class="mob-field">
+                        <label>Description</label>
+                        <input type="text" name="lineDesc" class="line-desc" placeholder="e.g. Supplies" />
+                    </div>
+                    <div class="f-row">
+                        <div class="g ps">
+                            <div class="mob-field">
+                                <label>Qty</label>
+                                <input type="number" name="lineQty" value="1" step="1" class="line-qty" />
+                            </div>
+                        </div>
+                        <div class="g">
+                            <div class="mob-field">
+                                <label>Unit Cost</label>
+                                <input type="number" name="lineUnitCost" value="0" step="0.01" class="line-cost" />
+                            </div>
+                        </div>
+                        <div class="g pe">
+                            <label>&nbsp;</label>
+                            <button type="button" class="mob-btn danger remove-line block">✕</button>
+                        </div>
+                    </div>`;
+                container.appendChild(row);
+                attachRowEvents(row);
+                recalc();
+            });
+
+            recalc();
+        })();
+    </script>
+}

@@ -482,6 +482,108 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
+    public async Task<IActionResult> MobileIndex(
+        Guid? farmId,
+        LivestockType? livestockTypeId,
+        LivestockStatus? status,
+        string? searchString,
+        CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync(ct);
+        var query = _db.Livestock
+            .Include(l => l.Farm)
+            .Where(l => l.CompanyId == companyId)
+            .AsQueryable();
+
+        if (farmId.HasValue) query = query.Where(l => l.FarmId == farmId.Value);
+        if (livestockTypeId.HasValue) query = query.Where(l => l.LivestockTypeId == livestockTypeId.Value);
+        if (status.HasValue) query = query.Where(l => l.Status == status.Value);
+        if (!string.IsNullOrWhiteSpace(searchString))
+        {
+            searchString = searchString.Trim();
+            query = query.Where(l =>
+                l.LivestockId.Contains(searchString) ||
+                (l.Comments != null && l.Comments.Contains(searchString)));
+        }
+
+        var items = await query
+            .OrderByDescending(l => l.AcquisitionDate)
+            .Select(l => new LivestockListItemDto
+            {
+                Id = l.Id,
+                LivestockId = l.LivestockId,
+                LivestockType = l.LivestockTypeId,
+                FarmName = l.Farm != null ? l.Farm.Name : null,
+                AcquisitionDate = l.AcquisitionDate,
+                InitialWeight = l.InitialWeight,
+                CurrentWeight = l.CurrentWeight,
+                Status = l.Status,
+                DaysInHerd = l.Status == LivestockStatus.Active
+                    ? (int)Math.Floor((DateTimeOffset.Now - l.AcquisitionDate).TotalDays)
+                    : l.DischargeDate.HasValue
+                        ? (int)Math.Floor((l.DischargeDate.Value - l.AcquisitionDate).TotalDays)
+                        : (int)Math.Floor((DateTimeOffset.Now - l.AcquisitionDate).TotalDays),
+                SoldAmount = l.SoldAmount,
+                BasicProfitLoss = l.BasicProfitLoss
+            })
+            .Take(200)
+            .ToListAsync(ct);
+
+        ViewData["FarmId"] = farmId;
+        ViewData["LivestockTypeId"] = livestockTypeId;
+        ViewData["Status"] = status;
+        ViewData["SearchString"] = searchString;
+        ViewData["FarmOptions"] = await GetFarmSelectListAsync(farmId, ct);
+        ViewData["GetStatusBadgeClass"] = (Func<LivestockStatus, string>)GetStatusBadgeClass;
+        ViewData["GetLivestockTypeDescription"] = (Func<LivestockType, string>)GetLivestockTypeDescription;
+        return View("MobileIndex", items);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanManageLivestock")]
+    public async Task<IActionResult> MobileRegister(CancellationToken ct)
+    {
+        var vm = new LivestockRegisterViewModel { FarmOptions = await GetFarmSelectListAsync(null, ct) };
+        return View("MobileRegister", vm);
+    }
+
+    [HttpPost]
+    [Authorize(Policy = "CanManageLivestock")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> MobileRegister(LivestockRegisterViewModel vm, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            return View("MobileRegister", vm);
+        }
+        var companyId = await GetCompanyIdAsync(ct);
+        var dto = new LivestockRegisterDto
+        {
+            CompanyId = companyId,
+            FarmId = vm.FarmId,
+            LivestockType = vm.LivestockTypeId,
+            AcquisitionDate = vm.AcquisitionDate,
+            InitialWeight = vm.InitialWeight,
+            WeightUnit = vm.WeightUnit,
+            PurchaseAmount = vm.PurchaseAmount,
+            Comments = vm.Comments
+        };
+        try
+        {
+            await _livestockService.RegisterAsync(dto, companyId, ct);
+            return RedirectToAction(nameof(MobileIndex));
+        }
+        catch (Exception ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            return View("MobileRegister", vm);
+        }
+    }
+
+    [HttpGet]
     [Authorize(Roles = $"{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
     public async Task<IActionResult> Discharge(Guid id, CancellationToken ct)
     {
