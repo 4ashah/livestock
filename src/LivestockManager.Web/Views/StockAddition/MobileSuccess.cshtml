@@ -1,0 +1,104 @@
+@using LivestockManager.Application.DTOs.Livestock
+@using LivestockManager.Domain.Enums
+@model Guid
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Complete";
+    ViewData["PageIcon"] = "✅";
+    ViewData["PageSubtitle"] = "Livestock added successfully";
+    ViewData["DockKey"] = "stock";
+
+    var detail = ViewData["LivestockDetail"] as LivestockDetailDto;
+    Func<LivestockType, string> getTypeDesc = t => t switch
+    {
+        LivestockType.Ah => "Ah - Purchased ram",
+        LivestockType.Su => "Su - Uncastrated ram",
+        LivestockType.Sa => "Sa - Purchased ewe",
+        LivestockType.Ad => "Ad - Bred ram",
+        LivestockType.Sd => "Sd - Bred ewe",
+        _ => t.ToString()
+    };
+    var isNewborn = detail != null && (detail.LivestockTypeId == LivestockType.Ad || detail.LivestockTypeId == LivestockType.Sd);
+}
+
+<div class="mob-card" style="background:linear-gradient(135deg, #2d6a4f 0%, #40916c 100%); color:white; border:none;">
+    <div class="mob-card-title" style="color:white; border:none;">
+        <div style="font-size:2.5rem;">✅</div>
+        <div>
+            <div style="font-weight:700;font-size:1.3rem;">Livestock Added!</div>
+            <div style="opacity:0.85;">Record saved to herd registry</div>
+        </div>
+    </div>
+</div>
+
+@if (detail != null)
+{
+    <div class="mob-card">
+        <div class="mob-card-title">📋 Summary</div>
+        <div class="mob-field">
+            <label>Livestock ID</label>
+            <div style="font-weight:700;font-size:1.25rem; font-family:monospace;">@detail.LivestockId</div>
+        </div>
+        <div class="mob-field">
+            <label>Type</label>
+            <div style="font-weight:600;">@getTypeDesc(detail.LivestockTypeId)</div>
+        </div>
+        <div class="mob-field">
+            <label>Farm</label>
+            <div style="font-weight:600;">@detail.FarmName</div>
+        </div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Starting Weight</label>
+                    <div style="font-weight:600;">@detail.InitialWeight @detail.WeightUnit</div>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Date</label>
+                    <div style="font-weight:600;">@detail.AcquisitionDate.ToString("yyyy-MM-dd")</div>
+                </div>
+            </div>
+        </div>
+        @if (detail.PurchaseAmount > 0)
+        {
+            <div class="mob-field" style="margin-bottom:0;">
+                <label>Purchase Cost</label>
+                <div style="font-weight:700;color:#2d6a4f;font-size:1.15rem;">$@detail.PurchaseAmount.ToString("N2")</div>
+            </div>
+        }
+    </div>
+}
+
+<div class="mob-card">
+    <div class="mob-card-title">🔁 What's Next?</div>
+    <a asp-action="Details" asp-controller="Livestock" asp-route-id="@Model" class="mob-btn w-100" style="justify-content:flex-start;">
+        <span style="font-size:1.25rem;margin-right:0.75rem;">👁</span>
+        <div class="text-left">
+            <div style="font-weight:600;">View Livestock Details</div>
+            <div class="small text-muted">Full record with weights and activities</div>
+        </div>
+    </a>
+    <a asp-action="MobilePurchase" class="mob-btn w-100" style="justify-content:flex-start;">
+        <span style="font-size:1.25rem;margin-right:0.75rem;">🛒</span>
+        <div class="text-left">
+            <div style="font-weight:600;">Add Another Purchase</div>
+            <div class="small text-muted">Record another supplier buy-in</div>
+        </div>
+    </a>
+    <a asp-action="MobileNewborn" class="mob-btn w-100" style="justify-content:flex-start;--btn-bg:#2d6a4f;">
+        <span style="font-size:1.25rem;margin-right:0.75rem;">🐣</span>
+        <div class="text-left">
+            <div style="font-weight:600;">Add Another Newborn</div>
+            <div class="small text-muted">Record another on-farm birth</div>
+        </div>
+    </a>
+    <a asp-action="MobileIndex" asp-controller="Livestock" class="mob-btn w-100" style="justify-content:flex-start;--btn-bg:#6c757d;--btn-hover-bg:#5a6268;">
+        <span style="font-size:1.25rem;margin-right:0.75rem;">📋</span>
+        <div class="text-left">
+            <div style="font-weight:600;">Return to Stock List</div>
+            <div class="small text-muted">Browse all livestock records</div>
+        </div>
+    </a>
+</div>

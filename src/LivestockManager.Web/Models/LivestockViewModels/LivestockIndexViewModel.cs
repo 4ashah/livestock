@@ -8,6 +8,7 @@ public class LivestockIndexViewModel
     public Guid? FarmId { get; set; }
     public LivestockType? LivestockTypeId { get; set; }
     public LivestockStatus? Status { get; set; }
+    public StockSource? SourceFilter { get; set; }
     public string? SearchString { get; set; }
     public List<LivestockListItemDto> Items { get; set; } = new();
     public SelectList? FarmOptions { get; set; }

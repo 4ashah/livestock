@@ -199,8 +199,11 @@
             else if (here === '/Purchases' || here === '/Purchases/Index' || here.indexOf('/Purchases/Index') === 0) dest = '/Purchases/MobileIndex';
             else if (here === '/Purchases/Create' || here.indexOf('/Purchases/Create') === 0) dest = '/Purchases/MobileCreate';
             else if (here === '/LivestockLosses' || here === '/LivestockLosses/Index' || here.indexOf('/LivestockLosses/Index') === 0) dest = '/LivestockLosses/MobileIndex' + search;
-            else if (here === '/LivestockLosses/Create' || here.indexOf('/LivestockLosses/Create') === 0) dest = '/LivestockLosses/MobileCreate' + search;
+            if (here === '/LivestockLosses/Create' || here.indexOf('/LivestockLosses/Create') === 0) dest = '/LivestockLosses/MobileCreate' + search;
             else if (here === '/Reports/ProfitLoss' || here.indexOf('/Reports/ProfitLoss') === 0) dest = '/Reports/MobileProfitLoss' + search;
+            else if (here === '/StockAddition' || here === '/StockAddition/Index' || here.indexOf('/StockAddition/Index') === 0) dest = '/StockAddition/MobileIndex' + search;
+            else if (here === '/StockAddition/Purchase' || here.indexOf('/StockAddition/Purchase') === 0) dest = '/StockAddition/MobilePurchase';
+            else if (here === '/StockAddition/Newborn' || here.indexOf('/StockAddition/Newborn') === 0) dest = '/StockAddition/MobileNewborn';
             if (dest && typeof window !== 'undefined' && dest !== fullHere) window.location.replace(noCache(dest));
         })();
     </script>
@@ -290,6 +293,14 @@
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Livestock")" asp-area="" asp-controller="Livestock" asp-action="Index">
                                 <span>&#128017;</span><span>Livestock</span>
+                            </a>
+                        </li>
+                    }
+                    @if (canManageLivestock)
+                    {
+                        <li class="nav-item">
+                            <a class="nav-link @ActiveIf("StockAddition")" asp-area="" asp-controller="StockAddition" asp-action="Index">
+                                <span>&#10133;</span><span>Stock Addition</span>
                             </a>
                         </li>
                     }

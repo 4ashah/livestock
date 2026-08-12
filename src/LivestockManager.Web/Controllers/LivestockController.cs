@@ -94,6 +94,7 @@ public class LivestockController : Controller
         Guid? farmId,
         LivestockType? livestockTypeId,
         LivestockStatus? status,
+        StockSource? sourceFilter,
         string? searchString,
         CancellationToken ct)
     {
@@ -113,6 +114,9 @@ public class LivestockController : Controller
         if (status.HasValue)
             query = query.Where(l => l.Status == status.Value);
 
+        if (sourceFilter.HasValue)
+            query = query.Where(l => l.StockSource == sourceFilter.Value);
+
         if (!string.IsNullOrWhiteSpace(searchString))
         {
             searchString = searchString.Trim();
@@ -129,6 +133,8 @@ public class LivestockController : Controller
                 LivestockId = l.LivestockId,
                 LivestockType = l.LivestockTypeId,
                 FarmName = l.Farm != null ? l.Farm.Name : null,
+                StockSource = l.StockSource,
+                DateOfBirth = l.DateOfBirth,
                 AcquisitionDate = l.AcquisitionDate,
                 InitialWeight = l.InitialWeight,
                 CurrentWeight = l.CurrentWeight,
@@ -148,6 +154,7 @@ public class LivestockController : Controller
             FarmId = farmId,
             LivestockTypeId = livestockTypeId,
             Status = status,
+            SourceFilter = sourceFilter,
             SearchString = searchString,
             Items = items,
             FarmOptions = await GetFarmSelectListAsync(farmId, ct)
@@ -156,6 +163,7 @@ public class LivestockController : Controller
         ViewData["FarmId"] = farmId;
         ViewData["LivestockTypeId"] = livestockTypeId;
         ViewData["Status"] = status;
+        ViewData["SourceFilter"] = sourceFilter;
         ViewData["SearchString"] = searchString;
         ViewData["GetStatusBadgeClass"] = (Func<LivestockStatus, string>)GetStatusBadgeClass;
         ViewData["GetStatusDescription"] = (Func<LivestockStatus, string>)GetStatusDescription;
@@ -179,6 +187,12 @@ public class LivestockController : Controller
             return NotFound();
         }
 
+        var entity = await _db.Livestock
+            .AsNoTracking()
+            .Where(l => l.Id == id && l.CompanyId == companyId)
+            .Select(l => new { l.StockSource, l.DateOfBirth, l.MotherLivestockId, l.FatherLivestockId })
+            .FirstOrDefaultAsync(ct);
+
         var vm = new LivestockDetailsViewModel
         {
             Id = detail.Id,
@@ -186,6 +200,12 @@ public class LivestockController : Controller
             Type = detail.LivestockTypeId,
             FarmName = detail.FarmName,
             FarmId = detail.FarmId,
+            StockSource = entity?.StockSource ?? StockSource.Purchased,
+            DateOfBirth = entity?.DateOfBirth ?? detail.DateOfBirth,
+            MotherLivestockId = entity?.MotherLivestockId,
+            FatherLivestockId = entity?.FatherLivestockId,
+            MotherLivestockIdCode = detail.MotherLivestockIdCode,
+            FatherLivestockIdCode = detail.FatherLivestockIdCode,
             AcquisitionDate = detail.AcquisitionDate,
             InitialWeight = detail.InitialWeight,
             InitialWeightUnit = detail.WeightUnit,
@@ -487,6 +507,7 @@ public class LivestockController : Controller
         Guid? farmId,
         LivestockType? livestockTypeId,
         LivestockStatus? status,
+        StockSource? sourceFilter,
         string? searchString,
         CancellationToken ct)
     {
@@ -499,6 +520,7 @@ public class LivestockController : Controller
         if (farmId.HasValue) query = query.Where(l => l.FarmId == farmId.Value);
         if (livestockTypeId.HasValue) query = query.Where(l => l.LivestockTypeId == livestockTypeId.Value);
         if (status.HasValue) query = query.Where(l => l.Status == status.Value);
+        if (sourceFilter.HasValue) query = query.Where(l => l.StockSource == sourceFilter.Value);
         if (!string.IsNullOrWhiteSpace(searchString))
         {
             searchString = searchString.Trim();
@@ -515,6 +537,8 @@ public class LivestockController : Controller
                 LivestockId = l.LivestockId,
                 LivestockType = l.LivestockTypeId,
                 FarmName = l.Farm != null ? l.Farm.Name : null,
+                StockSource = l.StockSource,
+                DateOfBirth = l.DateOfBirth,
                 AcquisitionDate = l.AcquisitionDate,
                 InitialWeight = l.InitialWeight,
                 CurrentWeight = l.CurrentWeight,
@@ -533,6 +557,7 @@ public class LivestockController : Controller
         ViewData["FarmId"] = farmId;
         ViewData["LivestockTypeId"] = livestockTypeId;
         ViewData["Status"] = status;
+        ViewData["SourceFilter"] = sourceFilter;
         ViewData["SearchString"] = searchString;
         ViewData["FarmOptions"] = await GetFarmSelectListAsync(farmId, ct);
         ViewData["GetStatusBadgeClass"] = (Func<LivestockStatus, string>)GetStatusBadgeClass;

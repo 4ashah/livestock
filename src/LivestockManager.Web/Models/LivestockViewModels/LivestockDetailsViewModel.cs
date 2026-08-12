@@ -11,6 +11,12 @@ public class LivestockDetailsViewModel
     public LivestockType Type { get; set; }
     public string? FarmName { get; set; }
     public Guid? FarmId { get; set; }
+    public StockSource StockSource { get; set; }
+    public DateTimeOffset? DateOfBirth { get; set; }
+    public Guid? MotherLivestockId { get; set; }
+    public Guid? FatherLivestockId { get; set; }
+    public string? MotherLivestockIdCode { get; set; }
+    public string? FatherLivestockIdCode { get; set; }
     public DateTimeOffset AcquisitionDate { get; set; }
     public decimal InitialWeight { get; set; }
     public WeightUnit InitialWeightUnit { get; set; }

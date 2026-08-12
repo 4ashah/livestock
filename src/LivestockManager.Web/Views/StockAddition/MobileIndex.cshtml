@@ -1,0 +1,44 @@
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Stock Addition";
+    ViewData["PageIcon"] = "🐑";
+    ViewData["PageSubtitle"] = "Add purchased or newborn livestock";
+    ViewData["DockKey"] = "stock";
+}
+
+<div class="mob-card" style="cursor:pointer;" onclick="location.href='@Url.Action("MobilePurchase")'">
+    <div class="mob-card-title" style="display:flex;align-items:center;gap:0.75rem;">
+        <div style="font-size:2rem;">🛒</div>
+        <div>
+            <div style="font-weight:600;font-size:1.15rem;">New Purchase</div>
+            <div class="small text-muted">Record supplier buy-in</div>
+        </div>
+    </div>
+    <div class="small text-muted mt-2 mb-3">
+        Use this for livestock purchased from suppliers:
+        <span class="pill info" style="margin:0 2px;">Ah</span>
+        <span class="pill info" style="margin:0 2px;">Su</span>
+        <span class="pill info" style="margin:0 2px;">Sa</span>
+    </div>
+    <a asp-action="MobilePurchase" class="mob-btn w-100" style="justify-content:center;">
+        🛒 Open Purchase Form
+    </a>
+</div>
+
+<div class="mob-card" style="cursor:pointer;" onclick="location.href='@Url.Action("MobileNewborn")'">
+    <div class="mob-card-title" style="display:flex;align-items:center;gap:0.75rem;">
+        <div style="font-size:2rem;">🐣</div>
+        <div>
+            <div style="font-weight:600;font-size:1.15rem;">Newborn</div>
+            <div class="small text-muted">Record on-farm birth</div>
+        </div>
+    </div>
+    <div class="small text-muted mt-2 mb-3">
+        Use this for newborns from your breeding program:
+        <span class="pill ok" style="margin:0 2px;">Ad</span>
+        <span class="pill ok" style="margin:0 2px;">Sd</span>
+    </div>
+    <a asp-action="MobileNewborn" class="mob-btn w-100" style="justify-content:center;--btn-bg:#2d6a4f;">
+        🐣 Open Newborn Form
+    </a>
+</div>

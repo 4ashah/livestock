@@ -35,6 +35,16 @@ public class LivestockConfiguration : IEntityTypeConfiguration<Livestock>
         builder.HasIndex(l => new { l.CompanyId, l.LivestockId })
             .IsUnique();
 
+        builder.HasIndex(l => new { l.CompanyId, l.StockSource });
+
+        builder.HasIndex(l => l.MotherLivestockId);
+
+        builder.HasIndex(l => l.FatherLivestockId);
+
+        builder.HasIndex(l => l.DateOfBirth);
+
+        builder.HasIndex(l => l.AcquisitionDate);
+
         builder.HasOne(l => l.Company)
             .WithMany(c => c.Livestock)
             .HasForeignKey(l => l.CompanyId)
@@ -43,6 +53,16 @@ public class LivestockConfiguration : IEntityTypeConfiguration<Livestock>
         builder.HasOne(l => l.Farm)
             .WithMany(f => f.Livestock)
             .HasForeignKey(l => l.FarmId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(l => l.Mother)
+            .WithMany()
+            .HasForeignKey(l => l.MotherLivestockId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(l => l.Father)
+            .WithMany()
+            .HasForeignKey(l => l.FatherLivestockId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(l => l.Weights)

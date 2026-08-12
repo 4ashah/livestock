@@ -1,0 +1,111 @@
+@using LivestockManager.Application.DTOs.Livestock
+@using LivestockManager.Domain.Enums
+@model Guid
+@{
+    ViewData["Title"] = "Stock Addition Complete";
+    ViewData["DockKey"] = "stock";
+    var detail = ViewData["LivestockDetail"] as LivestockDetailDto;
+    var getTypeDesc = new Func<LivestockType, string>(t => t switch
+    {
+        LivestockType.Ah => "Ah - Purchased castrated ram",
+        LivestockType.Su => "Su - Uncastrated ram",
+        LivestockType.Sa => "Sa - Purchased ewe",
+        LivestockType.Ad => "Ad - Bred castrated ram",
+        LivestockType.Sd => "Sd - Bred ewe",
+        _ => t.ToString()
+    });
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <h1 class="h2">✅ Stock Addition Complete</h1>
+    <div>
+        <a asp-action="Index" asp-controller="Livestock" class="btn btn-outline-secondary">&larr; Livestock List</a>
+    </div>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">🐑 Livestock Successfully Added</h4>
+            </div>
+            <div class="card-body p-4">
+                @if (detail != null)
+                {
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted mb-1">Livestock ID</div>
+                                <div class="fw-bold fs-5">@detail.LivestockId</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted mb-1">Type</div>
+                                <div class="fw-bold fs-5">@getTypeDesc(detail.LivestockTypeId)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted mb-1">Farm</div>
+                                <div class="fw-bold fs-5">@detail.FarmName</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted mb-1">Starting Weight</div>
+                                <div class="fw-bold fs-5">@detail.InitialWeight @detail.WeightUnit</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="border rounded p-3 bg-light">
+                                <div class="small text-muted mb-1">Acquisition Date</div>
+                                <div class="fw-bold fs-5">@detail.AcquisitionDate.ToString("yyyy-MM-dd")</div>
+                            </div>
+                        </div>
+                        @if (detail.PurchaseAmount > 0)
+                        {
+                            <div class="col-md-6">
+                                <div class="border rounded p-3 bg-light">
+                                    <div class="small text-muted mb-1">Purchase Cost</div>
+                                    <div class="fw-bold fs-5">$@detail.PurchaseAmount.ToString("N2")</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p>Livestock record (ID: @Model) has been successfully created.</p>
+                }
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <a asp-action="Details" asp-controller="Livestock" asp-route-id="@Model" class="btn btn-primary w-100 py-3">
+                            👁 View Livestock Details
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a asp-action="Purchase" class="btn btn-outline-primary w-100 py-3">
+                            🛒 Add Another Purchase
+                        </a>
+                    </div>
+                    <div class="col-md-4">
+                        <a asp-action="Newborn" class="btn btn-outline-success w-100 py-3">
+                            🐣 Add Another Newborn
+                        </a>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a asp-action="Index" asp-controller="Livestock" class="btn btn-outline-secondary w-100 py-2">
+                        📋 Return to Livestock List
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

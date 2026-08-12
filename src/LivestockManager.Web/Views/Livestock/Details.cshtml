@@ -62,6 +62,47 @@
                     <dt class="col-sm-4 col-md-3 small text-muted">Acquisition Date</dt>
                     <dd class="col-sm-8 col-md-9">@Model.AcquisitionDate.ToString("yyyy-MM-dd")</dd>
 
+                    <dt class="col-sm-4 col-md-3 small text-muted">Stock Source</dt>
+                    <dd class="col-sm-8 col-md-9">
+                        @if (Model.StockSource == StockSource.Newborn)
+                        {
+                            <span class="badge bg-success">NEWBORN</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary">PURCHASED</span>
+                        }
+                    </dd>
+
+                    @if (Model.StockSource == StockSource.Newborn)
+                    {
+                        if (Model.DateOfBirth.HasValue)
+                        {
+                            <dt class="col-sm-4 col-md-3 small text-muted">Date of Birth</dt>
+                            <dd class="col-sm-8 col-md-9">@Model.DateOfBirth.Value.ToString("yyyy-MM-dd")</dd>
+                        }
+                        if (Model.MotherLivestockId.HasValue)
+                        {
+                            <dt class="col-sm-4 col-md-3 small text-muted">Mother</dt>
+                            <dd class="col-sm-8 col-md-9">
+                                <a asp-action="Details" asp-route-id="@Model.MotherLivestockId.Value"
+                                   class="text-decoration-underline">
+                                    @(Model.MotherLivestockIdCode ?? Model.MotherLivestockId.Value.ToString())
+                                </a>
+                            </dd>
+                        }
+                        if (Model.FatherLivestockId.HasValue)
+                        {
+                            <dt class="col-sm-4 col-md-3 small text-muted">Father</dt>
+                            <dd class="col-sm-8 col-md-9">
+                                <a asp-action="Details" asp-route-id="@Model.FatherLivestockId.Value"
+                                   class="text-decoration-underline">
+                                    @(Model.FatherLivestockIdCode ?? Model.FatherLivestockId.Value.ToString())
+                                </a>
+                            </dd>
+                        }
+                    }
+
                     <dt class="col-sm-4 col-md-3 small text-muted">Initial Weight</dt>
                     <dd class="col-sm-8 col-md-9">@Model.InitialWeight @Model.InitialWeightUnit</dd>
 

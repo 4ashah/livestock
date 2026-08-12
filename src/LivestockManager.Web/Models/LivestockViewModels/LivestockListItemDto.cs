@@ -8,6 +8,8 @@ public class LivestockListItemDto
     public string LivestockId { get; set; } = string.Empty;
     public LivestockType LivestockType { get; set; }
     public string? FarmName { get; set; }
+    public StockSource StockSource { get; set; }
+    public DateTimeOffset? DateOfBirth { get; set; }
     public DateTimeOffset AcquisitionDate { get; set; }
     public decimal InitialWeight { get; set; }
     public decimal? CurrentWeight { get; set; }

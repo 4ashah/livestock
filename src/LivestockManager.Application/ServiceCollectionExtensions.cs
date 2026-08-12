@@ -21,6 +21,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<Services.Companies.ICompanyService, Services.Companies.CompanyService>();
         services.AddScoped<Services.Farms.IFarmService, Services.Farms.FarmService>();
 
+        services.AddSingleton<Services.StockAddition.IStockAdditionIdempotencyCache, Services.StockAddition.StockAdditionIdempotencyCache>();
+        services.AddScoped<Services.StockAddition.IStockAdditionService, Services.StockAddition.StockAdditionService>();
+
         return services;
     }
 }

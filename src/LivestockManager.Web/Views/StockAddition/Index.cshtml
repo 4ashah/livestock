@@ -1,0 +1,49 @@
+@{
+    ViewData["Title"] = "Stock Addition";
+    ViewData["DockKey"] = "stock";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <h1 class="h2">🐑 Stock Addition</h1>
+    <div>
+        <a asp-action="Index" asp-controller="Livestock" class="btn btn-outline-secondary">&larr; Back to Livestock</a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body p-5 text-center">
+                <div class="mb-4">
+                    <div style="font-size: 4rem;">🛒</div>
+                </div>
+                <h3 class="card-title mb-3">New Purchase</h3>
+                <p class="card-text text-muted mb-4">
+                    Record livestock purchased from a supplier. Use this for bought-in animals
+                    (Ah: purchased castrated ram, Su: uncastrated ram, Sa: purchased ewe).
+                </p>
+                <a asp-action="Purchase" class="btn btn-primary btn-lg px-5">
+                    🛒 Record Purchase
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body p-5 text-center">
+                <div class="mb-4">
+                    <div style="font-size: 4rem;">🐣</div>
+                </div>
+                <h3 class="card-title mb-3">Newborn</h3>
+                <p class="card-text text-muted mb-4">
+                    Record newborn lambs from your breeding program. Use this for animals born on the farm
+                    (Ad: bred castrated ram, Sd: bred ewe). Select mother ewe and father ram.
+                </p>
+                <a asp-action="Newborn" class="btn btn-success btn-lg px-5">
+                    🐣 Record Newborn
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

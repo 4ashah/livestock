@@ -16,6 +16,7 @@
     var farmId = ViewData["FarmId"] as Guid?;
     var typeId = ViewData["LivestockTypeId"] as LivestockType?;
     var status = ViewData["Status"] as LivestockStatus?;
+    var sourceFilter = ViewData["SourceFilter"] as StockSource?;
     var search = ViewData["SearchString"] as string;
     var farmOptions = ViewData["FarmOptions"] as SelectList;
     var getTypeDesc = ViewData["GetLivestockTypeDescription"] as Func<LivestockType, string>;
@@ -29,6 +30,12 @@
                         .DefaultIfEmpty(0)
                         .Average();
     var totalPnl = list.Sum(x => x.BasicProfitLoss ?? 0);
+
+    var qsPreserve = new Dictionary<string, string?>();
+    if (farmId.HasValue) qsPreserve["farmId"] = farmId.Value.ToString();
+    if (typeId.HasValue) qsPreserve["livestockTypeId"] = typeId.Value.ToString();
+    if (status.HasValue) qsPreserve["status"] = status.Value.ToString();
+    if (!string.IsNullOrWhiteSpace(search)) qsPreserve["searchString"] = search;
 }
 
 <div class="mob-card">
@@ -106,6 +113,26 @@
     </div>
 </div>
 
+<div class="mob-card">
+    <div class="mob-card-title">Source Filter</div>
+    <div class="chip-tabs" style="grid-template-columns: repeat(3, 1fr);">
+        @{
+            var allActive = !sourceFilter.HasValue ? "active" : null;
+            var purActive = sourceFilter == StockSource.Purchased ? "active" : null;
+            var newbActive = sourceFilter == StockSource.Newborn ? "active" : null;
+            var allQs = new Dictionary<string, string?>(qsPreserve);
+            allQs["sourceFilter"] = null;
+            var purQs = new Dictionary<string, string?>(qsPreserve);
+            purQs["sourceFilter"] = "Purchased";
+            var newbQs = new Dictionary<string, string?>(qsPreserve);
+            newbQs["sourceFilter"] = "Newborn";
+        }
+        <a asp-action="MobileIndex" asp-all-route-data="allQs" class="chip-tab @allActive">ALL</a>
+        <a asp-action="MobileIndex" asp-all-route-data="purQs" class="chip-tab @purActive">PURCHASED</a>
+        <a asp-action="MobileIndex" asp-all-route-data="newbQs" class="chip-tab @newbActive">NEWBORN</a>
+    </div>
+</div>
+
 <div class="mob-list-cards">
     @if (!list.Any())
     {
@@ -136,6 +163,11 @@
                         <code>@l.LivestockId</code>
                         <div class="pill-stack">
                             <span class="pill @statusPill.Item2">@statusPill.Item1</span>
+                            @{
+                                var srcPillClass = l.StockSource == StockSource.Newborn ? "good" : "info";
+                                var srcPillLabel = l.StockSource == StockSource.Newborn ? "NEWBORN" : "PURCHASED";
+                            }
+                            <span class="pill @srcPillClass">@srcPillLabel</span>
                             @if (!string.IsNullOrWhiteSpace(l.FarmName))
                             { <span class="pill info">@l.FarmName</span> }
                         </div>

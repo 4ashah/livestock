@@ -253,7 +253,10 @@ public class LivestockService : ILivestockService
 
     public async Task<LivestockDetailDto> GetByIdAsync(Guid id, Guid companyId, CancellationToken ct)
     {
-        var livestock = await _db.Livestock.FirstOrDefaultAsync(l => l.Id == id && l.CompanyId == companyId, ct)
+        var livestock = await _db.Livestock
+            .Include(l => l.Mother)
+            .Include(l => l.Father)
+            .FirstOrDefaultAsync(l => l.Id == id && l.CompanyId == companyId, ct)
             ?? throw new DomainException("Livestock not found.");
 
         var farm = livestock.FarmId.HasValue ? await _db.Farms.FirstOrDefaultAsync(f => f.Id == livestock.FarmId && f.CompanyId == companyId, ct) : null;
@@ -272,6 +275,8 @@ public class LivestockService : ILivestockService
             FarmName = farm?.Name,
             LivestockId = livestock.LivestockId,
             LivestockTypeId = livestock.LivestockTypeId,
+            StockSource = livestock.StockSource,
+            DateOfBirth = livestock.DateOfBirth,
             AcquisitionDate = livestock.AcquisitionDate,
             InitialWeight = livestock.InitialWeight,
             WeightUnit = livestock.WeightUnit,
@@ -280,6 +285,8 @@ public class LivestockService : ILivestockService
             CurrentWeightDate = livestock.CurrentWeightDate,
             Status = livestock.Status,
             Comments = livestock.Comments,
+            MotherLivestockIdCode = livestock.Mother?.LivestockId,
+            FatherLivestockIdCode = livestock.Father?.LivestockId,
             DischargeDate = livestock.DischargeDate,
             DischargeCondition = livestock.DischargeCondition,
             DischargeDetails = livestock.DischargeDetails,

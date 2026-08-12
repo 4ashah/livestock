@@ -1,0 +1,137 @@
+@model LivestockManager.Web.Models.StockAdditionViewModels.StockAdditionPurchaseViewModel
+@using LivestockManager.Domain.Enums
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "New Purchase";
+    ViewData["PageIcon"] = "🛒";
+    ViewData["PageSubtitle"] = "Record supplier livestock purchase";
+    ViewData["DockKey"] = "stock";
+
+    bool ModelHasErrors() => ViewContext.ModelState.ErrorCount > 0;
+}
+
+@if (ModelHasErrors())
+{
+    <div class="mob-val">
+        ⚠ Please correct these before saving:
+        <ul>
+            @foreach (var err in ViewContext.ModelState
+                .SelectMany(m => m.Value?.Errors.Select(e => e.ErrorMessage) ?? Enumerable.Empty<string>())
+                .Where(e => !string.IsNullOrWhiteSpace(e)))
+            {
+                <li>@err</li>
+            }
+        </ul>
+    </div>
+}
+
+<form asp-action="MobilePurchase" method="post" id="purchaseForm">
+    <input type="hidden" asp-for="IdempotencyKey" />
+
+    <div class="mob-card">
+        <div class="mob-card-title">📍 Supplier & Farm</div>
+        <div class="mob-field">
+            <label>Supplier <span class="text-danger">*</span></label>
+            <select asp-for="SupplierId" asp-items="Model.SupplierOptions" required>
+                <option value="">Select a supplier...</option>
+            </select>
+            <span asp-validation-for="SupplierId" class="field-validation-error"></span>
+        </div>
+        <div class="mob-field">
+            <label>Farm <span class="text-danger">*</span></label>
+            <select asp-for="FarmId" asp-items="Model.FarmOptions" required>
+                <option value="">Select a farm...</option>
+            </select>
+            <span asp-validation-for="FarmId" class="field-validation-error"></span>
+        </div>
+        <div class="mob-field">
+            <label>Purchase Date <span class="text-danger">*</span></label>
+            <input type="date" asp-for="PurchaseDate"
+                   value="@Model.PurchaseDate.LocalDateTime.ToString("yyyy-MM-dd")"
+                   max="@DateTime.Today.ToString("yyyy-MM-dd")" required />
+            <span asp-validation-for="PurchaseDate" class="field-validation-error"></span>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">🏷 Livestock Type <span class="text-danger">*</span></div>
+        <div class="type-grid">
+            @{
+                var types = new[]
+                {
+                    new { Key = LivestockType.Ah, Label = "Ah", Desc = "Purchased ram (castrated)", Color = "#2d6a4f" },
+                    new { Key = LivestockType.Su, Label = "Su", Desc = "Uncastrated ram", Color = "#40916c" },
+                    new { Key = LivestockType.Sa, Label = "Sa", Desc = "Purchased ewe", Color = "#00a896" }
+                };
+            }
+            @foreach (var t in types)
+            {
+                <div class="type-cell">
+                    <input type="radio" asp-for="LivestockTypeId" value="@t.Key" id="t@(t.Key)" />
+                    <label class="type-card" for="t@(t.Key)" style="--tc: @t.Color;">
+                        <div class="type-top">
+                            <div class="type-code">@t.Label</div>
+                            <div class="type-dot"></div>
+                        </div>
+                        <div class="type-desc">@t.Desc</div>
+                    </label>
+                </div>
+            }
+        </div>
+        <span asp-validation-for="LivestockTypeId" class="field-validation-error"></span>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">⚖ Weight & Cost</div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Purchase Weight <span class="text-danger">*</span></label>
+                    <input type="number" step="0.01" min="0.01" asp-for="PurchaseWeight" id="purchaseWeight" required
+                           placeholder="e.g. 45.5" />
+                    <span asp-validation-for="PurchaseWeight" class="field-validation-error"></span>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Unit <span class="text-danger">*</span></label>
+                    <select asp-for="WeightUnit" required>
+                        @foreach (var w in Enum.GetValues(typeof(WeightUnit)).OfType<WeightUnit>())
+                        {
+                            <option value="@w" selected="@(Model.WeightUnit == w)">@w</option>
+                        }
+                    </select>
+                    <span asp-validation-for="WeightUnit" class="field-validation-error"></span>
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label>Purchase Cost ($) <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" min="0" asp-for="PurchaseCost" id="purchaseCost"
+                   placeholder="e.g. 250.00" required />
+            <span asp-validation-for="PurchaseCost" class="field-validation-error"></span>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">📝 Reference & Notes</div>
+        <div class="mob-field">
+            <label>Supplier Reference</label>
+            <input type="text" asp-for="SupplierReference" placeholder="Invoice # or supplier reference (optional)" />
+            <span asp-validation-for="SupplierReference" class="field-validation-error"></span>
+        </div>
+        <div class="mob-field" style="margin-bottom:0;">
+            <label>Comments</label>
+            <textarea asp-for="Comments" rows="3" placeholder="Breed details, health notes, tag numbers..."></textarea>
+            <span asp-validation-for="Comments" class="field-validation-error"></span>
+        </div>
+    </div>
+
+    <div class="mob-submit-row">
+        <div class="sub-row">
+            <a asp-action="MobileIndex" class="mob-submit-btn small-sub">Cancel</a>
+            <button type="submit" class="mob-submit-btn small-sub primary">💾 Save</button>
+        </div>
+        <button type="submit" class="mob-submit-btn">🛒 Save Purchase</button>
+    </div>
+</form>

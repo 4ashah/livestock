@@ -1,0 +1,128 @@
+@using LivestockManager.Domain.Enums
+@model LivestockManager.Web.Models.StockAdditionViewModels.StockAdditionPurchaseViewModel
+@{
+    ViewData["Title"] = "New Purchase";
+    ViewData["DockKey"] = "stock";
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <h1 class="h2">🛒 New Purchase</h1>
+    <div>
+        <a asp-action="Index" class="btn btn-outline-secondary">&larr; Stock Addition</a>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-4">
+        <form asp-action="Purchase" method="post">
+            @Html.AntiForgeryToken()
+            <input type="hidden" asp-for="IdempotencyKey" />
+
+            @if (ViewContext.ModelState != null && ViewContext.ModelState.Any(x => x.Value != null && x.Value.Errors != null && x.Value.Errors.Count > 0))
+            {
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-4"></div>
+            }
+
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label asp-for="SupplierId" class="form-label fw-semibold"></label>
+                    <select asp-for="SupplierId" asp-items="Model.SupplierOptions" class="form-select">
+                        <option value="">Select a supplier...</option>
+                    </select>
+                    <span asp-validation-for="SupplierId" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="PurchaseDate" class="form-label fw-semibold"></label>
+                    <input asp-for="PurchaseDate" type="date" class="form-control" asp-format="{0:yyyy-MM-dd}"
+                           max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                    <span asp-validation-for="PurchaseDate" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="FarmId" class="form-label fw-semibold"></label>
+                    <select asp-for="FarmId" asp-items="Model.FarmOptions" class="form-select">
+                        <option value="">Select a farm...</option>
+                    </select>
+                    <span asp-validation-for="FarmId" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="PurchaseCost" class="form-label fw-semibold"></label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input asp-for="PurchaseCost" type="number" step="0.01" min="0" class="form-control"
+                               placeholder="e.g. 250.00" />
+                    </div>
+                    <span asp-validation-for="PurchaseCost" class="text-danger small"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="LivestockTypeId" class="form-label fw-semibold"></label>
+                    <div class="row g-2">
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check card p-2 border h-100">
+                                <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Ah" class="form-check-input" id="tAh" />
+                                <label class="form-check-label fw-semibold" for="tAh">Ah</label>
+                                <div class="small text-muted mt-1">Purchased castrated ram</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check card p-2 border h-100">
+                                <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Su" class="form-check-input" id="tSu" />
+                                <label class="form-check-label fw-semibold" for="tSu">Su</label>
+                                <div class="small text-muted mt-1">Uncastrated ram</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 col-sm-6">
+                            <div class="form-check card p-2 border h-100">
+                                <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Sa" class="form-check-input" id="tSa" />
+                                <label class="form-check-label fw-semibold" for="tSa">Sa</label>
+                                <div class="small text-muted mt-1">Purchased ewe</div>
+                            </div>
+                        </div>
+                    </div>
+                    <span asp-validation-for="LivestockTypeId" class="text-danger small d-block mt-1"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="PurchaseWeight" class="form-label fw-semibold"></label>
+                    <input asp-for="PurchaseWeight" type="number" step="0.01" min="0.01" class="form-control"
+                           placeholder="e.g. 45.5" />
+                    <span asp-validation-for="PurchaseWeight" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="WeightUnit" class="form-label fw-semibold"></label>
+                    <select asp-for="WeightUnit" class="form-select" asp-items="Html.GetEnumSelectList<WeightUnit>()"></select>
+                    <span asp-validation-for="WeightUnit" class="text-danger small"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="SupplierReference" class="form-label fw-semibold"></label>
+                    <input asp-for="SupplierReference" type="text" class="form-control"
+                           placeholder="Supplier invoice number or reference (optional)" />
+                    <span asp-validation-for="SupplierReference" class="text-danger small"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="Comments" class="form-label fw-semibold"></label>
+                    <textarea asp-for="Comments" rows="3" class="form-control"
+                              placeholder="Optional notes: breed details, health notes, tag numbers..."></textarea>
+                    <span asp-validation-for="Comments" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="row mt-5">
+                <div class="col-12 text-end">
+                    <a asp-action="Index" class="btn btn-outline-secondary me-2">Cancel</a>
+                    <button type="submit" class="btn btn-primary">🛒 Save Purchase</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

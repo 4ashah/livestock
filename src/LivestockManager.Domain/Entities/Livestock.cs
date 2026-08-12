@@ -18,8 +18,17 @@ public class Livestock : BaseAuditableEntity
 
     public DomainEnums.LivestockType LivestockTypeId { get; set; }
 
+    public DomainEnums.StockSource StockSource { get; set; } = DomainEnums.StockSource.Purchased;
+
+    [Column(TypeName = "datetimeoffset")]
+    public DateTimeOffset? DateOfBirth { get; set; }
+
     [Column(TypeName = "datetimeoffset")]
     public DateTimeOffset AcquisitionDate { get; set; }
+
+    public Guid? MotherLivestockId { get; set; }
+
+    public Guid? FatherLivestockId { get; set; }
 
     [Precision(18, 4)]
     public decimal InitialWeight { get; set; }
@@ -75,6 +84,12 @@ public class Livestock : BaseAuditableEntity
 
     [ForeignKey(nameof(FarmId))]
     public virtual Farm? Farm { get; set; }
+
+    [ForeignKey(nameof(MotherLivestockId))]
+    public virtual Livestock? Mother { get; set; }
+
+    [ForeignKey(nameof(FatherLivestockId))]
+    public virtual Livestock? Father { get; set; }
 
     public virtual SaleItem? SaleItem { get; set; }
 

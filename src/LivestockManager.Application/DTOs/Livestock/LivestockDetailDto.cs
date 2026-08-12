@@ -8,6 +8,8 @@ public class LivestockDetailDto
     public string? FarmName { get; set; }
     public string LivestockId { get; set; } = string.Empty;
     public LivestockType LivestockTypeId { get; set; }
+    public StockSource? StockSource { get; set; }
+    public DateTimeOffset? DateOfBirth { get; set; }
     public DateTimeOffset AcquisitionDate { get; set; }
     public decimal InitialWeight { get; set; }
     public WeightUnit WeightUnit { get; set; }
@@ -16,6 +18,8 @@ public class LivestockDetailDto
     public DateTimeOffset? CurrentWeightDate { get; set; }
     public LivestockStatus Status { get; set; }
     public string? Comments { get; set; }
+    public string? MotherLivestockIdCode { get; set; }
+    public string? FatherLivestockIdCode { get; set; }
     public DateTimeOffset? DischargeDate { get; set; }
     public DischargeCondition? DischargeCondition { get; set; }
     public string? DischargeDetails { get; set; }

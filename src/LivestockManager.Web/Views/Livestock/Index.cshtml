@@ -45,6 +45,12 @@
                 </select>
             </div>
             <div class="col-md-3 col-sm-6">
+                <label asp-for="SourceFilter" class="form-label small fw-semibold">Source</label>
+                <select asp-for="SourceFilter" class="form-select" asp-items="Html.GetEnumSelectList<StockSource>()">
+                    <option value="">All Sources</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-sm-6">
                 <label asp-for="SearchString" class="form-label small fw-semibold">Search</label>
                 <input asp-for="SearchString" class="form-control" placeholder="Livestock ID or comment..." />
             </div>
@@ -56,6 +62,7 @@
                     <a asp-action="ExportCsv" asp-route-farmId="@ViewData["FarmId"]"
                        asp-route-livestockTypeId="@ViewData["LivestockTypeId"]"
                        asp-route-status="@ViewData["Status"]"
+                       asp-route-sourceFilter="@ViewData["SourceFilter"]"
                        asp-route-searchString="@ViewData["SearchString"]"
                        class="btn btn-outline-success ms-auto">
                         📥 Export CSV
@@ -76,6 +83,8 @@
                         <th>Type</th>
                         <th>Farm</th>
                         <th>Acquired</th>
+                        <th>Source</th>
+                        <th>DOB</th>
                         <th>Initial</th>
                         <th>Current</th>
                         <th>Days</th>
@@ -88,7 +97,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="10" class="text-center py-5 text-muted">
+                            <td colspan="12" class="text-center py-5 text-muted">
                                 <div class="display-6 mb-2">🐑</div>
                                 <div class="h6 mb-1">No livestock found</div>
                                 <div class="small">Try adjusting your filters or register new livestock.</div>
@@ -108,6 +117,26 @@
                                 </td>
                                 <td class="small">@item.FarmName</td>
                                 <td class="small">@item.AcquisitionDate.ToString("yyyy-MM-dd")</td>
+                                <td>
+                                    @if (item.StockSource == StockSource.Newborn)
+                                    {
+                                        <span class="badge bg-success">NEWBORN</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary">PURCHASED</span>
+                                    }
+                                </td>
+                                <td class="small">
+                                    @if (item.StockSource == StockSource.Newborn && item.DateOfBirth.HasValue)
+                                    {
+                                        @item.DateOfBirth.Value.ToString("yyyy-MM-dd")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
                                 <td class="small text-muted">@item.InitialWeight</td>
                                 <td class="small fw-semibold">
                                     @if (item.CurrentWeight.HasValue)
