@@ -62,11 +62,11 @@
                                 var sel = Model.LivestockId == lid ? "selected" : "";
                                 if (!string.IsNullOrEmpty(sel))
                                 {
-                                    <option value="@ls.Id" selected data-purchase="@ls.PurchaseAmount" data-farm="@ls.FarmId">@ls.LivestockId · @ls.LivestockTypeId @(ls.FarmName != null ? " · " + ls.FarmName : "")</option>
+                                    <option value="@ls.Id" selected data-purchase="@ls.PurchaseAmount" data-farm="@ls.FarmId">@ls.LivestockId · @ls.TypeLabel @(ls.FarmName != null ? " · " + ls.FarmName : "")</option>
                                 }
                                 else
                                 {
-                                    <option value="@ls.Id" data-purchase="@ls.PurchaseAmount" data-farm="@ls.FarmId">@ls.LivestockId · @ls.LivestockTypeId @(ls.FarmName != null ? " · " + ls.FarmName : "")</option>
+                                    <option value="@ls.Id" data-purchase="@ls.PurchaseAmount" data-farm="@ls.FarmId">@ls.LivestockId · @ls.TypeLabel @(ls.FarmName != null ? " · " + ls.FarmName : "")</option>
                                 }
                             }
                         </select>

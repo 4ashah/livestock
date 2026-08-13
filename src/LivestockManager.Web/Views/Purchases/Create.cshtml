@@ -1,7 +1,7 @@
 @using LivestockManager.Domain.Enums
 @model LivestockManager.Application.DTOs.Purchases.PurchaseCreateDto
 @{
-    ViewData["Title"] = "New Purchase";
+    ViewData["Title"] = "New Purchase Invoice";
     var suppliers = ViewData["Suppliers"] as System.Collections.IEnumerable;
     var farms = ViewData["Farms"] as System.Collections.IEnumerable;
     var livestock = ViewData["ActiveLivestock"] as System.Collections.IEnumerable;
@@ -9,8 +9,11 @@
 
 <div class="page-title-row">
     <div>
-        <h1 class="page-title">🛒 New Purchase</h1>
-        <div class="text-muted small">Create a draft purchase order (livestock buy-in or supplier expense)</div>
+        <h1 class="page-title">🧾 New Purchase Invoice</h1>
+        <div class="text-muted small">
+            Draft multi-item supplier bill (feed, freight, medicine, etc.).
+            To <strong>add bought-in livestock</strong>, use <a asp-area="" asp-controller="StockAddition" asp-action="Purchase" class="text-decoration-none">Stock Addition → New Purchase</a> instead — it creates the animal record and a simple posted Purchase Invoice automatically.
+        </div>
     </div>
     <div class="actions">
         <a asp-action="Index" class="btn btn-outline-secondary">← Cancel</a>
@@ -95,7 +98,7 @@
                                             <input type="checkbox" class="form-check-input ls-check" data-idx="@li" />
                                         </td>
                                         <td><code>@l.LivestockId</code></td>
-                                        <td>@l.LivestockTypeId</td>
+                                        <td>@l.TypeLabel</td>
                                         <td>@l.FarmId</td>
                                         <td>
                                             <input type="number" name="lineUnitCost" step="0.01" value="@(l.PurchaseAmount > 0 ? ((decimal)l.PurchaseAmount).ToString("F2") : "0.00")"

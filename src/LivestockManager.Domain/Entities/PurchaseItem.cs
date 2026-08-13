@@ -35,6 +35,32 @@ public class PurchaseItem : BaseAuditableEntity
     [Precision(18, 2)]
     public decimal LineTotal { get; set; }
 
+    [Precision(18, 2)]
+    public decimal LivestockPurchaseCost { get; set; }
+
+    [Precision(18, 2)]
+    public decimal CommissionAmount { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TaxAmount { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TransportationAmount { get; set; }
+
+    [Precision(18, 2)]
+    public decimal OtherCostAmount { get; set; }
+
+    [MaxLength(500)]
+    public string? OtherCostDescription { get; set; }
+
+    [Precision(18, 2)]
+    public decimal AdditionalAcquisitionCost { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TotalAcquisitionCost { get; set; }
+
+    public CostAllocationMethod CostAllocationMethod { get; set; } = CostAllocationMethod.Equal;
+
     public Guid? LivestockId { get; set; }
 
     [ForeignKey(nameof(PurchaseId))]

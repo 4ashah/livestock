@@ -1,0 +1,143 @@
+@using LivestockManager.Domain.Enums
+@model IEnumerable<LivestockManager.Application.DTOs.Sales.SaleSummaryDto>
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Sales";
+    ViewData["PageIcon"] = "💼";
+    ViewData["PageSubtitle"] = "Orders & livestock sales";
+    ViewData["DockKey"] = "expense";
+    ViewData["ActionLabel"] = "New";
+    ViewData["ActionIcon"] = "＋";
+    ViewData["ActionUrl"] = Url.Action("MobileCreate", "Sales");
+    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
+    var customers = ViewData["Customers"] as System.Collections.IEnumerable;
+    var selCustomerId = ViewData["CustomerId"] as Guid?;
+    var selStatus = ViewData["Status"] as SaleStatus?;
+    var list = Model?.ToList() ?? new List<LivestockManager.Application.DTOs.Sales.SaleSummaryDto>();
+}
+
+<div class="mob-totals-card">
+    <div class="label">Grand Total Sales</div>
+    <div class="total">$@list.Sum(x => x.GrandTotal).ToString("N2")</div>
+    <div class="breakdown">
+        <div><div class="k">Orders</div><div class="v">@list.Count</div></div>
+        <div><div class="k">Items</div><div class="v">@list.Sum(x => x.ItemCount)</div></div>
+    </div>
+</div>
+
+<div class="mob-card" style="margin-bottom:0.75rem;">
+    <div class="mob-card-title">🔎 Filters</div>
+    <form asp-action="MobileIndex" method="get" class="mob-form" id="filterForm">
+        <div class="mob-field">
+            <label>From</label>
+            <input type="date" name="from" value="@ViewData["From"]" />
+        </div>
+        <div class="mob-field">
+            <label>To</label>
+            <input type="date" name="to" value="@ViewData["To"]" />
+        </div>
+        <div class="mob-field">
+            <label>Customer</label>
+            <select name="customerId">
+                <option value="">All Customers</option>
+                @if (customers != null)
+                {
+                    @foreach (var c in (IEnumerable<dynamic>)customers)
+                    {
+                        Guid cid = c.Id;
+                        if (selCustomerId == cid)
+                        { <option value="@c.Id" selected>@c.Name</option> }
+                        else
+                        { <option value="@c.Id">@c.Name</option> }
+                    }
+                }
+            </select>
+        </div>
+        <div class="mob-field">
+            <label>Status</label>
+            <select name="status">
+                <option value="">Any</option>
+                @{
+                    var allStatuses = Enum.GetValues(typeof(SaleStatus)).Cast<SaleStatus>().ToList();
+                    foreach (var st in allStatuses)
+                    {
+                        var isSelected = selStatus == st;
+                        if (isSelected)
+                        {
+                            <option value="@((int)st)" selected>@st.ToString()</option>
+                        }
+                        else
+                        {
+                            <option value="@((int)st)">@st.ToString()</option>
+                        }
+                    }
+                }
+            </select>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+            <button type="submit" class="mob-btn w-50" style="justify-content:center;">🔎 Apply</button>
+            <a asp-action="MobileIndex" class="mob-btn w-50" style="justify-content:center; background:#f3f4f6; color:#374151;">✕ Clear</a>
+        </div>
+    </form>
+</div>
+
+@if (!list.Any())
+{
+    <div class="mob-empty">
+        <div class="icon">📭</div>
+        <div class="title">No sales yet</div>
+        <div class="hint">Tap ＋ at bottom to create a new draft sale order.</div>
+    </div>
+}
+else
+{
+    @foreach (var s in list)
+    {
+        var displaySaleNumber = !string.IsNullOrWhiteSpace(s.SaleNumber)
+            ? s.SaleNumber
+            : (s.Status == SaleStatus.Draft
+                ? $"DRAFT-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
+                : (s.Status == SaleStatus.Cancelled
+                    ? $"VOID-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
+                    : $"SALE-{s.Id.ToString("N")[..8].ToUpperInvariant()}"));
+        var badgeClass = s.Status switch
+        {
+            SaleStatus.Confirmed => "good",
+            SaleStatus.Cancelled => "bad",
+            _ => "info"
+        };
+        <a class="mob-card clickable" href="@Url.Action("Details", "Sales", new { id = s.Id })">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div class="mob-ellipsis">
+                    <code style="font-size:14px;color:#065f46;">@displaySaleNumber</code>
+                </div>
+                <span class="pill @badgeClass">@s.Status</span>
+            </div>
+            <div class="mob-list-two-col">
+                <div>
+                    <div class="k">Date</div>
+                    <div class="v">@s.Date.ToString("yyyy-MM-dd")</div>
+                </div>
+                <div>
+                    <div class="k">Items</div>
+                    <div class="v">@s.ItemCount</div>
+                </div>
+            </div>
+            @if (s.FarmId.HasValue)
+            {
+                <div class="mob-ellipsis mt-1" style="color:#4b5563; font-size:13px;">
+                    <span class="k" style="display:inline-block; width:44px;">Farm</span>
+                    @if (!string.IsNullOrWhiteSpace(s.FarmName))
+                    { <span title="Farm Id: @s.FarmId.Value">@s.FarmName</span> }
+                    else
+                    { <code style="font-size:12px;" title="Farm deleted or not found.">@s.FarmId.Value</code> }
+                </div>
+            }
+            <div class="mob-ellipsis mt-1" style="color:#111827; font-weight:600;">@s.CustomerName</div>
+            <div class="mob-list-row mt-2">
+                <div class="k">Grand Total</div>
+                <div class="v" style="font-weight:700; color:#065f46;">$@s.GrandTotal.ToString("N2")</div>
+            </div>
+        </a>
+    }
+}

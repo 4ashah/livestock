@@ -4,9 +4,9 @@
 @using LivestockManager.Application.DTOs.Suppliers
 @{
     Layout = "_MobileLayout";
-    ViewData["Title"] = "New Purchase";
-    ViewData["PageIcon"] = "🛒";
-    ViewData["PageSubtitle"] = "Record supplier buy or livestock purchase";
+    ViewData["Title"] = "New Purchase Invoice";
+    ViewData["PageIcon"] = "🧾";
+    ViewData["PageSubtitle"] = "Multi-item supplier bills, feed, freight";
     ViewData["DockKey"] = "expense";
 
     var suppliers = ViewData["Suppliers"] as IEnumerable<SupplierSummaryDto> ?? Enumerable.Empty<SupplierSummaryDto>();
@@ -31,11 +31,17 @@
     </div>
 }
 
+<div class="mob-card" style="border-left:4px solid #0a66a0;">
+    <div class="small" style="color:#0a66a0;">
+        🐑 To record bought-in livestock, use <a href="@Url.Action("MobilePurchase", "StockAddition")" style="color:#0a66a0;font-weight:600;">Stock Addition → New Purchase</a>.
+    </div>
+</div>
+
 <form asp-action="MobileCreate" method="post" id="purchaseForm">
     <input type="hidden" asp-for="CompanyId" />
 
     <div class="mob-card">
-        <div class="mob-card-title">📋 Purchase Details</div>
+        <div class="mob-card-title">📋 Purchase Invoice Details</div>
         <div class="mob-field">
             <label>Supplier <span class="text-danger">*</span></label>
             <select asp-for="SupplierId" required>
@@ -93,7 +99,7 @@
                     <input type="hidden" name="lineLivestockId" value="@l.Id" class="ls-id" disabled />
                     <span>
                         <code>@l.LivestockId</code>
-                        <div class="meta-caption">@l.LivestockTypeId</div>
+                        <div class="meta-caption">@l.TypeLabel</div>
                     </span>
                 </div>
                 <div class="ls-cost-wrap" id="lsCostWrap_@lsIdx" style="display:none;padding-left:2.2rem;">

@@ -150,7 +150,7 @@
                 <option value="">— No link —</option>
                 @foreach (dynamic l in activeLivestock)
                 {
-                    <option value="@l.Id" selected="@(Model.LivestockId == l.Id)">@l.LivestockId (@l.LivestockTypeId)</option>
+                    <option value="@l.Id" selected="@(Model.LivestockId == l.Id)">@l.Display</option>
                 }
             </select>
         </div>

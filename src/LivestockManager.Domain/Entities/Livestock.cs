@@ -38,6 +38,24 @@ public class Livestock : BaseAuditableEntity
     [Precision(18, 2)]
     public decimal PurchaseAmount { get; set; }
 
+    [Precision(18, 2)]
+    public decimal AllocatedCommission { get; set; }
+
+    [Precision(18, 2)]
+    public decimal AllocatedTax { get; set; }
+
+    [Precision(18, 2)]
+    public decimal AllocatedTransportation { get; set; }
+
+    [Precision(18, 2)]
+    public decimal AllocatedOtherCost { get; set; }
+
+    [MaxLength(500)]
+    public string? OtherCostDescription { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TotalAcquisitionCost { get; set; }
+
     [Precision(18, 4)]
     public decimal? CurrentWeight { get; set; }
 

@@ -1,5 +1,6 @@
 @model IEnumerable<LivestockManager.Web.Models.LivestockViewModels.LivestockListItemDto>
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers
 @using LivestockManager.Application.DTOs.Livestock
 @using LivestockManager.Application.DTOs.Farms
 @using Microsoft.AspNetCore.Mvc.Rendering
@@ -19,7 +20,6 @@
     var sourceFilter = ViewData["SourceFilter"] as StockSource?;
     var search = ViewData["SearchString"] as string;
     var farmOptions = ViewData["FarmOptions"] as SelectList;
-    var getTypeDesc = ViewData["GetLivestockTypeDescription"] as Func<LivestockType, string>;
     var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
     var canDataEntry = canEdit || User.IsInRole("DataEntry");
 
@@ -39,17 +39,20 @@
 }
 
 <div class="mob-card">
-    <div class="mob-card-title">🔍 Search & Filters</div>
+    <div class="mob-card-title">🔍 Search</div>
     <form method="get" asp-action="MobileIndex">
         <div class="mob-field">
             <label>Search</label>
             <input type="text" name="searchString" value="@search" placeholder="Livestock ID or comment..." />
         </div>
-        <div class="f-row">
-            <div class="g ps">
+        <details class="mob-adv-filters" style="margin-top:0.5rem;">
+            <summary style="list-style:none; cursor:pointer; font-weight:600; color:#3a6ea5; padding:0.5rem 0; user-select:none;">
+                ⚙ Advanced Filters <small style="opacity:0.75;">(tap to open)</small>
+            </summary>
+            <div style="padding-top:0.5rem;">
                 <div class="mob-field">
                     <label>Farm</label>
-                    <select name="farmId">
+                    <select name="farmId" style="width:100%;">
                         <option value="">All farms</option>
                         @if (farmOptions != null)
                         {
@@ -60,34 +63,32 @@
                         }
                     </select>
                 </div>
-            </div>
-            <div class="g pe">
                 <div class="mob-field">
                     <label>Type</label>
-                    <select name="livestockTypeId">
+                    <select name="livestockTypeId" style="width:100%;">
                         <option value="">All types</option>
-                        @foreach (var t in Enum.GetValues(typeof(LivestockType)).OfType<LivestockType>())
+                        @foreach (var kv in LivestockTypeDisplay.AllDisplayNames)
                         {
-                            <option value="@t" selected="@(typeId == t ? "selected" : null)">@t</option>
+                            <option value="@kv.Key" selected="@(typeId == kv.Key ? "selected" : null)">@kv.Value</option>
                         }
                     </select>
                 </div>
+                <div class="mob-field">
+                    <label>Status</label>
+                    <select name="status" style="width:100%;">
+                        <option value="">All statuses</option>
+                        @foreach (var s in Enum.GetValues(typeof(LivestockStatus)).OfType<LivestockStatus>())
+                        {
+                            <option value="@s" selected="@(status == s ? "selected" : null)">@s</option>
+                        }
+                    </select>
+                </div>
+                <div class="f-row" style="gap:0.5rem;">
+                    <a asp-action="MobileIndex" class="mob-btn ghost" style="flex:1;">Reset</a>
+                    <button type="submit" class="mob-btn primary" style="flex:1;">🔍 Apply</button>
+                </div>
             </div>
-        </div>
-        <div class="mob-field">
-            <label>Status</label>
-            <select name="status">
-                <option value="">All statuses</option>
-                @foreach (var s in Enum.GetValues(typeof(LivestockStatus)).OfType<LivestockStatus>())
-                {
-                    <option value="@s" selected="@(status == s ? "selected" : null)">@s</option>
-                }
-            </select>
-        </div>
-        <div class="f-row">
-            <a asp-action="MobileIndex" class="mob-btn ghost">Reset</a>
-            <button type="submit" class="mob-btn primary">🔍 Apply</button>
-        </div>
+        </details>
     </form>
 </div>
 
@@ -159,8 +160,8 @@
             var pnlVal = l.BasicProfitLoss ?? 0;
             <div class="mob-list-card">
                 <div class="row-top">
-                    <div>
-                        <code>@l.LivestockId</code>
+                    <div style="min-width:0; flex:1 1 auto;">
+                        <code style="word-break:break-all;">@l.LivestockId</code>
                         <div class="pill-stack">
                             <span class="pill @statusPill.Item2">@statusPill.Item1</span>
                             @{
@@ -171,10 +172,12 @@
                             @if (!string.IsNullOrWhiteSpace(l.FarmName))
                             { <span class="pill info">@l.FarmName</span> }
                         </div>
+                        <div style="font-size:0.75rem; color:#3a6ea5; word-break:break-word; margin-top:0.25rem;">
+                            @LivestockTypeDisplay.GetDisplayName(l.LivestockType)
+                        </div>
                     </div>
-                    <div class="val-right">
-                        <div class="sub">@l.LivestockType</div>
-                        <div class="amt">
+                    <div class="val-right" style="flex:0 0 auto; padding-left:0.5rem;">
+                        <div class="amt" style="white-space:nowrap;">
                             @if (l.CurrentWeight.HasValue)
                             {
                                 <text>@(l.CurrentWeight.Value.ToString("F1")) kg</text>
@@ -182,6 +185,12 @@
                             else
                             { <span class="code-muted">— kg</span> }
                         </div>
+                        @if (l.Status != LivestockStatus.Active)
+                        {
+                            <div class="sub" style="white-space:nowrap; margin-top:0.15rem;">
+                                @(pnlVal >= 0 ? "+" : "")$@(pnlVal.ToString("F0"))
+                            </div>
+                        }
                     </div>
                 </div>
                 <div class="rows rows-3col">
@@ -207,14 +216,14 @@
                     </div>
                 </div>
                 <div class="row-actions">
-                    <a asp-action="Details" asp-route-id="@l.Id" class="mob-btn">👁 View</a>
+                    <a asp-action="Details" asp-route-id="@l.Id" class="mob-btn" style="min-height:44px;">👁 View</a>
                     @if (canDataEntry && l.Status == LivestockStatus.Active)
                     {
-                        <a asp-action="AddWeight" asp-route-id="@l.Id" class="mob-btn primary">⚖ Weight</a>
+                        <a asp-action="AddWeight" asp-route-id="@l.Id" class="mob-btn primary" style="min-height:44px;">⚖ Weight</a>
                     }
                     @if (canEdit && l.Status == LivestockStatus.Active)
                     {
-                        <a asp-controller="LivestockLosses" asp-action="MobileCreate" asp-route-livestockId="@l.Id" class="mob-btn danger">💀 Loss</a>
+                        <a asp-controller="LivestockLosses" asp-action="MobileCreate" asp-route-livestockId="@l.Id" class="mob-btn danger" style="min-height:44px;">💀 Loss</a>
                     }
                 </div>
             </div>

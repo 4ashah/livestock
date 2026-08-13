@@ -11,6 +11,7 @@ using LivestockManager.Application.Services.Farms;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Domain.Exceptions;
+using LivestockManager.Domain.Helpers;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models.LivestockViewModels;
 
@@ -50,17 +51,7 @@ public class LivestockController : Controller
     }
 
     private static string GetLivestockTypeDescription(LivestockType type)
-    {
-        return type switch
-        {
-            LivestockType.Ah => "Ah - Purchased castrated ram",
-            LivestockType.Su => "Su - Uncastrated ram",
-            LivestockType.Sa => "Sa - Purchased ewe",
-            LivestockType.Ad => "Ad - Bred castrated ram",
-            LivestockType.Sd => "Sd - Bred ewe",
-            _ => type.ToString()
-        };
-    }
+        => LivestockTypeDisplay.GetDisplayName(type);
 
     private static string GetStatusBadgeClass(LivestockStatus status)
     {
@@ -213,6 +204,12 @@ public class LivestockController : Controller
             CurrentWeightDate = detail.CurrentWeightDate,
             Status = detail.Status,
             PurchaseAmount = detail.PurchaseAmount,
+            AllocatedCommission = detail.AllocatedCommission,
+            AllocatedTax = detail.AllocatedTax,
+            AllocatedTransportation = detail.AllocatedTransportation,
+            AllocatedOtherCost = detail.AllocatedOtherCost,
+            OtherCostDescription = detail.OtherCostDescription,
+            TotalAcquisitionCost = detail.TotalAcquisitionCost,
             SoldAmount = detail.SoldAmount,
             BasicProfitLoss = detail.BasicProfitLoss,
             Comments = detail.Comments,

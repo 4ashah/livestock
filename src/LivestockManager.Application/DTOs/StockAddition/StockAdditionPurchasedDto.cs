@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using LivestockManager.Domain.Enums;
 
 namespace LivestockManager.Application.DTOs.StockAddition;
 
@@ -30,6 +31,23 @@ public class StockAdditionPurchasedDto
     [Range(0, double.MaxValue, ErrorMessage = "Purchase cost cannot be negative.")]
     public decimal PurchaseCost { get; set; }
 
+    [Range(0, double.MaxValue, ErrorMessage = "Commission cannot be negative.")]
+    public decimal CommissionAmount { get; set; }
+
+    [Range(0, double.MaxValue, ErrorMessage = "Taxes cannot be negative.")]
+    public decimal TaxAmount { get; set; }
+
+    [Range(0, double.MaxValue, ErrorMessage = "Transportation cannot be negative.")]
+    public decimal TransportationAmount { get; set; }
+
+    [Range(0, double.MaxValue, ErrorMessage = "Other costs cannot be negative.")]
+    public decimal OtherCostAmount { get; set; }
+
+    [MaxLength(500, ErrorMessage = "Other cost description cannot exceed 500 characters.")]
+    public string? OtherCostDescription { get; set; }
+
+    public CostAllocationMethod CostAllocationMethod { get; set; } = CostAllocationMethod.Equal;
+
     [MaxLength(200)]
     public string? SupplierReference { get; set; }
 
@@ -38,3 +56,4 @@ public class StockAdditionPurchasedDto
 
     public Guid? DocumentId { get; set; }
 }
+

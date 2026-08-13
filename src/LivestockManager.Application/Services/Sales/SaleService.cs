@@ -75,6 +75,12 @@ public class SaleService : ISaleService
 
             var items = await _db.SaleItems.Where(i => i.SaleId == saleId).ToListAsync(ct);
 
+            var year = sale.Date.Year;
+            var scopedKey = $"SAL:{year}";
+            var rawNumber = await _sequenceGenerator.GenerateDocumentNumberAsync(sale.CompanyId, scopedKey);
+            var numericSuffix = ExtractNumeric(rawNumber, scopedKey);
+            sale.SaleNumber = $"SAL-{year}-{numericSuffix:D5}";
+
             var invoiceNumber = await _sequenceGenerator.GenerateInvoiceNumberAsync(sale.CompanyId);
             var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == sale.CustomerId, ct);
             var dueDate = sale.Date.AddDays(customer?.PaymentTermsDays ?? 30);
@@ -166,8 +172,16 @@ public class SaleService : ISaleService
             ?? throw new DomainException("Sale not found.");
         var items = await _db.SaleItems.Where(i => i.SaleId == id).ToListAsync(ct);
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == sale.CustomerId, ct);
+        string? farmName = null;
+        if (sale.FarmId.HasValue)
+        {
+            farmName = await _db.Farms
+                .Where(f => f.Id == sale.FarmId.Value && f.CompanyId == companyId)
+                .Select(f => f.Name)
+                .FirstOrDefaultAsync(ct);
+        }
 
-        return MapToDetail(sale, items, customer?.Name);
+        return MapToDetail(sale, items, customer?.Name, farmName);
     }
 
     public async Task<IList<SaleSummaryDto>> ListAsync(Guid companyId, CancellationToken ct)
@@ -175,17 +189,23 @@ public class SaleService : ISaleService
         var query = from s in _db.Sales
                     join c in _db.Customers on s.CustomerId equals c.Id into cs
                     from c in cs.DefaultIfEmpty()
+                    join f in _db.Farms on s.FarmId equals f.Id into fs
+                    from f in fs.DefaultIfEmpty()
+                    let itemCount = _db.SaleItems.Where(i => i.SaleId == s.Id).Count()
                     where s.CompanyId == companyId
                     select new SaleSummaryDto
                     {
                         Id = s.Id,
                         CompanyId = s.CompanyId,
+                        FarmId = s.FarmId,
+                        FarmName = f != null ? f.Name : null,
                         CustomerId = s.CustomerId,
                         CustomerName = c != null ? c.Name : null,
                         SaleNumber = s.SaleNumber,
                         Date = s.Date,
                         GrandTotal = s.GrandTotal,
-                        Status = s.Status
+                        Status = s.Status,
+                        ItemCount = itemCount
                     };
         return await query.ToListAsync(ct);
     }
@@ -208,11 +228,31 @@ public class SaleService : ISaleService
         sale.GrandTotal = sale.Subtotal + sale.TaxTotal + sale.ChargeTotal;
     }
 
-    private static SaleDetailDto MapToDetail(Sale s, List<SaleItem> items, string? customerName) => new()
+    private static long ExtractNumeric(string raw, string prefix)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+            return 1;
+
+        var suffix = raw.StartsWith(prefix, StringComparison.Ordinal)
+            ? raw[prefix.Length..]
+            : raw;
+
+        if (long.TryParse(suffix, out var direct))
+            return direct;
+
+        var digits = new string(suffix.Where(char.IsDigit).ToArray());
+        if (digits.Length > 0 && long.TryParse(digits, out var fromDigits))
+            return fromDigits;
+
+        return 1;
+    }
+
+    private static SaleDetailDto MapToDetail(Sale s, List<SaleItem> items, string? customerName, string? farmName) => new()
     {
         Id = s.Id,
         CompanyId = s.CompanyId,
         FarmId = s.FarmId,
+        FarmName = farmName,
         CustomerId = s.CustomerId,
         CustomerName = customerName,
         SaleNumber = s.SaleNumber,

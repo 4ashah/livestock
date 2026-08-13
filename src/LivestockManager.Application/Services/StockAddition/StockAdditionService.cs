@@ -4,6 +4,7 @@ using LivestockManager.Application.DTOs.StockAddition;
 using LivestockManager.Domain.Abstractions;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Enums;
+using LivestockManager.Domain.Helpers;
 using Microsoft.EntityFrameworkCore;
 using DE = LivestockManager.Domain.Entities;
 
@@ -70,6 +71,57 @@ public class StockAdditionService : IStockAdditionService
 
             if (dto.PurchaseCost < 0)
                 return Fail("Purchase cost cannot be negative.");
+            if (dto.PurchaseCost == 0)
+                return Fail("Purchase cost must be greater than zero.");
+
+            if (dto.CommissionAmount < 0)
+                return Fail("Commission cannot be negative.");
+            if (dto.TaxAmount < 0)
+                return Fail("Taxes cannot be negative.");
+            if (dto.TransportationAmount < 0)
+                return Fail("Transportation cannot be negative.");
+            if (dto.OtherCostAmount < 0)
+                return Fail("Other costs cannot be negative.");
+
+            var otherCostDescription = string.IsNullOrWhiteSpace(dto.OtherCostDescription)
+                ? null
+                : dto.OtherCostDescription.Trim();
+            if (dto.OtherCostAmount > 0 && string.IsNullOrWhiteSpace(otherCostDescription))
+                return Fail("Other cost description is required when other costs are greater than zero.");
+            if (otherCostDescription != null && otherCostDescription.Length > 500)
+                return Fail("Other cost description cannot exceed 500 characters.");
+
+            var maxAmount = 999999999999.99m;
+            if (dto.PurchaseCost > maxAmount)
+                return Fail("Purchase cost exceeds the allowed financial limit.");
+            if (dto.CommissionAmount > maxAmount)
+                return Fail("Commission exceeds the allowed financial limit.");
+            if (dto.TaxAmount > maxAmount)
+                return Fail("Taxes exceed the allowed financial limit.");
+            if (dto.TransportationAmount > maxAmount)
+                return Fail("Transportation exceeds the allowed financial limit.");
+            if (dto.OtherCostAmount > maxAmount)
+                return Fail("Other costs exceed the allowed financial limit.");
+
+            if (!Enum.IsDefined(typeof(CostAllocationMethod), dto.CostAllocationMethod))
+                return Fail("Invalid cost allocation method.");
+
+            var commission = Math.Round(dto.CommissionAmount, 2, MidpointRounding.AwayFromZero);
+            var tax = Math.Round(dto.TaxAmount, 2, MidpointRounding.AwayFromZero);
+            var transport = Math.Round(dto.TransportationAmount, 2, MidpointRounding.AwayFromZero);
+            var other = Math.Round(dto.OtherCostAmount, 2, MidpointRounding.AwayFromZero);
+            var purchaseCost = Math.Round(dto.PurchaseCost, 2, MidpointRounding.AwayFromZero);
+
+            var additionalAcquisitionCost = Math.Round(commission + tax + transport + other, 2, MidpointRounding.AwayFromZero);
+            var totalAcquisitionCost = Math.Round(purchaseCost + additionalAcquisitionCost, 2, MidpointRounding.AwayFromZero);
+
+            var allocation = AllocateSingleAnimalAcquisitionCosts(
+                purchaseCost,
+                commission,
+                tax,
+                transport,
+                other,
+                dto.CostAllocationMethod);
 
             var year = dto.PurchaseDate.Year;
             var scopedKey = $"PUR:{year}";
@@ -85,11 +137,20 @@ public class StockAdditionService : IStockAdditionService
                 Currency = Currency.USD,
                 DiscountPct = 0,
                 TaxRate = 0,
-                Subtotal = dto.PurchaseCost,
-                TaxTotal = 0,
-                GrandTotal = dto.PurchaseCost,
+                Subtotal = purchaseCost,
+                TaxTotal = tax,
+                GrandTotal = totalAcquisitionCost,
                 AmountPaid = 0,
-                OutstandingAmount = dto.PurchaseCost,
+                OutstandingAmount = totalAcquisitionCost,
+                CostAllocationMethod = dto.CostAllocationMethod,
+                TotalLivestockPurchaseCost = purchaseCost,
+                TotalCommission = commission,
+                TotalTax = tax,
+                TotalTransportation = transport,
+                TotalOtherCost = other,
+                OtherCostDescription = otherCostDescription,
+                AdditionalAcquisitionCost = additionalAcquisitionCost,
+                TotalAcquisitionCost = totalAcquisitionCost,
                 Notes = dto.Comments,
                 DocumentId = dto.DocumentId
             };
@@ -105,10 +166,16 @@ public class StockAdditionService : IStockAdditionService
                 dto.PurchaseDate,
                 dto.PurchaseWeight,
                 dto.WeightUnit,
-                dto.PurchaseCost,
+                purchaseCost,
                 dto.FarmId)
             {
                 StockSource = StockSource.Purchased,
+                AllocatedCommission = allocation.AllocatedCommission,
+                AllocatedTax = allocation.AllocatedTax,
+                AllocatedTransportation = allocation.AllocatedTransportation,
+                AllocatedOtherCost = allocation.AllocatedOtherCost,
+                OtherCostDescription = otherCostDescription,
+                TotalAcquisitionCost = allocation.TotalAcquisitionCost,
                 CurrentWeight = dto.PurchaseWeight,
                 CurrentWeightDate = dto.PurchaseDate,
                 Comments = dto.Comments
@@ -116,14 +183,23 @@ public class StockAdditionService : IStockAdditionService
             _db.Livestock.Add(livestock);
             await _db.SaveChangesAsync(ct);
 
-            var purchaseItem = new PurchaseItem(purchase.Id, 1, PurchaseItemType.Livestock, 1, dto.PurchaseCost)
+            var purchaseItem = new PurchaseItem(purchase.Id, 1, PurchaseItemType.Livestock, 1, purchaseCost)
             {
                 Description = $"{dto.LivestockTypeId} - {livestockIdSeq}",
                 UnitWeight = dto.PurchaseWeight,
                 WeightUnit = dto.WeightUnit,
                 DiscountPct = 0,
                 TaxRate = 0,
-                LineTotal = dto.PurchaseCost,
+                LineTotal = totalAcquisitionCost,
+                LivestockPurchaseCost = purchaseCost,
+                CommissionAmount = allocation.AllocatedCommission,
+                TaxAmount = allocation.AllocatedTax,
+                TransportationAmount = allocation.AllocatedTransportation,
+                OtherCostAmount = allocation.AllocatedOtherCost,
+                OtherCostDescription = otherCostDescription,
+                AdditionalAcquisitionCost = allocation.AdditionalAcquisitionCost,
+                TotalAcquisitionCost = allocation.TotalAcquisitionCost,
+                CostAllocationMethod = dto.CostAllocationMethod,
                 LivestockId = livestock.Id
             };
             _db.PurchaseItems.Add(purchaseItem);
@@ -134,9 +210,22 @@ public class StockAdditionService : IStockAdditionService
             };
             _db.LivestockWeights.Add(initialWeight);
 
-            var metadata = BuildPurchasedMetadata(dto, purchaseNumber, livestockIdSeq, userId);
+            var metadata = BuildPurchasedMetadata(
+                dto,
+                purchaseNumber,
+                livestockIdSeq,
+                userId,
+                commission,
+                tax,
+                transport,
+                other,
+                otherCostDescription,
+                additionalAcquisitionCost,
+                totalAcquisitionCost,
+                allocation,
+                dto.CostAllocationMethod);
             var activity = new LivestockActivity(livestock.Id, LivestockActivityType.Created, dto.PurchaseDate,
-                "Livestock added via purchased stock addition")
+                "Livestock added via purchased stock addition with acquisition cost breakdown")
             {
                 PerformedByUserId = userId != Guid.Empty ? userId : null,
                 Metadata = metadata
@@ -157,7 +246,15 @@ public class StockAdditionService : IStockAdditionService
                 PurchaseDate = dto.PurchaseDate,
                 StartingWeight = dto.PurchaseWeight,
                 WeightUnit = dto.WeightUnit,
-                PurchaseCost = dto.PurchaseCost,
+                PurchaseCost = purchaseCost,
+                CommissionAmount = commission,
+                TaxAmount = tax,
+                TransportationAmount = transport,
+                OtherCostAmount = other,
+                OtherCostDescription = otherCostDescription,
+                AdditionalAcquisitionCost = additionalAcquisitionCost,
+                TotalAcquisitionCost = totalAcquisitionCost,
+                PurchaseNumber = purchaseNumber,
                 IsDuplicate = false
             };
 
@@ -406,6 +503,37 @@ public class StockAdditionService : IStockAdditionService
         IsDuplicate = false
     };
 
+    private sealed class AllocatedCosts
+    {
+        public decimal AllocatedCommission { get; set; }
+        public decimal AllocatedTax { get; set; }
+        public decimal AllocatedTransportation { get; set; }
+        public decimal AllocatedOtherCost { get; set; }
+        public decimal AdditionalAcquisitionCost { get; set; }
+        public decimal TotalAcquisitionCost { get; set; }
+    }
+
+    private static AllocatedCosts AllocateSingleAnimalAcquisitionCosts(
+        decimal purchaseCost,
+        decimal commission,
+        decimal tax,
+        decimal transport,
+        decimal other,
+        CostAllocationMethod method)
+    {
+        var additional = Math.Round(commission + tax + transport + other, 2, MidpointRounding.AwayFromZero);
+        var total = Math.Round(purchaseCost + additional, 2, MidpointRounding.AwayFromZero);
+        return new AllocatedCosts
+        {
+            AllocatedCommission = Math.Round(commission, 2, MidpointRounding.AwayFromZero),
+            AllocatedTax = Math.Round(tax, 2, MidpointRounding.AwayFromZero),
+            AllocatedTransportation = Math.Round(transport, 2, MidpointRounding.AwayFromZero),
+            AllocatedOtherCost = Math.Round(other, 2, MidpointRounding.AwayFromZero),
+            AdditionalAcquisitionCost = additional,
+            TotalAcquisitionCost = total
+        };
+    }
+
     private static string SafeMessage(Exception ex)
     {
         if (ex is ArgumentException || ex is InvalidOperationException)
@@ -417,7 +545,16 @@ public class StockAdditionService : IStockAdditionService
         StockAdditionPurchasedDto dto,
         string purchaseNumber,
         string livestockId,
-        Guid userId)
+        Guid userId,
+        decimal commission,
+        decimal tax,
+        decimal transport,
+        decimal other,
+        string? otherCostDescription,
+        decimal additionalAcquisitionCost,
+        decimal totalAcquisitionCost,
+        AllocatedCosts allocation,
+        CostAllocationMethod method)
     {
         var sb = new StringBuilder();
         sb.Append($"Idempotency:{dto.IdempotencyKey:N};");
@@ -430,6 +567,19 @@ public class StockAdditionService : IStockAdditionService
         sb.Append($"PurchaseWeight:{dto.PurchaseWeight};");
         sb.Append($"WeightUnit:{dto.WeightUnit};");
         sb.Append($"PurchaseCost:{dto.PurchaseCost};");
+        sb.Append($"Commission:{commission};");
+        sb.Append($"Tax:{tax};");
+        sb.Append($"Transportation:{transport};");
+        sb.Append($"OtherCost:{other};");
+        if (!string.IsNullOrWhiteSpace(otherCostDescription))
+            sb.Append($"OtherCostDesc:{otherCostDescription};");
+        sb.Append($"AdditionalAcqCost:{additionalAcquisitionCost};");
+        sb.Append($"TotalAcqCost:{totalAcquisitionCost};");
+        sb.Append($"AllocationMethod:{method};");
+        sb.Append($"AllocCommission:{allocation.AllocatedCommission};");
+        sb.Append($"AllocTax:{allocation.AllocatedTax};");
+        sb.Append($"AllocTransport:{allocation.AllocatedTransportation};");
+        sb.Append($"AllocOther:{allocation.AllocatedOtherCost};");
         if (!string.IsNullOrWhiteSpace(dto.SupplierReference))
             sb.Append($"SupplierRef:{dto.SupplierReference};");
         if (!string.IsNullOrWhiteSpace(dto.Comments))
@@ -466,15 +616,8 @@ public class StockAdditionService : IStockAdditionService
         return sb.ToString();
     }
 
-    private static string GetTypeDescription(LivestockType type) => type switch
-    {
-        LivestockType.Ah => "Ah Purchased ram",
-        LivestockType.Su => "Su Uncastrated ram",
-        LivestockType.Sa => "Sa Purchased ewe",
-        LivestockType.Ad => "Ad Bred castrated ram",
-        LivestockType.Sd => "Sd Bred ewe",
-        _ => type.ToString()
-    };
+    private static string GetTypeDescription(LivestockType type)
+        => LivestockTypeDisplay.GetDisplayName(type);
 
     private static long ExtractNumeric(string raw, string prefix)
     {

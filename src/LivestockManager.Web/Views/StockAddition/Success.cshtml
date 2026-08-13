@@ -1,19 +1,11 @@
 @using LivestockManager.Application.DTOs.Livestock
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers
 @model Guid
 @{
     ViewData["Title"] = "Stock Addition Complete";
     ViewData["DockKey"] = "stock";
     var detail = ViewData["LivestockDetail"] as LivestockDetailDto;
-    var getTypeDesc = new Func<LivestockType, string>(t => t switch
-    {
-        LivestockType.Ah => "Ah - Purchased castrated ram",
-        LivestockType.Su => "Su - Uncastrated ram",
-        LivestockType.Sa => "Sa - Purchased ewe",
-        LivestockType.Ad => "Ad - Bred castrated ram",
-        LivestockType.Sd => "Sd - Bred ewe",
-        _ => t.ToString()
-    });
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
@@ -42,7 +34,7 @@
                         <div class="col-md-6">
                             <div class="border rounded p-3 bg-light">
                                 <div class="small text-muted mb-1">Type</div>
-                                <div class="fw-bold fs-5">@getTypeDesc(detail.LivestockTypeId)</div>
+                                <div class="fw-bold fs-5">@LivestockTypeDisplay.GetDisplayName(detail.LivestockTypeId)</div>
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -65,10 +57,47 @@
                         </div>
                         @if (detail.PurchaseAmount > 0)
                         {
-                            <div class="col-md-6">
-                                <div class="border rounded p-3 bg-light">
-                                    <div class="small text-muted mb-1">Purchase Cost</div>
-                                    <div class="fw-bold fs-5">$@detail.PurchaseAmount.ToString("N2")</div>
+                            <div class="col-md-12">
+                                <div class="border border-primary rounded p-3 bg-primary bg-opacity-10">
+                                    <h6 class="mb-3 text-primary fw-bold">💰 Acquisition Cost Breakdown</h6>
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <div class="small text-muted mb-1">Livestock Purchase Cost</div>
+                                            <div class="fw-semibold">$@detail.PurchaseAmount.ToString("N2")</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="small text-muted mb-1">Commission</div>
+                                            <div class="fw-semibold">$@detail.AllocatedCommission.ToString("N2")</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="small text-muted mb-1">Taxes</div>
+                                            <div class="fw-semibold">$@detail.AllocatedTax.ToString("N2")</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="small text-muted mb-1">Transportation</div>
+                                            <div class="fw-semibold">$@detail.AllocatedTransportation.ToString("N2")</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="small text-muted mb-1">Other Costs</div>
+                                            <div class="fw-semibold">$@detail.AllocatedOtherCost.ToString("N2")</div>
+                                        </div>
+                                        @if (!string.IsNullOrWhiteSpace(detail.OtherCostDescription))
+                                        {
+                                            <div class="col-md-6">
+                                                <div class="small text-muted mb-1">Other Cost Description</div>
+                                                <div class="fw-semibold small">@detail.OtherCostDescription</div>
+                                            </div>
+                                        }
+                                        <div class="col-md-12"><hr class="my-1" /></div>
+                                        <div class="col-md-6">
+                                            <div class="small text-muted mb-1">Additional Acquisition Costs</div>
+                                            <div class="fw-semibold">$@(detail.AllocatedCommission + detail.AllocatedTax + detail.AllocatedTransportation + detail.AllocatedOtherCost).ToString("N2")</div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="small text-muted mb-1 text-success fw-bold">Total Acquisition Cost</div>
+                                            <div class="fw-bold fs-5 text-success">$@detail.TotalAcquisitionCost.ToString("N2")</div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         }

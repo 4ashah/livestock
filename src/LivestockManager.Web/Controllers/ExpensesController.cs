@@ -11,6 +11,7 @@ using LivestockManager.Application.Services.Suppliers;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Domain.Exceptions;
+using LivestockManager.Domain.Helpers;
 using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
@@ -360,16 +361,24 @@ public class ExpensesController : Controller
     {
         ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
         ViewData["Suppliers"] = await _supplierService.ListAsync(companyId, ct);
-        ViewData["ActiveLivestock"] = await _db.Livestock
+        var rawList = await _db.Livestock
             .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
             .OrderBy(l => l.LivestockId)
             .Select(l => new
             {
                 l.Id,
                 l.LivestockId,
-                l.LivestockTypeId,
-                Display = l.LivestockId + " (" + l.LivestockTypeId + ")"
+                l.LivestockTypeId
             })
             .ToListAsync(ct);
+
+        ViewData["ActiveLivestock"] = rawList.Select(l => new
+        {
+            l.Id,
+            l.LivestockId,
+            l.LivestockTypeId,
+            TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
+            Display = l.LivestockId + " (" + LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")"
+        }).ToList();
     }
 }

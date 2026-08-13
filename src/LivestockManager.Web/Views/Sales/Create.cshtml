@@ -4,13 +4,12 @@
     ViewData["Title"] = "New Sale";
     var farms = ViewData["Farms"] as System.Collections.IEnumerable;
     var customers = ViewData["Customers"] as System.Collections.IEnumerable;
-    var livestock = ViewData["ActiveLivestock"] as System.Collections.IEnumerable;
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
     <div>
-        <h1 class="h3 mb-1">🛒 New Sale</h1>
-        <div class="text-muted small">Create a draft sale order</div>
+        <h1 class="h3 mb-1">🧾 New Sale</h1>
+        <div class="text-muted small">Create a draft sale order — find livestock by search, not scrolling</div>
     </div>
     <a asp-action="Index" class="btn btn-outline-secondary">← Cancel</a>
 </div>
@@ -23,30 +22,42 @@
             </div>
             <div class="card-body row g-3">
                 <div class="col-md-4">
-                    <label class="form-label small fw-semibold">Farm</label>
-                    <select asp-for="FarmId" class="form-select" required>
-                        <option value="">—</option>
-                        @if (farms != null)
-                        {
-                            @foreach (var f in (IEnumerable<LivestockManager.Application.DTOs.Farms.FarmSummaryDto>)farms)
+                    <label class="form-label small fw-semibold">Farm *</label>
+                    <div class="position-relative">
+                        <input id="farmSearch" type="text" class="form-control" placeholder="Search farm by name..." autocomplete="off" />
+                        <select asp-for="FarmId" id="farmSelect" class="d-none" required>
+                            <option value="">—</option>
+                            @if (farms != null)
                             {
-                                <option value="@f.Id">@f.Name</option>
+                                @foreach (var f in (IEnumerable<LivestockManager.Application.DTOs.Farms.FarmSummaryDto>)farms)
+                                {
+                                    <option value="@f.Id" data-name="@f.Name">@f.Name</option>
+                                }
                             }
-                        }
-                    </select>
+                        </select>
+                        <ul id="farmDrop" class="dropdown-menu shadow w-100" style="max-height:260px;overflow:auto;display:none;"></ul>
+                        <small id="farmPicked" class="text-muted d-none"></small>
+                    </div>
+                    <span asp-validation-for="FarmId" class="text-danger small"></span>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label small fw-semibold">Customer *</label>
-                    <select asp-for="CustomerId" class="form-select" required>
-                        <option value="">Select customer...</option>
-                        @if (customers != null)
-                        {
-                            @foreach (var c in (IEnumerable<LivestockManager.Application.DTOs.Customers.CustomerSummaryDto>)customers)
+                    <div class="position-relative">
+                        <input id="custSearch" type="text" class="form-control" placeholder="Type to search customer…" autocomplete="off" />
+                        <select asp-for="CustomerId" id="custSelect" class="d-none" required>
+                            <option value="">—</option>
+                            @if (customers != null)
                             {
-                                <option value="@c.Id">@c.Name (@c.CustomerCode)</option>
+                                @foreach (var c in (IEnumerable<LivestockManager.Application.DTOs.Customers.CustomerSummaryDto>)customers)
+                                {
+                                    <option value="@c.Id" data-name="@c.Name (@c.CustomerCode)">@c.Name (@c.CustomerCode)</option>
+                                }
                             }
-                        }
-                    </select>
+                        </select>
+                        <ul id="custDrop" class="dropdown-menu shadow w-100" style="max-height:260px;overflow:auto;display:none;"></ul>
+                        <small id="custPicked" class="text-muted d-none"></small>
+                    </div>
+                    <span asp-validation-for="CustomerId" class="text-danger small"></span>
                 </div>
                 <div class="col-md-4">
                     <label class="form-label small fw-semibold">Sale Date</label>
@@ -62,49 +73,46 @@
 
     <div class="col-md-12">
         <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
-                <h6 class="mb-0 fw-bold">🐑 Select Livestock (Active)</h6>
-                <span class="small text-muted">Check items to add; price editable per item</span>
+            <div class="card-header bg-transparent border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h6 class="mb-0 fw-bold">🐑 Selected Livestock</h6>
+                <span class="small text-muted"><span id="lsCount">0</span> animal(s) added</span>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 align-middle" id="livestockTable">
+            <div class="card-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label small fw-semibold">Find by ID / comment</label>
+                        <div class="input-group">
+                            <input id="lsSearch" type="text" class="form-control" placeholder="Start typing Livestock ID…" autocomplete="off" />
+                            <button class="btn btn-outline-primary" type="button" id="lsManualResolve" title="Paste exact ID">Manual Resolve</button>
+                        </div>
+                        <ul id="lsDrop" class="dropdown-menu shadow w-100" style="max-height:280px;overflow:auto;display:none;margin-top:2px;"></ul>
+                        <small id="lsMsg" class="text-muted d-block mt-1">Search returns up to 25 matches. Pick one to add it below.</small>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label small fw-semibold">Or paste Livestock IDs (one per line, bulk)</label>
+                        <textarea id="lsBulkPaste" class="form-control" rows="3" placeholder="e.g.&#10;AH-2026-00123&#10;SA-2026-04567"></textarea>
+                        <small class="text-muted d-block mt-1">All IDs must be exact &amp; active. Click Add Bulk.</small>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-outline-primary w-100" id="lsAddBulk">+ Add Bulk</button>
+                    </div>
+                </div>
+
+                <div id="lsCart" class="table-responsive">
+                    <table class="table align-middle mb-0">
                         <thead class="table-light">
                             <tr>
-                                <th style="width:40px;">
-                                    <input type="checkbox" id="selectAllLivestock" class="form-check-input" />
-                                </th>
                                 <th>Livestock ID</th>
-                                <th>Type</th>
-                                <th class="text-end">Suggested Price</th>
-                                <th style="width:160px;" class="text-end">Unit Price</th>
+                                <th class="w-100px">Type</th>
+                                <th class="text-end">Cost</th>
+                                <th class="text-end" style="width:180px;">Unit Price (editable)</th>
+                                <th class="text-end" style="width:60px;"></th>
                             </tr>
                         </thead>
-                        <tbody>
-                            @if (livestock != null)
-                            {
-                                int li = 0;
-                                @foreach (var l in (IEnumerable<dynamic>)livestock)
-                                {
-                                    <tr data-id="@l.Id">
-                                        <td>
-                                            <input type="checkbox" name="livestockIds" value="@l.Id" class="form-check-input ls-check" data-idx="@li" />
-                                        </td>
-                                        <td><code>@l.LivestockId</code></td>
-                                        <td>@l.LivestockTypeId</td>
-                                        <td class="text-end">$@l.SuggestedPrice.ToString("F2")</td>
-                                        <td>
-                                            <input type="number" name="livestockPrices" step="0.01" value="@l.SuggestedPrice.ToString("F2")"
-                                                   class="form-control form-control-sm text-end ls-price" data-idx="@li" />
-                                        </td>
-                                    </tr>
-                                    li++;
-                                }
-                            }
-                            else
-                            {
-                                <tr><td colspan="5" class="text-center py-4 text-muted small">No active livestock available.</td></tr>
-                            }
+                        <tbody id="lsCartBody">
+                            <tr id="lsEmpty">
+                                <td colspan="5" class="text-center text-muted py-4 small">No livestock added yet. Use search above.</td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -176,17 +184,279 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         (function () {
-            function fmt(n) { return '$' + (Number(n) || 0).toFixed(2); }
-            function recalc() {
-                var lsTotal = 0;
-                document.querySelectorAll('#livestockTable .ls-check').forEach(function (cb, i) {
-                    if (cb.checked) {
-                        var priceInput = document.querySelector('#livestockTable .ls-price[data-idx="' + cb.dataset.idx + '"]');
-                        lsTotal += parseFloat(priceInput && priceInput.value || '0');
+            const esc = s => (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            const fmt = n => '$' + (Number(n) || 0).toFixed(2);
+            const LS = { url: '@Url.Action("SearchLivestock")', resolve: '@Url.Action("ResolveLivestock")' };
+            const CU = { url: '@Url.Action("SearchCustomers")' };
+            const __CSRFTOKEN = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            let lsCart = [];
+            let farmFilter = null;
+
+            function showDrop(ul) { ul.style.display = 'block'; }
+            function hideDrop(ul) { ul.style.display = 'none'; }
+
+            function bindCombo({ input, select, drop, onPick, fetch, placeholderText, buildLabel }) {
+                let selectedId = null;
+                function render(list) {
+                    drop.innerHTML = '';
+                    if (!list.length) {
+                        const li = document.createElement('li');
+                        li.className = 'dropdown-item disabled text-muted small px-3 py-2';
+                        li.textContent = placeholderText;
+                        drop.appendChild(li);
+                        showDrop(drop);
+                        return;
                     }
+                    list.forEach(it => {
+                        const li = document.createElement('li');
+                        const a = document.createElement('button');
+                        a.type = 'button';
+                        a.className = 'dropdown-item d-flex justify-content-between align-items-start';
+                        a.innerHTML = `<span>${esc(buildLabel(it))}</span>${it.Sub ? `<small class="text-muted ms-2">${esc(it.Sub)}</small>` : ''}`;
+                        a.addEventListener('click', () => {
+                            selectedId = it.Id;
+                            input.value = it.Text;
+                            pickLabel.textContent = buildLabel(it);
+                            pickLabel.classList.remove('d-none');
+                            hideDrop(drop);
+                            onPick(it);
+                        });
+                        li.appendChild(a);
+                        drop.appendChild(li);
+                    });
+                    showDrop(drop);
+                }
+                const pickLabel = input.parentElement.parentElement.querySelector('small[id$="Picked"]');
+                input.addEventListener('focus', async () => { if (fetch) render(await fetch('')); });
+                document.addEventListener('click', e => { if (!input.parentElement.contains(e.target)) hideDrop(drop); });
+                let t;
+                input.addEventListener('input', () => {
+                    clearTimeout(t);
+                    const q = input.value.trim();
+                    t = setTimeout(async () => { if (fetch) render(await fetch(q)); }, 220);
                 });
+            }
+
+            bindCombo({
+                input: document.getElementById('farmSearch'),
+                select: document.getElementById('farmSelect'),
+                drop: document.getElementById('farmDrop'),
+                placeholderText: 'No farms',
+                buildLabel: it => it.Text + (it.Sub ? ' — ' + it.Sub : ''),
+                fetch: async (q) => {
+                    return Array.from(document.querySelectorAll('#farmSelect option')).slice(1)
+                        .map(o => ({ Id: o.value, Text: o.textContent, Sub: '' }))
+                        .filter(x => !q || x.Text.toLowerCase().includes(q.toLowerCase()));
+                },
+                onPick: (it) => {
+                    document.getElementById('farmSelect').value = it.Id;
+                    farmFilter = it.Id ? it.Id : null;
+                    // refresh livestock search when farm filter changes:
+                    if (document.getElementById('lsSearch').value.trim() !== '') {
+                        const e = new Event('input');
+                        document.getElementById('lsSearch').dispatchEvent(e);
+                    }
+                }
+            });
+            (function prefillFarmFromSelect() {
+                const s = document.getElementById('farmSelect').value;
+                if (s) {
+                    const opt = document.querySelector('#farmSelect option[value="' + s + '"]');
+                    if (opt) {
+                        document.getElementById('farmSearch').value = opt.textContent;
+                        document.getElementById('farmPicked').textContent = opt.textContent;
+                        document.getElementById('farmPicked').classList.remove('d-none');
+                        farmFilter = s;
+                    }
+                }
+            })();
+
+            bindCombo({
+                input: document.getElementById('custSearch'),
+                select: document.getElementById('custSelect'),
+                drop: document.getElementById('custDrop'),
+                placeholderText: 'No customers found',
+                buildLabel: it => it.Text + (it.Sub ? ' — ' + it.Sub : ''),
+                fetch: async (q) => {
+                    const url = CU.url + (q ? '?keyword=' + encodeURIComponent(q) : '');
+                    const r = await fetch(url);
+                    const data = await r.json();
+                    return data.map(c => ({
+                        Id: c.id || c.Id,
+                        Text: (c.name || c.Name) + ' (' + (c.customerCode || c.CustomerCode) + ')',
+                        Sub: (c.email || c.Email) || (c.phone || c.Phone) || ''
+                    }));
+                },
+                onPick: (it) => { document.getElementById('custSelect').value = it.Id; }
+            });
+            (function prefillCust() {
+                const s = document.getElementById('custSelect').value;
+                if (s) {
+                    const opt = document.querySelector('#custSelect option[value="' + s + '"]');
+                    if (opt) {
+                        document.getElementById('custSearch').value = opt.textContent;
+                        document.getElementById('custPicked').textContent = opt.textContent;
+                        document.getElementById('custPicked').classList.remove('d-none');
+                    }
+                }
+            })();
+
+            async function livestockList(q) {
+                let url = LS.url + '?keyword=' + encodeURIComponent(q || '');
+                if (farmFilter) url += '&farmId=' + encodeURIComponent(farmFilter);
+                const r = await fetch(url);
+                const j = await r.json();
+                return j.map(l => ({
+                    Id: l.id || l.Id,
+                    Text: l.livestockId || l.LivestockId,
+                    Sub: (l.typeLabel || l.TypeLabel || '') + ' · Cost ' + fmt(l.purchaseAmount || l.PurchaseAmount || 0)
+                }));
+            }
+
+            let lsSearchT;
+            const lsSearch = document.getElementById('lsSearch');
+            const lsDrop = document.getElementById('lsDrop');
+            const lsMsg = document.getElementById('lsMsg');
+            lsSearch.addEventListener('focus', async () => {
+                const list = await livestockList(lsSearch.value);
+                renderLsDrop(list, lsSearch.value);
+            });
+            document.addEventListener('click', e => { if (!lsSearch.parentElement.parentElement.contains(e.target)) hideDrop(lsDrop); });
+            lsSearch.addEventListener('input', () => {
+                clearTimeout(lsSearchT);
+                const q = lsSearch.value;
+                lsSearchT = setTimeout(async () => { renderLsDrop(await livestockList(q), q); }, 260);
+            });
+            function renderLsDrop(list, q) {
+                lsDrop.innerHTML = '';
+                if (!list.length) {
+                    const li = document.createElement('li');
+                    li.className = 'dropdown-item disabled text-muted small px-3 py-2';
+                    li.textContent = q ? 'No active livestock matches "' + q + '". Try Manual Resolve (paste exact ID).' : 'Start typing a Livestock ID…';
+                    lsDrop.appendChild(li);
+                    showDrop(lsDrop); return;
+                }
+                list.forEach(it => {
+                    if (lsCart.find(x => x.Id === it.Id)) return;
+                    const li = document.createElement('li');
+                    const a = document.createElement('button');
+                    a.type = 'button';
+                    a.className = 'dropdown-item d-flex justify-content-between align-items-center';
+                    a.innerHTML = `<span><code>${esc(it.Text)}</code> <small class="text-muted ms-2">${esc(it.Sub)}</small></span><span class="text-success fw-semibold ms-2">+ Add</span>`;
+                    a.addEventListener('click', async () => { await addLivestockById(it.Id); lsSearch.value = ''; hideDrop(lsDrop); });
+                    li.appendChild(a);
+                    lsDrop.appendChild(li);
+                });
+                if (!lsDrop.children.length) {
+                    const li = document.createElement('li');
+                    li.className = 'dropdown-item disabled text-muted small px-3 py-2';
+                    li.textContent = 'All matching livestock already added.';
+                    lsDrop.appendChild(li);
+                }
+                showDrop(lsDrop);
+            }
+
+            document.getElementById('lsManualResolve').addEventListener('click', async () => {
+                const val = lsSearch.value.trim();
+                if (!val) { lsMsg.textContent = 'Paste exact Livestock ID first.'; lsMsg.className = 'text-danger small d-block mt-1'; return; }
+                const r = await fetch(LS.resolve + '?id=' + encodeURIComponent(val));
+                const j = await r.json();
+                if (!j.ok) { lsMsg.textContent = j.msg || 'Not found'; lsMsg.className = 'text-danger small d-block mt-1'; return; }
+                lsMsg.textContent = 'Found, adding…'; lsMsg.className = 'text-success small d-block mt-1';
+                await addLivestockById(j.item.id || j.item.Id);
+                lsSearch.value = '';
+            });
+
+            document.getElementById('lsAddBulk').addEventListener('click', async () => {
+                const ta = document.getElementById('lsBulkPaste');
+                const lines = (ta.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+                if (!lines.length) return;
+                ta.value = '';
+                let failed = 0, added = 0;
+                for (const id of lines) {
+                    const r = await fetch(LS.resolve + '?id=' + encodeURIComponent(id));
+                    const j = await r.json();
+                    if (!j.ok) { failed++; continue; }
+                    const uid = j.item.id || j.item.Id;
+                    if (lsCart.find(x => x.Id === uid)) continue;
+                    await addLivestockById(uid);
+                    added++;
+                }
+                lsMsg.textContent = `Bulk: added ${added}${failed ? ' · failed ' + failed : ''}`;
+                lsMsg.className = (failed ? 'text-warning' : 'text-success') + ' small d-block mt-1';
+            });
+
+            async function addLivestockById(id) {
+                if (lsCart.find(x => x.Id === id)) return;
+                const url = LS.url + '?keyword=';
+                const r = await fetch(url);
+                const all = await r.json();
+                let item = all.find(x => (x.id || x.Id) === id);
+                if (!item) {
+                    const rr = await fetch(LS.resolve + '&id=' + encodeURIComponent('x')).then(() => null).catch(() => null);
+                    const res = await fetch(LS.resolve + '?id=' + encodeURIComponent(''));
+                    // re-use the resolve endpoint
+                    const res2 = await fetch(LS.resolve + '?id=' + encodeURIComponent('_lookup&id='));
+                    const dr = await fetch(LS.resolve + '?id=' + encodeURIComponent('dummy'));
+                    const dj = await dr.json();
+                    if (dj && dj.ok && dj.item && ((dj.item.id || dj.item.Id) === id)) item = dj.item;
+                }
+                if (!item) {
+                    const dr3 = await fetch(LS.resolve + '?id=' + encodeURIComponent(id));
+                    const dj3 = await dr3.json();
+                    if (dj3 && dj3.ok) item = dj3.item;
+                }
+                if (!item) return;
+                const row = {
+                    Id: item.id || item.Id,
+                    LivestockId: item.livestockId || item.LivestockId,
+                    Type: item.typeLabel || item.TypeLabel || item.livestockTypeId || item.LivestockTypeId,
+                    Cost: item.purchaseAmount || item.PurchaseAmount || 0,
+                    Price: item.suggestedPrice || item.SuggestedPrice || Math.round(((item.purchaseAmount || item.PurchaseAmount || 0) * 1.3) * 100) / 100
+                };
+                lsCart.push(row);
+                renderCart();
+            }
+
+            function renderCart() {
+                const body = document.getElementById('lsCartBody');
+                const empty = document.getElementById('lsEmpty');
+                if (!lsCart.length) {
+                    body.innerHTML = '';
+                    body.appendChild(empty);
+                    empty.classList.remove('d-none');
+                    empty.innerHTML = '<td colspan="5" class="text-center text-muted py-4 small">No livestock added yet. Use search above.</td>';
+                    body.appendChild(empty);
+                } else {
+                    body.innerHTML = '';
+                    lsCart.forEach((r, idx) => {
+                        const tr = document.createElement('tr');
+                        tr.dataset.id = r.Id;
+                        tr.innerHTML =
+                            `<td><input type="hidden" name="livestockIds" value="${r.Id}" /><code>${esc(r.LivestockId)}</code></td>` +
+                            `<td><span class="badge bg-light text-dark border">${esc(String(r.Type))}</span></td>` +
+                            `<td class="text-end text-muted small">${fmt(r.Cost)}</td>` +
+                            `<td><input type="number" name="livestockPrices" step="0.01" value="${r.Price.toFixed(2)}" class="form-control form-control-sm text-end ls-price" data-idx="${idx}" /></td>` +
+                            `<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger ls-remove" data-idx="${idx}" title="Remove">✕</button></td>`;
+                        body.appendChild(tr);
+                    });
+                    document.querySelectorAll('#lsCartBody .ls-price').forEach(el => {
+                        el.addEventListener('change', () => { lsCart[el.dataset.idx].Price = parseFloat(el.value || '0'); recalc(); });
+                        el.addEventListener('input', () => { lsCart[el.dataset.idx].Price = parseFloat(el.value || '0'); recalc(); });
+                    });
+                    document.querySelectorAll('#lsCartBody .ls-remove').forEach(el => {
+                        el.addEventListener('click', () => { lsCart.splice(parseInt(el.dataset.idx, 10), 1); renderCart(); });
+                    });
+                }
+                document.getElementById('lsCount').textContent = lsCart.length;
+                recalc();
+            }
+
+            function recalc() {
+                let lsTotal = 0;
+                lsCart.forEach(r => { lsTotal += Number(r.Price) || 0; });
                 var lnTotal = 0;
-                document.querySelectorAll('.line-row').forEach(function (r) {
+                document.querySelectorAll('.line-row').forEach(r => {
                     var q = parseFloat(r.querySelector('.line-qty')?.value || '0');
                     var p = parseFloat(r.querySelector('.line-price')?.value || '0');
                     lnTotal += q * p;
@@ -197,12 +467,7 @@
                 document.getElementById('sub').textContent = fmt(sub);
                 document.getElementById('grand').textContent = fmt(sub);
             }
-            document.getElementById('selectAllLivestock')?.addEventListener('change', function (e) {
-                document.querySelectorAll('#livestockTable .ls-check').forEach(function (cb) { cb.checked = e.target.checked; });
-                recalc();
-            });
-            document.querySelectorAll('#livestockTable .ls-check, #livestockTable .ls-price').forEach(function (el) { el.addEventListener('change', recalc); el.addEventListener('input', recalc); });
-            document.querySelectorAll('.line-qty, .line-price').forEach(function (el) { el.addEventListener('change', recalc); el.addEventListener('input', recalc); });
+
             document.getElementById('addLineBtn')?.addEventListener('click', function () {
                 var tbody = document.querySelector('#linesTable tbody');
                 var clone = tbody.querySelector('.line-row').cloneNode(true);
@@ -216,7 +481,15 @@
                 recalc();
             });
             document.querySelectorAll('.remove-line').forEach(function (b) { b.addEventListener('click', function () { b.closest('.line-row').remove(); recalc(); }); });
-            recalc();
+            document.querySelectorAll('.line-qty, .line-price').forEach(function (el) { el.addEventListener('change', recalc); el.addEventListener('input', recalc); });
+
+            document.getElementById('saleForm').addEventListener('submit', function (e) {
+                if (!lsCart.length && !document.querySelectorAll('.line-row').length) {
+                    // allow blank sales? prevent if no content
+                }
+            });
+
+            renderCart();
         })();
     </script>
 }

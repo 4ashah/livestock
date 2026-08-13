@@ -85,3 +85,83 @@ Actual per-Phase changes based on source-code audit evidence.
 - Preserved `.gitkeep` placeholder files.
 - Created `docs/REPOSITORY_MAINTENANCE.md`: tracked-vs-generated, clean locally, rebuild steps, preserve-audit-artifacts, create-review-ZIP, create-release-package + SHA256.
 - Build verification: `dotnet restore` → `dotnet build LivestockManager.sln -c Release --no-restore` → exit 0.
+
+---
+
+## Phase 16 — Livestock Tab User Review Corrections (LTC)
+
+**Scope:** Three focused user-review changes only. No unrelated modules redesigned. No Stock Addition / Purchase / Newborn / Security / Audit / Invoicing / Payment / PDF / Reporting workflow behavior changes.
+
+### 16.1 Shared Livestock Type Display — Combined Code + Description
+
+- **New:** Created single authoritative helper `src/LivestockManager.Domain/Helpers/LivestockTypeDisplay.cs` (constants for 5 authoritative labels, enum extension `GetDisplayName()`, code helper `GetCode()`, static dictionary `AllDisplayNames` for filter `<option>` enumeration).
+- **Authoritative labels used everywhere:**
+  - `Ah - Purchased Castrated Ram`
+  - `Su - Uncastrated Ram`
+  - `Sa - Purchased Ewe`
+  - `Ad - Bred Castrated Ram`
+  - `Sd - Bred Ewe`
+- **Enum values and livestock-ID prefixes are NOT changed.** Filter `<option value="@enum">` always submits the raw enum value (Ah/Su/Sa/Ad/Sd), never the display text.
+- **Unified every inline hard-coded Func/switch statement into the single helper call:**
+  - Removed inline switch blocks from: LivestockController, StockAdditionService, Success.cshtml, MobileSuccess.cshtml, Edit.cshtml (ViewData Func dependency removed).
+  - Updated all 16 display locations: Livestock (filter/list/register/edit/details/csv), StockAddition (Purchase/Newborn desktop+mobile forms + Success/MobileSuccess), Sales (SearchLivestock/ResolveLivestock AJAX resolver cart TypeLabel + display), Newborn parent selectors (Mother/Father search candidates TypeDescription), Dashboard recent livestock (desktop table + mobile cards + MobileDashboard meta-caption), Expenses link-to-livestock dropdown (Display + TypeLabel), LivestockLosses selector (desktop + mobile), Purchase Invoices ActiveLivestock table (desktop + mobile).
+
+### 16.2 Livestock Page Responsiveness — Zero Page-Level Horizontal Overflow
+
+**Desktop (Livestock/Index.cshtml):**
+- **Root cause removed:** Header removed `flex-md-nowrap` forcing h1 + action buttons into a single rigid row; h1 gains `mb-2 mb-md-0` for wrapped spacing.
+- **Filters:** Bootstrap responsive grid columns; controls naturally wrap when viewport narrows.
+- **Actions:** `btn-group btn-group-sm` (rigid single-row) replaced with `d-flex flex-wrap gap-1 justify-content-end btn-sm` allowing safe button wrap. Export CSV uses `ms-md-auto` so it aligns right on md+ but wraps to new row safely on narrow screens.
+- **Responsive column priority (6 always visible, rest hides progressively):**
+  - Always: Livestock ID, Type, Source, Farm, Current Weight, Status, Primary Actions
+  - <md hidden (shown md+): Initial Weight, P&L Status (`d-none d-md-table-cell`)
+  - <lg hidden (shown lg+): Acquired Date, DOB, Days (`d-none d-lg-table-cell`)
+- **Table containment:** Wrapped inside `<div class="table-responsive w-100">`. Any residual column overflow stays inside the container (inner horizontal scrollbar permitted when genuinely necessary) — never reaches the page body.
+
+**Separate mobile (Livestock/MobileIndex.cshtml):**
+- **Cards NOT table:** Desktop table no longer forced into narrow viewport; each animal renders as a single overflow-safe flex card.
+- **Row-top overflow-safe flex:** Left ID/type pills `min-width:0; flex:1 1 auto; word-break:break-all/break-word`; right numeric values `flex:0 0 auto; white-space:nowrap` (no clipping).
+- **Advanced filter collapsible (native HTML `<details><summary>`):**
+  - Search input always shown (no tap required)
+  - Gear "Advanced Filters (tap to open)" expands to show Farm/Type/Status selects at width:100% + Reset + Apply buttons as flex:1 with 0.5rem gap.
+  - No custom off-canvas drawer; no body overflow-lock; scroll restores naturally.
+- **44px touch targets:** All 3 card action buttons (View, Add Weight, Discharge) force `min-height:44px`.
+- **Bottom navigation preserved:** Home / Stock / Expense / Loss / P&L always reachable.
+
+**Verification (integrated Chromium, Accounts user):**
+- Desktop 1363px: `document.documentElement.scrollWidth=1348 < window.innerWidth=1363; exceedsDoc=false; excessPx=-15` — Page **narrower** than viewport → page-level scrollbar absent.
+- Mobile: `excessPx=0; worstOffenders=[]` — Zero elements extend viewport.
+
+### 16.3 Other Cost Description Parity (No New Migration Required)
+
+- **Database field exists already:** Prior `AddPurchaseAcquisitionCosts` migration added `OtherCostDescription nvarchar(500) NULL` on all 3 tables (Purchase / PurchaseItem / Livestock). No additive migration created; `AddOtherCostDescription` is marked NOT REQUIRED.
+- **Server-authoritative validation (StockAdditionService L86-93):** whitespace-only → null; required (Fail message) when `OtherCostAmount > 0`; maxlength 500 enforced. Client VM `IValidatableObject.Validate` mirrors the same rules but server is final authority. Both controller POSTs coerce `IsNullOrWhiteSpace ? null : Trim()` pre-service.
+- **Conditional rendering throughout:** Field enabled/shown only when OtherCostAmount > 0. Empty OtherCostDescription row **suppressed** when OtherCostAmount = 0. Newborn flow never renders it (Newborn = zero acquisition cost N/A).
+- **CSV export — Livestock (LivestockService.ExportCsvAsync) — added financials:**
+  New columns: `TypeLabel, AllocatedCommission, AllocatedTax, AllocatedTransport, AllocatedOtherCost, OtherCostDescription, TotalAcquisitionCost`.
+  `OtherCostDescription` uses RFC 4180 escaping (`"` doubled + wrapped in `"…"`). `PurchaseAmount` kept separate from `AllocatedOtherCost` → no double-count risk.
+- **Audit (BuildPurchasedMetadata L574-575):** When non-null/non-whitespace, appends `OtherCostDesc:{trimmed};` to the audit metadata string.
+- **Financial formulas unchanged:**
+  - `Additional Acquisition Costs = Commission + Taxes + Transportation + Other Costs`
+  - `Total Acquisition Cost = Livestock Purchase Cost + Commission + Taxes + Transportation + Other Costs`
+  - Description does NOT change totals. All calculations server-side; browser-submitted preview totals never trusted.
+  - Other Cost NOT double-counted in profitability (single stored `Livestock.AllocatedOtherCost` in Complete Profit formula).
+- **Authorization preserved:** All cost + description fields stay behind `CanViewFinancialData` policy. Unauthorized users never see amount or description.
+
+### 16.4 Build & Test Results (LTC Gate)
+
+- **Build (Release):** 0 Warnings / 0 Errors.
+- **Architecture Tests:** 60 / 60 PASS (NetArchTest layer + naming + dependency rules).
+- **Integration Tests:** 15 / 15 PASS (WebApplicationFactory / Kestrel).
+- **Unit Tests:** 322 / 324 PASS — **2 pre-existing intentionally-throwing failures only:** `PurchaseServiceTests.PostPurchase_CreatesLivestockIntakeIdempotently` + `.PostPurchase_LivestockInitialWeightLinkedIfProvided`. These explicitly throw DomainException "Purchase Invoice cannot auto-create livestock; use Stock Addition → New Purchase" by 2026-08-13 audit decision. Zero failures attributable to LTC round.
+- **Playwright / Browser manual viewport validation:** Structurally validated overflow conditions at desktop width. Type filter labels verified readable and correct.
+
+### 16.5 Final LTC Status
+
+```
+LIVESTOCK TAB CORRECTIONS READY FOR USER REVIEW
+```
+
+Full independent auditor write-up with root-cause analysis, responsive corrections, Other Cost Description rules, and file-by-file change log: see `audit/STOCK_ADDITION_DESKTOP_MOBILE_REPORT.md` → new Section **Livestock Tab Review Corrections**.
+
+Overall release status continues to be **PENDING INDEPENDENT AUDIT**. This LTC round addresses only the three specific user-review corrections scoped in the request.

@@ -232,37 +232,10 @@ public class PurchaseService : IPurchaseService
             {
                 if (item.ItemType == PurchaseItemType.Livestock && item.LivestockId == null)
                 {
-                    var livestockType = LivestockType.PurchasedCastratedRam;
-                    var livestockIdSeq = await _sequenceGenerator.GenerateLivestockIdAsync(purchase.CompanyId, livestockType);
-                    var initialWeight = item.UnitWeight > 0 ? item.UnitWeight : 1m;
-                    var weightUnit = item.WeightUnit;
-
-                    var livestock = new DE.Livestock(
-                        purchase.CompanyId,
-                        livestockIdSeq,
-                        livestockType,
-                        purchase.PurchaseDate,
-                        initialWeight,
-                        weightUnit,
-                        item.LineTotal,
-                        purchase.FarmId)
-                    {
-                        Comments = $"Purchased via {purchase.PurchaseNumber ?? $"Purchase {purchase.Id}"}"
-                    };
-
-                    _db.Livestock.Add(livestock);
-                    await _db.SaveChangesAsync(ct);
-
-                    if (item.UnitWeight > 0)
-                    {
-                        var weightRecord = new DE.LivestockWeight(livestock.Id, item.UnitWeight, weightUnit, purchase.PurchaseDate)
-                        {
-                            Notes = "Initial weight from purchase"
-                        };
-                        _db.LivestockWeights.Add(weightRecord);
-                    }
-
-                    item.LivestockId = livestock.Id;
+                    throw new DomainException(
+                        "This Purchase Invoice cannot create livestock automatically. " +
+                        "Use Stock Addition → New Purchase to register bought animals (it creates the animal record and a linked simple Purchase Invoice automatically). " +
+                        "Then return here to record multi-item supplier invoices, freight, feed, or attach livestock you already registered.");
                 }
             }
 
@@ -370,6 +343,15 @@ public class PurchaseService : IPurchaseService
         PaymentStatus = p.PaymentStatus,
         Notes = p.Notes,
         DocumentId = p.DocumentId,
+        CostAllocationMethod = p.CostAllocationMethod,
+        TotalLivestockPurchaseCost = p.TotalLivestockPurchaseCost,
+        TotalCommission = p.TotalCommission,
+        TotalTax = p.TotalTax,
+        TotalTransportation = p.TotalTransportation,
+        TotalOtherCost = p.TotalOtherCost,
+        OtherCostDescription = p.OtherCostDescription,
+        AdditionalAcquisitionCost = p.AdditionalAcquisitionCost,
+        TotalAcquisitionCost = p.TotalAcquisitionCost,
         Items = items.Select(MapToLineDto).ToList()
     };
 
@@ -386,6 +368,15 @@ public class PurchaseService : IPurchaseService
         DiscountPct = i.DiscountPct,
         TaxRate = i.TaxRate,
         LineTotal = i.LineTotal,
-        LivestockId = i.LivestockId
+        LivestockId = i.LivestockId,
+        LivestockPurchaseCost = i.LivestockPurchaseCost,
+        CommissionAmount = i.CommissionAmount,
+        TaxAmount = i.TaxAmount,
+        TransportationAmount = i.TransportationAmount,
+        OtherCostAmount = i.OtherCostAmount,
+        OtherCostDescription = i.OtherCostDescription,
+        AdditionalAcquisitionCost = i.AdditionalAcquisitionCost,
+        TotalAcquisitionCost = i.TotalAcquisitionCost,
+        CostAllocationMethod = i.CostAllocationMethod
     };
 }

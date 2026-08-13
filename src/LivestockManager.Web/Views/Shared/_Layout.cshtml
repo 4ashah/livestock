@@ -198,6 +198,8 @@
             else if (here === '/Livestock/Register' || here.indexOf('/Livestock/Register') === 0) dest = '/Livestock/MobileRegister';
             else if (here === '/Purchases' || here === '/Purchases/Index' || here.indexOf('/Purchases/Index') === 0) dest = '/Purchases/MobileIndex';
             else if (here === '/Purchases/Create' || here.indexOf('/Purchases/Create') === 0) dest = '/Purchases/MobileCreate';
+            else if (here === '/Sales' || here === '/Sales/Index' || here.indexOf('/Sales/Index') === 0) dest = '/Sales/MobileIndex' + search;
+            else if (here === '/Sales/Create' || here.indexOf('/Sales/Create') === 0) dest = '/Sales/MobileCreate';
             else if (here === '/LivestockLosses' || here === '/LivestockLosses/Index' || here.indexOf('/LivestockLosses/Index') === 0) dest = '/LivestockLosses/MobileIndex' + search;
             if (here === '/LivestockLosses/Create' || here.indexOf('/LivestockLosses/Create') === 0) dest = '/LivestockLosses/MobileCreate' + search;
             else if (here === '/Reports/ProfitLoss' || here.indexOf('/Reports/ProfitLoss') === 0) dest = '/Reports/MobileProfitLoss' + search;
@@ -348,7 +350,7 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Purchases")" asp-area="" asp-controller="Purchases" asp-action="Index">
-                                <span>&#128722;</span><span>Purchases</span>
+                                <span>&#128722;</span><span>Purchase Invoices</span>
                             </a>
                         </li>
                         <li class="nav-item">
@@ -540,6 +542,8 @@
             });
         })();
     </script>
+    <script src="~/lib/jquery/dist/jquery.min.js" asp-append-version="true"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

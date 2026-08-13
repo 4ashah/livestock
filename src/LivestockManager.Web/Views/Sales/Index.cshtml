@@ -98,6 +98,7 @@
                     <tr>
                         <th>Sale #</th>
                         <th>Date</th>
+                        <th>Farm</th>
                         <th>Customer</th>
                         <th class="text-end">Grand Total</th>
                         <th>Status</th>
@@ -107,9 +108,27 @@
                 <tbody>
                     @foreach (var s in Model)
                     {
+                        var displaySaleNumber = !string.IsNullOrWhiteSpace(s.SaleNumber)
+                            ? s.SaleNumber
+                            : (s.Status == SaleStatus.Draft
+                                ? $"DRAFT-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
+                                : (s.Status == SaleStatus.Cancelled
+                                    ? $"VOID-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
+                                    : $"SALE-{s.Id.ToString("N")[..8].ToUpperInvariant()}"));
                         <tr>
-                            <td><code>@s.SaleNumber</code></td>
+                            <td><code title="@(string.IsNullOrWhiteSpace(s.SaleNumber) ? $"Internal Id: {s.Id}" : null)">@displaySaleNumber</code></td>
                             <td>@s.Date.ToString("yyyy-MM-dd")</td>
+                            <td>
+                                @if (s.FarmId.HasValue)
+                                {
+                                    if (!string.IsNullOrWhiteSpace(s.FarmName))
+                                    { <span title="Farm Id: @s.FarmId.Value">@s.FarmName</span> }
+                                    else
+                                    { <code title="Farm deleted or not found.">@s.FarmId.Value</code> }
+                                }
+                                else
+                                { <span class="text-muted">—</span> }
+                            </td>
                             <td>@s.CustomerName</td>
                             <td class="text-end fw-semibold">$@s.GrandTotal.ToString("F2")</td>
                             <td>
@@ -129,7 +148,7 @@
                     }
                     @if (!Model.Any())
                     {
-                        <tr><td colspan="6" class="text-center py-5 text-muted small">No sales found.</td></tr>
+                        <tr><td colspan="7" class="text-center py-5 text-muted small">No sales found.</td></tr>
                     }
                 </tbody>
             </table>

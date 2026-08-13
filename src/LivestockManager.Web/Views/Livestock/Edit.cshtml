@@ -1,9 +1,9 @@
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers;
 @using LivestockManager.Web.Models.LivestockViewModels
 @model LivestockEditViewModel
 @{
     ViewData["Title"] = $"Edit - {Model.LivestockId}";
-    var getTypeDesc = (Func<LivestockType, string>)ViewData["GetLivestockTypeDescription"]!;
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
@@ -40,7 +40,7 @@
 
                 <div class="col-md-6">
                     <label class="form-label fw-semibold">Livestock Type</label>
-                    <input class="form-control bg-light" value="@getTypeDesc(Model.LivestockTypeId)" readonly disabled />
+                    <input class="form-control bg-light" value="@LivestockTypeDisplay.GetDisplayName(Model.LivestockTypeId)" readonly disabled />
                     <input type="hidden" asp-for="LivestockTypeId" />
                 </div>
 

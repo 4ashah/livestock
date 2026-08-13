@@ -2,6 +2,7 @@
 @using LivestockManager.Application.DTOs.Livestock
 @using LivestockManager.Application.DTOs.Invoices
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers
 @{
     ViewData["Title"] = "Dashboard";
     var recentLivestock = ViewData["RecentLivestock"] as IEnumerable<LivestockSummaryDto>;
@@ -273,7 +274,7 @@
                                 {
                                     <tr>
                                         <td><code>@l.LivestockId</code></td>
-                                        <td>@l.LivestockTypeId</td>
+                                        <td>@LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId)</td>
                                         <td>
                                             @if (l.Status == LivestockStatus.Active)
                                             { <span class="badge bg-success">Active</span> }
@@ -316,7 +317,7 @@
                                 <div class="d-flex justify-content-between align-items-center small">
                                     <div>
                                         <div class="text-muted">Type</div>
-                                        <div class="fw-semibold">@l.LivestockTypeId</div>
+                                        <div class="fw-semibold">@LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId)</div>
                                     </div>
                                     <div class="text-end">
                                         <div class="text-muted">Weight</div>

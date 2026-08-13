@@ -1,6 +1,6 @@
 @model IEnumerable<LivestockManager.Application.DTOs.Purchases.PurchaseSummaryDto>
 @{
-    ViewData["Title"] = "Purchases";
+    ViewData["Title"] = "Purchase Invoices";
     var canEdit = (bool?)ViewData["CanEdit"] ?? false;
     var suppliers = ViewData["Suppliers"] as System.Collections.IEnumerable;
     var selSupplierId = ViewData["SupplierId"] as Guid?;
@@ -9,12 +9,12 @@
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
     <div>
-        <h1 class="h3 mb-1">🛒 Purchases</h1>
-        <div class="text-muted small">Supplier purchases, livestock buy-ins and payables</div>
+        <h1 class="h3 mb-1">🧾 Purchase Invoices</h1>
+        <div class="text-muted small">Multi-item supplier bills, freight, feed, payables — for bought-in livestock use <strong>Stock Addition → New Purchase</strong>.</div>
     </div>
     @if (canEdit)
     {
-        <a asp-action="Create" class="btn btn-primary"><span class="me-1">+</span> New Purchase</a>
+        <a asp-action="Create" class="btn btn-primary"><span class="me-1">+</span> New Purchase Invoice</a>
     }
 </div>
 

@@ -14,6 +14,12 @@ public class LivestockDetailDto
     public decimal InitialWeight { get; set; }
     public WeightUnit WeightUnit { get; set; }
     public decimal PurchaseAmount { get; set; }
+    public decimal AllocatedCommission { get; set; }
+    public decimal AllocatedTax { get; set; }
+    public decimal AllocatedTransportation { get; set; }
+    public decimal AllocatedOtherCost { get; set; }
+    public string? OtherCostDescription { get; set; }
+    public decimal TotalAcquisitionCost { get; set; }
     public decimal? CurrentWeight { get; set; }
     public DateTimeOffset? CurrentWeightDate { get; set; }
     public LivestockStatus Status { get; set; }

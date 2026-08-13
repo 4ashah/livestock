@@ -1,17 +1,17 @@
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers
 @using LivestockManager.Web.Models.LivestockViewModels
 @model LivestockIndexViewModel
 @{
     ViewData["Title"] = "Livestock";
     var getStatusBadge = (Func<LivestockStatus, string>)ViewData["GetStatusBadgeClass"]!;
     var getStatusDesc = (Func<LivestockStatus, string>)ViewData["GetStatusDescription"]!;
-    var getTypeDesc = (Func<LivestockType, string>)ViewData["GetLivestockTypeDescription"]!;
     var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
     var canDataEntry = canEdit || User.IsInRole("DataEntry");
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
-    <h1 class="h2">🐑 Livestock</h1>
+<div class="d-flex justify-content-between flex-wrap align-items-center pb-2 mb-4 border-bottom">
+    <h1 class="h2 mb-2 mb-md-0">🐑 Livestock</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
         @if (canDataEntry)
         {
@@ -34,8 +34,12 @@
             </div>
             <div class="col-md-3 col-sm-6">
                 <label class="form-label small fw-semibold">Type</label>
-                <select asp-for="LivestockTypeId" class="form-select" asp-items="Html.GetEnumSelectList<LivestockType>()">
+                <select asp-for="LivestockTypeId" class="form-select">
                     <option value="">All Types</option>
+                    @foreach (var kv in LivestockTypeDisplay.AllDisplayNames)
+                    {
+                        <option value="@kv.Key">@kv.Value</option>
+                    }
                 </select>
             </div>
             <div class="col-md-3 col-sm-6">
@@ -54,7 +58,7 @@
                 <label asp-for="SearchString" class="form-label small fw-semibold">Search</label>
                 <input asp-for="SearchString" class="form-control" placeholder="Livestock ID or comment..." />
             </div>
-            <div class="col-12 d-flex flex-wrap gap-2">
+            <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
                 <button type="submit" class="btn btn-outline-primary">Apply Filters</button>
                 <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
                 @if (canDataEntry)
@@ -64,7 +68,7 @@
                        asp-route-status="@ViewData["Status"]"
                        asp-route-sourceFilter="@ViewData["SourceFilter"]"
                        asp-route-searchString="@ViewData["SearchString"]"
-                       class="btn btn-outline-success ms-auto">
+                       class="btn btn-outline-success ms-md-auto">
                         📥 Export CSV
                     </a>
                 }
@@ -75,21 +79,21 @@
 
 <div class="card shadow-sm border-0">
     <div class="card-body p-0">
-        <div class="table-responsive">
+        <div class="table-responsive w-100">
             <table class="table table-hover mb-0 align-middle">
                 <thead class="table-light">
                     <tr>
                         <th>Livestock ID</th>
                         <th>Type</th>
                         <th>Farm</th>
-                        <th>Acquired</th>
+                        <th class="d-none d-lg-table-cell">Acquired</th>
                         <th>Source</th>
-                        <th>DOB</th>
-                        <th>Initial</th>
+                        <th class="d-none d-lg-table-cell">DOB</th>
+                        <th class="d-none d-md-table-cell">Initial</th>
                         <th>Current</th>
-                        <th>Days</th>
+                        <th class="d-none d-lg-table-cell">Days</th>
                         <th>Status</th>
-                        <th>P&amp;L</th>
+                        <th class="d-none d-md-table-cell">P&amp;L</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -109,14 +113,14 @@
                         @foreach (var item in Model.Items)
                         {
                             <tr>
-                                <td class="fw-semibold text-primary">@item.LivestockId</td>
+                                <td class="fw-semibold text-primary text-nowrap">@item.LivestockId</td>
                                 <td>
-                                    <span class="small" title="@getTypeDesc(item.LivestockType)">
-                                        @item.LivestockType
+                                    <span class="small" title="@LivestockTypeDisplay.GetDisplayName(item.LivestockType)">
+                                        @LivestockTypeDisplay.GetDisplayName(item.LivestockType)
                                     </span>
                                 </td>
                                 <td class="small">@item.FarmName</td>
-                                <td class="small">@item.AcquisitionDate.ToString("yyyy-MM-dd")</td>
+                                <td class="small d-none d-lg-table-cell">@item.AcquisitionDate.ToString("yyyy-MM-dd")</td>
                                 <td>
                                     @if (item.StockSource == StockSource.Newborn)
                                     {
@@ -127,7 +131,7 @@
                                         <span class="badge bg-primary">PURCHASED</span>
                                     }
                                 </td>
-                                <td class="small">
+                                <td class="small d-none d-lg-table-cell">
                                     @if (item.StockSource == StockSource.Newborn && item.DateOfBirth.HasValue)
                                     {
                                         @item.DateOfBirth.Value.ToString("yyyy-MM-dd")
@@ -137,7 +141,7 @@
                                         <span class="text-muted">—</span>
                                     }
                                 </td>
-                                <td class="small text-muted">@item.InitialWeight</td>
+                                <td class="small text-muted d-none d-md-table-cell">@item.InitialWeight</td>
                                 <td class="small fw-semibold">
                                     @if (item.CurrentWeight.HasValue)
                                     {
@@ -148,13 +152,13 @@
                                         <span class="text-muted">—</span>
                                     }
                                 </td>
-                                <td class="small">@item.DaysInHerd</td>
+                                <td class="small d-none d-lg-table-cell">@item.DaysInHerd</td>
                                 <td>
                                     <span class="badge @getStatusBadge(item.Status)">
                                         @getStatusDesc(item.Status)
                                     </span>
                                 </td>
-                                <td class="small">
+                                <td class="small d-none d-md-table-cell">
                                     @if (item.BasicProfitLoss.HasValue)
                                     {
                                         var pnlClass = item.BasicProfitLoss.Value >= 0 ? "text-success" : "text-danger";
@@ -168,23 +172,23 @@
                                     }
                                 </td>
                                 <td class="text-end">
-                                    <div class="btn-group btn-group-sm">
+                                    <div class="d-flex flex-wrap gap-1 justify-content-end">
                                         <a asp-action="Details" asp-route-id="@item.Id"
-                                           class="btn btn-outline-secondary">Details</a>
+                                           class="btn btn-sm btn-outline-secondary">Details</a>
                                         @if (canEdit && item.Status == LivestockStatus.Active)
                                         {
                                             <a asp-action="Edit" asp-route-id="@item.Id"
-                                               class="btn btn-outline-primary">Edit</a>
+                                               class="btn btn-sm btn-outline-primary">Edit</a>
                                         }
                                         @if (canDataEntry && item.Status == LivestockStatus.Active)
                                         {
                                             <a asp-action="AddWeight" asp-route-id="@item.Id"
-                                               class="btn btn-outline-success">Weight</a>
+                                               class="btn btn-sm btn-outline-success">Weight</a>
                                         }
                                         @if (canEdit && item.Status == LivestockStatus.Active)
                                         {
                                             <a asp-action="Discharge" asp-route-id="@item.Id"
-                                               class="btn btn-outline-warning">Discharge</a>
+                                               class="btn btn-sm btn-outline-warning">Discharge</a>
                                         }
                                     </div>
                                 </td>

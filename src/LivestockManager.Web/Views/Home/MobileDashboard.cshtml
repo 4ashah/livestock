@@ -2,6 +2,7 @@
 @using LivestockManager.Application.DTOs.Livestock
 @using LivestockManager.Application.DTOs.Invoices
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers
 @{
     Layout = "_MobileLayout";
     ViewData["Title"] = "Dashboard";
@@ -114,7 +115,7 @@
                         <div class="row-top">
                             <div>
                                 <code>@l.LivestockId</code>
-                                <div class="meta-caption">@l.LivestockTypeId · @l.AcquisitionDate.ToString("MMM d")</div>
+                                <div class="meta-caption">@LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) · @l.AcquisitionDate.ToString("MMM d")</div>
                             </div>
                             <span class="pill @pillClass">@pillLabel</span>
                         </div>

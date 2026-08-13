@@ -72,7 +72,7 @@
                 {
                     Guid lid = ls.Id;
                     <option value="@ls.Id" selected="@(Model.LivestockId == lid ? "selected" : null)" data-purchase="@ls.PurchaseAmount" data-farm="@ls.FarmId">
-                        @ls.LivestockId · @ls.LivestockTypeId @(ls.FarmName != null ? " · " + ls.FarmName : "")
+                        @ls.LivestockId · @ls.TypeLabel @(ls.FarmName != null ? " · " + ls.FarmName : "")
                     </option>
                 }
             </select>

@@ -1,5 +1,6 @@
 @model LivestockManager.Web.Models.StockAdditionViewModels.StockAdditionNewbornViewModel
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers
 @using LivestockManager.Application.DTOs.StockAddition
 @{
     Layout = "_MobileLayout";
@@ -55,8 +56,8 @@
             @{
                 var types = new[]
                 {
-                    new { Key = LivestockType.Ad, Label = "Ad", Desc = "Bred ram (castrated)", Color = "#3a6ea5" },
-                    new { Key = LivestockType.Sd, Label = "Sd", Desc = "Bred ewe", Color = "#1d3557" }
+                    new { Key = LivestockType.Ad, Label = "Ad", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Ad), Color = "#3a6ea5" },
+                    new { Key = LivestockType.Sd, Label = "Sd", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Sd), Color = "#1d3557" }
                 };
             }
             @foreach (var t in types)

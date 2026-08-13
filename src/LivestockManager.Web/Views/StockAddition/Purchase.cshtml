@@ -1,4 +1,5 @@
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers
 @model LivestockManager.Web.Models.StockAdditionViewModels.StockAdditionPurchaseViewModel
 @{
     ViewData["Title"] = "New Purchase";
@@ -14,16 +15,18 @@
 
 <div class="card shadow-sm border-0">
     <div class="card-body p-4">
-        <form asp-action="Purchase" method="post">
+        <form asp-action="Purchase" method="post" id="purchaseForm" novalidate>
             @Html.AntiForgeryToken()
             <input type="hidden" asp-for="IdempotencyKey" />
+            <input type="hidden" asp-for="CostAllocationMethod" value="@((int)CostAllocationMethod.Equal)" />
 
             @if (ViewContext.ModelState != null && ViewContext.ModelState.Any(x => x.Value != null && x.Value.Errors != null && x.Value.Errors.Count > 0))
             {
                 <div asp-validation-summary="ModelOnly" class="alert alert-danger mb-4"></div>
             }
 
-            <div class="row g-4">
+            <h5 class="mb-3 pb-2 border-bottom">📋 Purchase Details</h5>
+            <div class="row g-4 mb-4">
                 <div class="col-md-6">
                     <label asp-for="SupplierId" class="form-label fw-semibold"></label>
                     <select asp-for="SupplierId" asp-items="Model.SupplierOptions" class="form-select">
@@ -47,16 +50,6 @@
                     <span asp-validation-for="FarmId" class="text-danger small"></span>
                 </div>
 
-                <div class="col-md-6">
-                    <label asp-for="PurchaseCost" class="form-label fw-semibold"></label>
-                    <div class="input-group">
-                        <span class="input-group-text">$</span>
-                        <input asp-for="PurchaseCost" type="number" step="0.01" min="0" class="form-control"
-                               placeholder="e.g. 250.00" />
-                    </div>
-                    <span asp-validation-for="PurchaseCost" class="text-danger small"></span>
-                </div>
-
                 <div class="col-12">
                     <label asp-for="LivestockTypeId" class="form-label fw-semibold"></label>
                     <div class="row g-2">
@@ -64,21 +57,21 @@
                             <div class="form-check card p-2 border h-100">
                                 <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Ah" class="form-check-input" id="tAh" />
                                 <label class="form-check-label fw-semibold" for="tAh">Ah</label>
-                                <div class="small text-muted mt-1">Purchased castrated ram</div>
+                                <div class="small mt-1">@LivestockTypeDisplay.GetDisplayName(LivestockType.Ah)</div>
                             </div>
                         </div>
                         <div class="col-md-4 col-sm-6">
                             <div class="form-check card p-2 border h-100">
                                 <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Su" class="form-check-input" id="tSu" />
                                 <label class="form-check-label fw-semibold" for="tSu">Su</label>
-                                <div class="small text-muted mt-1">Uncastrated ram</div>
+                                <div class="small mt-1">@LivestockTypeDisplay.GetDisplayName(LivestockType.Su)</div>
                             </div>
                         </div>
                         <div class="col-md-4 col-sm-6">
                             <div class="form-check card p-2 border h-100">
                                 <input type="radio" asp-for="LivestockTypeId" value="@LivestockType.Sa" class="form-check-input" id="tSa" />
                                 <label class="form-check-label fw-semibold" for="tSa">Sa</label>
-                                <div class="small text-muted mt-1">Purchased ewe</div>
+                                <div class="small mt-1">@LivestockTypeDisplay.GetDisplayName(LivestockType.Sa)</div>
                             </div>
                         </div>
                     </div>
@@ -97,7 +90,104 @@
                     <select asp-for="WeightUnit" class="form-select" asp-items="Html.GetEnumSelectList<WeightUnit>()"></select>
                     <span asp-validation-for="WeightUnit" class="text-danger small"></span>
                 </div>
+            </div>
 
+            <h5 class="mb-3 pb-2 border-bottom">💰 Purchase Cost Breakdown</h5>
+            <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                    <label asp-for="PurchaseCost" class="form-label fw-semibold"></label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input asp-for="PurchaseCost" type="number" step="0.01" min="0" class="form-control cost-input"
+                               id="cost-purchase" placeholder="e.g. 1000.00" />
+                    </div>
+                    <span asp-validation-for="PurchaseCost" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="CommissionAmount" class="form-label fw-semibold"></label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input asp-for="CommissionAmount" type="number" step="0.01" min="0" class="form-control cost-input"
+                               id="cost-commission" placeholder="0.00" />
+                    </div>
+                    <span asp-validation-for="CommissionAmount" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="TaxAmount" class="form-label fw-semibold"></label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input asp-for="TaxAmount" type="number" step="0.01" min="0" class="form-control cost-input"
+                               id="cost-tax" placeholder="0.00" />
+                    </div>
+                    <span asp-validation-for="TaxAmount" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="TransportationAmount" class="form-label fw-semibold"></label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input asp-for="TransportationAmount" type="number" step="0.01" min="0" class="form-control cost-input"
+                               id="cost-transport" placeholder="0.00" />
+                    </div>
+                    <span asp-validation-for="TransportationAmount" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label asp-for="OtherCostAmount" class="form-label fw-semibold"></label>
+                    <div class="input-group">
+                        <span class="input-group-text">$</span>
+                        <input asp-for="OtherCostAmount" type="number" step="0.01" min="0" class="form-control cost-input"
+                               id="cost-other" placeholder="0.00" />
+                    </div>
+                    <span asp-validation-for="OtherCostAmount" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-6" id="otherDescWrap">
+                    <label asp-for="OtherCostDescription" class="form-label fw-semibold"></label>
+                    <input asp-for="OtherCostDescription" type="text" class="form-control"
+                           id="cost-other-desc" maxlength="500"
+                           placeholder="Describe what the Other Costs cover (required when > 0)" />
+                    <span asp-validation-for="OtherCostDescription" class="text-danger small"></span>
+                </div>
+            </div>
+
+            <div class="card border-primary mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0 fw-bold">📊 Acquisition Cost Summary (Preview)</h6>
+                    <small class="opacity-75">Final totals are recalculated on the server.</small>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-7 text-muted small fw-semibold">Livestock Purchase Cost</dt>
+                        <dd class="col-sm-5 text-end" id="sum-purchase">$0.00</dd>
+
+                        <dt class="col-sm-7 text-muted small fw-semibold">Commission</dt>
+                        <dd class="col-sm-5 text-end" id="sum-commission">$0.00</dd>
+
+                        <dt class="col-sm-7 text-muted small fw-semibold">Taxes</dt>
+                        <dd class="col-sm-5 text-end" id="sum-tax">$0.00</dd>
+
+                        <dt class="col-sm-7 text-muted small fw-semibold">Transportation</dt>
+                        <dd class="col-sm-5 text-end" id="sum-transport">$0.00</dd>
+
+                        <dt class="col-sm-7 text-muted small fw-semibold">Other Costs</dt>
+                        <dd class="col-sm-5 text-end" id="sum-other">$0.00</dd>
+
+                        <hr class="my-1 col-11 mx-auto" />
+
+                        <dt class="col-sm-7 text-muted small fw-semibold">Additional Acquisition Costs</dt>
+                        <dd class="col-sm-5 text-end" id="sum-additional">$0.00</dd>
+
+                        <dt class="col-sm-7 fw-bold fs-5">Total Acquisition Cost</dt>
+                        <dd class="col-sm-5 text-end fw-bold fs-5 text-success" id="sum-total">$0.00</dd>
+                    </dl>
+                </div>
+            </div>
+
+            <h5 class="mb-3 pb-2 border-bottom">📎 Reference</h5>
+            <div class="row g-4">
                 <div class="col-12">
                     <label asp-for="SupplierReference" class="form-label fw-semibold"></label>
                     <input asp-for="SupplierReference" type="text" class="form-control"
@@ -116,7 +206,7 @@
             <div class="row mt-5">
                 <div class="col-12 text-end">
                     <a asp-action="Index" class="btn btn-outline-secondary me-2">Cancel</a>
-                    <button type="submit" class="btn btn-primary">🛒 Save Purchase</button>
+                    <button type="submit" class="btn btn-primary" id="saveBtn">🛒 Save Purchase</button>
                 </div>
             </div>
         </form>
@@ -125,4 +215,89 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            var money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            var inputs = {
+                purchase: document.getElementById('cost-purchase'),
+                commission: document.getElementById('cost-commission'),
+                tax: document.getElementById('cost-tax'),
+                transport: document.getElementById('cost-transport'),
+                other: document.getElementById('cost-other')
+            };
+            var sums = {
+                purchase: document.getElementById('sum-purchase'),
+                commission: document.getElementById('sum-commission'),
+                tax: document.getElementById('sum-tax'),
+                transport: document.getElementById('sum-transport'),
+                other: document.getElementById('sum-other'),
+                additional: document.getElementById('sum-additional'),
+                total: document.getElementById('sum-total')
+            };
+            var otherDescWrap = document.getElementById('otherDescWrap');
+            var otherDesc = document.getElementById('cost-other-desc');
+
+            function nz(v) {
+                var n = parseFloat(v);
+                if (!isFinite(n) || n < 0) return 0;
+                return Math.round(n * 100) / 100;
+            }
+
+            function update() {
+                var purchase = nz(inputs.purchase.value);
+                var comm = nz(inputs.commission.value);
+                var tax = nz(inputs.tax.value);
+                var trans = nz(inputs.transport.value);
+                var other = nz(inputs.other.value);
+                var additional = comm + tax + trans + other;
+                var total = purchase + additional;
+
+                sums.purchase.textContent = money.format(purchase);
+                sums.commission.textContent = money.format(comm);
+                sums.tax.textContent = money.format(tax);
+                sums.transport.textContent = money.format(trans);
+                sums.other.textContent = money.format(other);
+                sums.additional.textContent = money.format(additional);
+                sums.total.textContent = money.format(total);
+
+                if (other > 0) {
+                    otherDescWrap.classList.remove('d-none');
+                    otherDesc.setAttribute('required', 'required');
+                    if (!otherDesc.value.trim()) {
+                        otherDesc.classList.add('border-danger');
+                    } else {
+                        otherDesc.classList.remove('border-danger');
+                    }
+                } else {
+                    otherDescWrap.classList.add('d-none');
+                    otherDesc.removeAttribute('required');
+                    otherDesc.classList.remove('border-danger');
+                }
+            }
+
+            Object.keys(inputs).forEach(function (k) {
+                inputs[k].addEventListener('input', update);
+                inputs[k].addEventListener('change', update);
+            });
+            if (otherDesc) {
+                otherDesc.addEventListener('input', function () {
+                    if (nz(inputs.other.value) > 0 && otherDesc.value.trim()) {
+                        otherDesc.classList.remove('border-danger');
+                    }
+                });
+            }
+
+            update();
+
+            var form = document.getElementById('purchaseForm');
+            var saveBtn = document.getElementById('saveBtn');
+            if (form && saveBtn) {
+                form.addEventListener('submit', function () {
+                    saveBtn.disabled = true;
+                    saveBtn.classList.add('opacity-75');
+                    saveBtn.setAttribute('aria-busy', 'true');
+                });
+            }
+        })();
+    </script>
 }

@@ -1,5 +1,6 @@
 @model LivestockManager.Web.Models.LivestockViewModels.LivestockRegisterViewModel
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers
 @{
     Layout = "_MobileLayout";
     ViewData["Title"] = "Register Livestock";
@@ -50,11 +51,11 @@
             @{
                 var types = new[]
                 {
-                    new { Key = LivestockType.Ad, Label = "Ad", Desc = "Bred ram (castrated)", Color = "#3a6ea5" },
-                    new { Key = LivestockType.Sd, Label = "Sd", Desc = "Bred ewe", Color = "#1d3557" },
-                    new { Key = LivestockType.Ah, Label = "Ah", Desc = "Purchased ram (castrated)", Color = "#2d6a4f" },
-                    new { Key = LivestockType.Su, Label = "Su", Desc = "Uncastrated ram", Color = "#40916c" },
-                    new { Key = LivestockType.Sa, Label = "Sa", Desc = "Purchased ewe", Color = "#00a896" }
+                    new { Key = LivestockType.Ad, Label = "Ad", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Ad), Color = "#3a6ea5" },
+                    new { Key = LivestockType.Sd, Label = "Sd", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Sd), Color = "#1d3557" },
+                    new { Key = LivestockType.Ah, Label = "Ah", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Ah), Color = "#2d6a4f" },
+                    new { Key = LivestockType.Su, Label = "Su", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Su), Color = "#40916c" },
+                    new { Key = LivestockType.Sa, Label = "Sa", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Sa), Color = "#00a896" }
                 };
             }
             @foreach (var t in types)

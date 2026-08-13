@@ -5,6 +5,7 @@ public class SaleDetailDto
     public Guid Id { get; set; }
     public Guid CompanyId { get; set; }
     public Guid? FarmId { get; set; }
+    public string? FarmName { get; set; }
     public Guid CustomerId { get; set; }
     public string? CustomerName { get; set; }
     public string? SaleNumber { get; set; }

@@ -24,6 +24,12 @@ public class LivestockDetailsViewModel
     public DateTimeOffset? CurrentWeightDate { get; set; }
     public LivestockStatus Status { get; set; }
     public decimal PurchaseAmount { get; set; }
+    public decimal AllocatedCommission { get; set; }
+    public decimal AllocatedTax { get; set; }
+    public decimal AllocatedTransportation { get; set; }
+    public decimal AllocatedOtherCost { get; set; }
+    public string? OtherCostDescription { get; set; }
+    public decimal TotalAcquisitionCost { get; set; }
     public decimal? SoldAmount { get; set; }
     public decimal? BasicProfitLoss { get; set; }
     public string? Comments { get; set; }

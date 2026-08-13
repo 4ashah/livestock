@@ -11,6 +11,7 @@ using LivestockManager.Application.Services.Livestock;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Domain.Exceptions;
+using LivestockManager.Domain.Helpers;
 using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
@@ -103,9 +104,10 @@ public class PurchasesController : Controller
                 l.Id,
                 l.LivestockId,
                 l.LivestockTypeId,
+                TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
                 l.FarmId,
                 l.PurchaseAmount,
-                Display = l.LivestockId + " (" + l.LivestockTypeId + ")"
+                Display = l.LivestockId + " (" + LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")"
             })
             .ToListAsync(ct);
         return View();
@@ -164,9 +166,10 @@ public class PurchasesController : Controller
                     l.Id,
                     l.LivestockId,
                     l.LivestockTypeId,
+                    TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
                     l.FarmId,
                     l.PurchaseAmount,
-                    Display = l.LivestockId + " (" + l.LivestockTypeId + ")"
+                    Display = l.LivestockId + " (" + LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")"
                 })
                 .ToListAsync(ct);
             return View();
@@ -252,9 +255,10 @@ public class PurchasesController : Controller
                 l.Id,
                 l.LivestockId,
                 l.LivestockTypeId,
+                TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
                 l.FarmId,
                 l.PurchaseAmount,
-                Display = l.LivestockId + " (" + l.LivestockTypeId + ")"
+                Display = l.LivestockId + " (" + LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")"
             })
             .ToListAsync(ct);
         var dto = new PurchaseCreateDto
@@ -313,7 +317,16 @@ public class PurchasesController : Controller
             ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
             ViewData["ActiveLivestock"] = await _db.Livestock
                 .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
-                .Select(l => new { l.Id, Display = l.LivestockId + " (" + l.LivestockTypeId + ")" })
+                .Select(l => new
+                {
+                    l.Id,
+                    l.LivestockId,
+                    l.LivestockTypeId,
+                    TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
+                    l.FarmId,
+                    l.PurchaseAmount,
+                    Display = l.LivestockId + " (" + LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")"
+                })
                 .ToListAsync(ct);
             return View("MobileCreate", dto);
         }

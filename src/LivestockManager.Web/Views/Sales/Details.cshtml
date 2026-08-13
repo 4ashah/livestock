@@ -3,6 +3,17 @@
     ViewData["Title"] = "Sale Details";
     var canEdit = (bool?)ViewData["CanEdit"] ?? false;
     var invoiceId = ViewData["InvoiceId"] as Guid?;
+    string DisplaySaleNumber()
+    {
+        if (!string.IsNullOrWhiteSpace(Model.SaleNumber)) return Model.SaleNumber;
+        var shortId = Model.Id.ToString("N")[..8].ToUpperInvariant();
+        return Model.Status switch
+        {
+            SaleStatus.Draft => $"DRAFT-{shortId}",
+            SaleStatus.Cancelled => $"VOID-{shortId}",
+            _ => $"SALE-{shortId}"
+        };
+    }
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
@@ -14,7 +25,9 @@
             { <span class="badge bg-success me-2">Confirmed</span> }
             else if (Model.Status == SaleStatus.Cancelled)
             { <span class="badge bg-secondary me-2">Cancelled</span> }
-            Sale @Model.SaleNumber
+            Sale @DisplaySaleNumber()
+            @if (string.IsNullOrWhiteSpace(Model.SaleNumber))
+            { <small class="text-muted fw-normal ms-2" title="Internal Id: @Model.Id">(reference only)</small> }
         </h1>
         <div class="text-muted small">@Model.Date.ToString("yyyy-MM-dd") · Customer: @Model.CustomerName</div>
     </div>
@@ -49,7 +62,21 @@
                     <dt class="col-sm-4 text-muted small fw-semibold">Customer</dt>
                     <dd class="col-sm-8">@Model.CustomerName</dd>
                     <dt class="col-sm-4 text-muted small fw-semibold">Farm</dt>
-                    <dd class="col-sm-8">@(Model.FarmId.HasValue ? Model.FarmId.ToString() : "N/A")</dd>
+                    <dd class="col-sm-8">
+                        @if (Model.FarmId.HasValue)
+                        {
+                            if (!string.IsNullOrWhiteSpace(Model.FarmName))
+                            {
+                                <span title="Farm Id: @Model.FarmId.Value">@Model.FarmName</span>
+                            }
+                            else
+                            {
+                                <code title="This farm was deleted or not found; showing internal Id.">@Model.FarmId.Value</code>
+                            }
+                        }
+                        else
+                        { <span class="text-muted">N/A</span> }
+                    </dd>
                     <dt class="col-sm-4 text-muted small fw-semibold">Notes</dt>
                     <dd class="col-sm-8">@Model.Notes</dd>
                 </dl>

@@ -3,9 +3,9 @@
 @using LivestockManager.Domain.Enums
 @{
     Layout = "_MobileLayout";
-    ViewData["Title"] = "Purchases";
-    ViewData["PageIcon"] = "🛒";
-    ViewData["PageSubtitle"] = "Supplier purchases and livestock buy-ins";
+    ViewData["Title"] = "Purchase Invoices";
+    ViewData["PageIcon"] = "🧾";
+    ViewData["PageSubtitle"] = "Supplier bills & multi-item invoices";
     ViewData["DockKey"] = "expense";
     ViewData["ActionLabel"] = "New";
     ViewData["ActionIcon"] = "＋";
@@ -15,11 +15,17 @@
 }
 
 <div class="mob-totals-card">
-    <div class="label">Total Purchases</div>
+    <div class="label">Total Purchase Invoices</div>
     <div class="total">$@list.Sum(x => x.GrandTotal).ToString("N2")</div>
     <div class="breakdown">
         <div><div class="k">Records</div><div class="v">@list.Count</div></div>
         <div><div class="k">Items</div><div class="v">@list.Sum(x => x.ItemCount)</div></div>
+    </div>
+</div>
+
+<div class="mob-card" style="margin-bottom:0.75rem;border-left:4px solid #0a66a0;">
+    <div class="small" style="color:#0a66a0;">
+        🐑 To record bought-in livestock, use <a href="@Url.Action("MobilePurchase", "StockAddition")" style="color:#0a66a0;font-weight:600;">Stock Addition → New Purchase</a>.
     </div>
 </div>
 

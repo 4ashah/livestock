@@ -26,9 +26,26 @@ public class StockAdditionResultDto
 
     public decimal? PurchaseCost { get; set; }
 
+    public decimal CommissionAmount { get; set; }
+
+    public decimal TaxAmount { get; set; }
+
+    public decimal TransportationAmount { get; set; }
+
+    public decimal OtherCostAmount { get; set; }
+
+    public string? OtherCostDescription { get; set; }
+
+    public decimal AdditionalAcquisitionCost { get; set; }
+
+    public decimal TotalAcquisitionCost { get; set; }
+
+    public string? PurchaseNumber { get; set; }
+
     public string? MotherLivestockId { get; set; }
 
     public string? FatherLivestockId { get; set; }
 
     public bool IsDuplicate { get; set; }
 }
+

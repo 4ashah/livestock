@@ -122,6 +122,12 @@ public class StockAdditionController : Controller
             PurchaseWeight = vm.PurchaseWeight,
             WeightUnit = vm.WeightUnit,
             PurchaseCost = vm.PurchaseCost,
+            CommissionAmount = vm.CommissionAmount,
+            TaxAmount = vm.TaxAmount,
+            TransportationAmount = vm.TransportationAmount,
+            OtherCostAmount = vm.OtherCostAmount,
+            OtherCostDescription = string.IsNullOrWhiteSpace(vm.OtherCostDescription) ? null : vm.OtherCostDescription.Trim(),
+            CostAllocationMethod = vm.CostAllocationMethod,
             SupplierReference = vm.SupplierReference,
             Comments = vm.Comments
         };
@@ -277,6 +283,12 @@ public class StockAdditionController : Controller
             PurchaseWeight = vm.PurchaseWeight,
             WeightUnit = vm.WeightUnit,
             PurchaseCost = vm.PurchaseCost,
+            CommissionAmount = vm.CommissionAmount,
+            TaxAmount = vm.TaxAmount,
+            TransportationAmount = vm.TransportationAmount,
+            OtherCostAmount = vm.OtherCostAmount,
+            OtherCostDescription = string.IsNullOrWhiteSpace(vm.OtherCostDescription) ? null : vm.OtherCostDescription.Trim(),
+            CostAllocationMethod = vm.CostAllocationMethod,
             SupplierReference = vm.SupplierReference,
             Comments = vm.Comments
         };

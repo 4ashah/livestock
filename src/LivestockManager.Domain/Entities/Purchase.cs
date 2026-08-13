@@ -47,6 +47,32 @@ public class Purchase : BaseAuditableEntity
     [Precision(18, 2)]
     public decimal OutstandingAmount { get; set; }
 
+    public CostAllocationMethod CostAllocationMethod { get; set; } = CostAllocationMethod.Equal;
+
+    [Precision(18, 2)]
+    public decimal TotalLivestockPurchaseCost { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TotalCommission { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TotalTax { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TotalTransportation { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TotalOtherCost { get; set; }
+
+    [MaxLength(500)]
+    public string? OtherCostDescription { get; set; }
+
+    [Precision(18, 2)]
+    public decimal AdditionalAcquisitionCost { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TotalAcquisitionCost { get; set; }
+
     [MaxLength(50)]
     public string? PaymentStatus { get; set; }
 

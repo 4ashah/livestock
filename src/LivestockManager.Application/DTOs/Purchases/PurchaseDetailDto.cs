@@ -21,5 +21,14 @@ public class PurchaseDetailDto
     public string? PaymentStatus { get; set; }
     public string? Notes { get; set; }
     public Guid? DocumentId { get; set; }
+    public CostAllocationMethod CostAllocationMethod { get; set; }
+    public decimal TotalLivestockPurchaseCost { get; set; }
+    public decimal TotalCommission { get; set; }
+    public decimal TotalTax { get; set; }
+    public decimal TotalTransportation { get; set; }
+    public decimal TotalOtherCost { get; set; }
+    public string? OtherCostDescription { get; set; }
+    public decimal AdditionalAcquisitionCost { get; set; }
+    public decimal TotalAcquisitionCost { get; set; }
     public IList<PurchaseItemLineDto> Items { get; set; } = new List<PurchaseItemLineDto>();
 }

@@ -121,21 +121,78 @@
                         }
                     </dd>
 
-                    <dt class="col-sm-4 col-md-3 small text-muted">Purchase Amount</dt>
-                    <dd class="col-sm-8 col-md-9">@Model.PurchaseAmount.ToString("N2")</dd>
+                    @if (Model.StockSource == StockSource.Purchased)
+                    {
+                        <dt class="col-sm-12 mb-2 mt-3">
+                            <span class="badge bg-primary fw-bold px-3 py-2">💰 PURCHASE &amp; ACQUISITION COSTS</span>
+                        </dt>
+                        <dt class="col-sm-4 col-md-3 small text-muted">Purchase Price</dt>
+                        <dd class="col-sm-8 col-md-9">$@Model.PurchaseAmount.ToString("N2")</dd>
+
+                        <dt class="col-sm-4 col-md-3 small text-muted">Allocated Commission</dt>
+                        <dd class="col-sm-8 col-md-9">$@Model.AllocatedCommission.ToString("N2")</dd>
+
+                        <dt class="col-sm-4 col-md-3 small text-muted">Allocated Taxes</dt>
+                        <dd class="col-sm-8 col-md-9">$@Model.AllocatedTax.ToString("N2")</dd>
+
+                        <dt class="col-sm-4 col-md-3 small text-muted">Allocated Transportation</dt>
+                        <dd class="col-sm-8 col-md-9">$@Model.AllocatedTransportation.ToString("N2")</dd>
+
+                        <dt class="col-sm-4 col-md-3 small text-muted">Allocated Other Costs</dt>
+                        <dd class="col-sm-8 col-md-9">$@Model.AllocatedOtherCost.ToString("N2")</dd>
+
+                        @if (!string.IsNullOrWhiteSpace(Model.OtherCostDescription))
+                        {
+                            <dt class="col-sm-4 col-md-3 small text-muted">Other Cost Description</dt>
+                            <dd class="col-sm-8 col-md-9">@Model.OtherCostDescription</dd>
+                        }
+
+                        <dt class="col-sm-4 col-md-3 small text-muted text-success fw-semibold">Total Acquisition Cost</dt>
+                        <dd class="col-sm-8 col-md-9">
+                            <span class="fw-bold text-success fs-6">$@Model.TotalAcquisitionCost.ToString("N2")</span>
+                        </dd>
+                    }
+                    else
+                    {
+                        <dt class="col-sm-12 mb-2 mt-3">
+                            <span class="badge bg-success fw-bold px-3 py-2">🐣 NEWBORN — NO PURCHASE COSTS</span>
+                        </dt>
+                        <dt class="col-sm-4 col-md-3 small text-muted">Purchase Price</dt>
+                        <dd class="col-sm-8 col-md-9 text-muted">$0.00</dd>
+                        <dt class="col-sm-4 col-md-3 small text-muted text-success fw-semibold">Total Acquisition Cost</dt>
+                        <dd class="col-sm-8 col-md-9 text-muted">$0.00</dd>
+                    }
 
                     @if (Model.SoldAmount.HasValue)
                     {
+                        <dt class="col-sm-12 mb-2 mt-3">
+                            <span class="badge bg-info text-dark fw-bold px-3 py-2">📊 PROFITABILITY</span>
+                        </dt>
                         <dt class="col-sm-4 col-md-3 small text-muted">Sold Amount</dt>
                         <dd class="col-sm-8 col-md-9">@Model.SoldAmount.Value.ToString("N2")</dd>
                     }
 
                     @if (Model.BasicProfitLoss.HasValue)
                     {
-                        <dt class="col-sm-4 col-md-3 small text-muted">Basic P/L</dt>
+                        <dt class="col-sm-4 col-md-3 small text-muted">
+                            <span data-bs-toggle="tooltip" title="Sold Amount − Purchase Price">Basic P/L</span>
+                        </dt>
                         <dd class="col-sm-8 col-md-9">
                             <span class="fw-semibold @(Model.BasicProfitLoss.Value >= 0 ? "text-success" : "text-danger")">
                                 @(Model.BasicProfitLoss.Value >= 0 ? "+" : "")@Model.BasicProfitLoss.Value.ToString("N2")
+                            </span>
+                        </dd>
+                    }
+
+                    @if (Model.StockSource == StockSource.Purchased && Model.SoldAmount.HasValue && Model.TotalAcquisitionCost > 0)
+                    {
+                        var completeProfit = Model.SoldAmount.Value - Model.TotalAcquisitionCost;
+                        <dt class="col-sm-4 col-md-3 small text-muted">
+                            <span data-bs-toggle="tooltip" title="Sold Amount − Total Acquisition Cost (no operating expenses yet)">Complete P/L (Acq.)</span>
+                        </dt>
+                        <dd class="col-sm-8 col-md-9">
+                            <span class="fw-semibold @(completeProfit >= 0 ? "text-success" : "text-danger")">
+                                @(completeProfit >= 0 ? "+" : "")@completeProfit.ToString("N2")
                             </span>
                         </dd>
                     }

@@ -9,6 +9,7 @@ using LivestockManager.Application.Services.LivestockLosses;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Domain.Exceptions;
+using LivestockManager.Domain.Helpers;
 using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
@@ -97,7 +98,7 @@ public class LivestockLossesController : Controller
         var companyId = await GetCompanyIdAsync();
         ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
 
-        var activeLivestock = await _db.Livestock
+        var activeLivestockRaw = await _db.Livestock
             .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
             .OrderBy(l => l.LivestockId)
             .Select(l => new
@@ -110,6 +111,19 @@ public class LivestockLossesController : Controller
                 l.PurchaseAmount
             })
             .ToListAsync(ct);
+
+        var activeLivestock = activeLivestockRaw
+            .Select(l => new
+            {
+                l.Id,
+                l.LivestockId,
+                l.LivestockTypeId,
+                TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
+                l.FarmId,
+                l.FarmName,
+                l.PurchaseAmount
+            })
+            .ToList();
 
         ViewData["ActiveLivestock"] = activeLivestock;
 
@@ -159,7 +173,7 @@ public class LivestockLossesController : Controller
         var companyId = await GetCompanyIdAsync();
         ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
 
-        var activeLivestock = await _db.Livestock
+        var activeLivestockRaw = await _db.Livestock
             .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
             .OrderBy(l => l.LivestockId)
             .Select(l => new
@@ -172,6 +186,19 @@ public class LivestockLossesController : Controller
                 l.PurchaseAmount
             })
             .ToListAsync(ct);
+
+        var activeLivestock = activeLivestockRaw
+            .Select(l => new
+            {
+                l.Id,
+                l.LivestockId,
+                l.LivestockTypeId,
+                TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
+                l.FarmId,
+                l.FarmName,
+                l.PurchaseAmount
+            })
+            .ToList();
 
         ViewData["ActiveLivestock"] = activeLivestock;
 
@@ -213,11 +240,31 @@ public class LivestockLossesController : Controller
         catch (ArgumentException ex) { ModelState.AddModelError(string.Empty, ex.Message); }
 
         ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
-        ViewData["ActiveLivestock"] = await _db.Livestock
+        var activeLivestockRaw = await _db.Livestock
             .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
             .OrderBy(l => l.LivestockId)
-            .Select(l => new { l.Id, l.LivestockId, l.LivestockTypeId })
+            .Select(l => new
+            {
+                l.Id,
+                l.LivestockId,
+                l.LivestockTypeId,
+                l.FarmId,
+                FarmName = l.FarmId.HasValue ? l.Farm!.Name : null,
+                PurchaseAmount = (decimal?)l.PurchaseAmount
+            })
             .ToListAsync(ct);
+        ViewData["ActiveLivestock"] = activeLivestockRaw
+            .Select(l => new
+            {
+                l.Id,
+                l.LivestockId,
+                l.LivestockTypeId,
+                TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
+                l.FarmId,
+                l.FarmName,
+                l.PurchaseAmount
+            })
+            .ToList();
         return View("MobileCreate", dto);
     }
 
@@ -243,7 +290,7 @@ public class LivestockLossesController : Controller
         }
 
         ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
-        var activeLivestock = await _db.Livestock
+        var activeLivestockRaw = await _db.Livestock
             .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active)
             .OrderBy(l => l.LivestockId)
             .Select(l => new
@@ -256,7 +303,18 @@ public class LivestockLossesController : Controller
                 l.PurchaseAmount
             })
             .ToListAsync(ct);
-        ViewData["ActiveLivestock"] = activeLivestock;
+        ViewData["ActiveLivestock"] = activeLivestockRaw
+            .Select(l => new
+            {
+                l.Id,
+                l.LivestockId,
+                l.LivestockTypeId,
+                TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
+                l.FarmId,
+                l.FarmName,
+                l.PurchaseAmount
+            })
+            .ToList();
         ViewData["CanEdit"] = CanEdit;
         return View(dto);
     }

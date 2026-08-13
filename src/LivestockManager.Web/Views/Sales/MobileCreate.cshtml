@@ -1,0 +1,339 @@
+@using LivestockManager.Domain.Enums
+@model LivestockManager.Application.DTOs.Sales.SaleCreateDto
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "New Sale";
+    ViewData["PageIcon"] = "🧾";
+    ViewData["PageSubtitle"] = "Create draft sale order";
+    ViewData["DockKey"] = "expense";
+    var farms = ViewData["Farms"] as System.Collections.IEnumerable;
+    var customers = ViewData["Customers"] as System.Collections.IEnumerable;
+}
+
+@if (ViewContext.ModelState.ErrorCount > 0)
+{
+    <div class="mob-val">
+        ⚠ Please correct these before saving:
+        <ul>
+            @foreach (var err in ViewContext.ModelState
+                .SelectMany(m => m.Value?.Errors.Select(e => e.ErrorMessage) ?? Enumerable.Empty<string>())
+                .Where(e => !string.IsNullOrWhiteSpace(e)))
+            { <li>@err</li> }
+        </ul>
+    </div>
+}
+
+<form asp-action="MobileCreate" method="post" class="mob-form" id="saleForm">
+    <input type="hidden" asp-for="CompanyId" />
+
+    <div class="mob-card">
+        <div class="mob-card-title">📝 Sale Details</div>
+
+        <div class="mob-field">
+            <label>Farm *</label>
+            <select asp-for="FarmId" required>
+                <option value="">Select farm…</option>
+                @if (farms != null)
+                {
+                    @foreach (var f in (IEnumerable<LivestockManager.Application.DTOs.Farms.FarmSummaryDto>)farms)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="mob-field">
+            <label>Customer *</label>
+            <select asp-for="CustomerId" required>
+                <option value="">Select customer…</option>
+                @if (customers != null)
+                {
+                    @foreach (var c in (IEnumerable<LivestockManager.Application.DTOs.Customers.CustomerSummaryDto>)customers)
+                    {
+                        <option value="@c.Id">@c.Name (@c.CustomerCode)</option>
+                    }
+                }
+            </select>
+        </div>
+        <div class="mob-field">
+            <label>Sale Date</label>
+            <input asp-for="Date" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="mob-field">
+            <label>Notes</label>
+            <textarea asp-for="Notes" rows="2"></textarea>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">🐑 Select Livestock</div>
+        <div class="mob-field">
+            <label>Find by ID / comment</label>
+            <div class="input-group">
+                <input type="text" id="lsSearch" placeholder="Start typing Livestock ID…" autocomplete="off" />
+                <button type="button" id="lsManualResolve" class="btn btn-outline-primary" style="padding:0 0.75rem;">Resolve</button>
+            </div>
+            <ul id="lsDrop" style="list-style:none;max-height:260px;overflow:auto;margin-top:0.5rem;display:none;padding:0;"></ul>
+            <div class="small" id="lsMsg" style="margin-top:0.5rem;">Search returns 25 matches max. Tap to add.</div>
+        </div>
+        <div class="mob-field">
+            <label>Or paste bulk IDs (one per line)</label>
+            <textarea id="lsBulkPaste" rows="3" placeholder="e.g. AH-2026-00123&#10;SA-2026-04567"></textarea>
+            <button type="button" id="lsAddBulk" class="mob-btn w-100 mt-2" style="justify-content:center;">＋ Add Bulk</button>
+        </div>
+
+        <div class="mob-card-title mt-3">Added <span id="lsCount">0</span></div>
+        <div id="lsCart">
+            <div id="lsEmpty" class="mob-empty" style="padding:1rem 0; border:1px dashed #e5e7eb; border-radius:0.75rem;">
+                <div class="icon" style="font-size:1.6rem;">🐑</div>
+                <div class="title" style="font-size:14px;">None added</div>
+                <div class="hint" style="font-size:12px;">Search or paste IDs above.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">📦 Additional Items</div>
+        <button type="button" id="addLineBtn" class="mob-btn w-100" style="justify-content:center; margin-bottom:0.75rem;">＋ Add Row</button>
+        <div id="linesWrap">
+            <div class="mob-card mob-subcard line-row">
+                <div class="mob-field" style="margin-bottom:0.5rem;">
+                    <label>Description</label>
+                    <input type="text" name="lineDesc" placeholder="e.g. Delivery fee" />
+                </div>
+                <div class="d-flex gap-2">
+                    <div class="mob-field" style="flex:1; margin:0;">
+                        <label>Qty</label>
+                        <input type="number" name="lineQty" value="1" step="0.01" class="text-end line-qty" />
+                    </div>
+                    <div class="mob-field" style="flex:1.4; margin:0;">
+                        <label>Unit Price</label>
+                        <input type="number" name="linePrice" value="0" step="0.01" class="text-end line-price" />
+                    </div>
+                    <div style="display:flex; align-items:flex-end;">
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-line" style="margin-bottom:2px;">✕</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">💵 Totals</div>
+        <div class="mob-list-two-col">
+            <div><div class="k">Livestock</div><div class="v" id="lsSub">$0.00</div></div>
+            <div><div class="k">Lines</div><div class="v" id="lnSub">$0.00</div></div>
+            <div><div class="k">Subtotal</div><div class="v" id="sub">$0.00</div></div>
+            <div><div class="k fw-bold">Grand Total</div><div class="v fw-bold" id="grand" style="color:#065f46;">$0.00</div></div>
+        </div>
+    </div>
+
+    <div class="mob-submit-row">
+        <a asp-action="MobileIndex" class="mob-btn" style="background:#f3f4f6; color:#374151; justify-content:center; flex:1;">Cancel</a>
+        <button type="submit" class="mob-btn" style="justify-content:center; flex:1.4; background:#065f46;">💾 Save Draft</button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const esc = s => (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+            const fmt = n => '$' + (Number(n) || 0).toFixed(2);
+            const LS = { url: '@Url.Action("SearchLivestock")', resolve: '@Url.Action("ResolveLivestock")' };
+            let lsCart = [];
+            function showDrop(ul){ ul.style.display='block'; }
+            function hideDrop(ul){ ul.style.display='none'; }
+
+            const lsSearch = document.getElementById('lsSearch');
+            const lsDrop = document.getElementById('lsDrop');
+            const lsMsg = document.getElementById('lsMsg');
+            const farmSelect = document.querySelector('select[name="FarmId"]');
+            function farmFilter() { return farmSelect.value || null; }
+            farmSelect.addEventListener('change', () => { if (lsSearch.value.trim()) { var ev = new Event('input'); lsSearch.dispatchEvent(ev); } });
+
+            async function livestockList(q) {
+                let url = LS.url + '?keyword=' + encodeURIComponent(q || '');
+                if (farmFilter()) url += '&farmId=' + encodeURIComponent(farmFilter());
+                const r = await fetch(url);
+                const j = await r.json();
+                return j.map(l => ({
+                    Id: l.id || l.Id,
+                    Text: l.livestockId || l.LivestockId,
+                    Sub: (l.typeLabel || l.TypeLabel || '') + ' · Cost ' + fmt(l.purchaseAmount || l.PurchaseAmount || 0)
+                }));
+            }
+            let t;
+            lsSearch.addEventListener('input', () => {
+                clearTimeout(t);
+                const q = lsSearch.value;
+                t = setTimeout(async () => { renderLsDrop(await livestockList(q), q); }, 280);
+            });
+            document.addEventListener('click', e => { if (!lsSearch.parentElement.parentElement.parentElement.contains(e.target) && !lsDrop.contains(e.target)) hideDrop(lsDrop); });
+            lsSearch.addEventListener('focus', async () => { renderLsDrop(await livestockList(lsSearch.value), lsSearch.value); });
+
+            function renderLsDrop(list, q) {
+                lsDrop.innerHTML = '';
+                if (!list.length) {
+                    const li = document.createElement('li');
+                    li.className = 'small px-2 py-2';
+                    li.style.color = '#9ca3af';
+                    li.textContent = q ? ('No match for "' + q + '". Use Resolve (exact ID).') : 'Start typing a Livestock ID…';
+                    lsDrop.appendChild(li);
+                    showDrop(lsDrop);
+                    return;
+                }
+                list.forEach(it => {
+                    if (lsCart.find(x => x.Id === it.Id)) return;
+                    const li = document.createElement('li');
+                    const a = document.createElement('button');
+                    a.type = 'button';
+                    a.className = 'w-100 text-start px-2 py-2';
+                    a.style.cssText = 'border:0;background:#fff;border-bottom:1px solid #f3f4f6;';
+                    a.innerHTML = '<div><code>' + esc(it.Text) + '</code></div><div class="small" style="color:#6b7280;">' + esc(it.Sub || '') + '</div>';
+                    a.addEventListener('click', async () => { await addLivestockById(it.Id); lsSearch.value=''; hideDrop(lsDrop); });
+                    li.appendChild(a);
+                    lsDrop.appendChild(li);
+                });
+                if (!lsDrop.children.length) {
+                    const li = document.createElement('li');
+                    li.className = 'small px-2 py-2';
+                    li.style.color = '#9ca3af';
+                    li.textContent = 'All matching already added.';
+                    lsDrop.appendChild(li);
+                }
+                showDrop(lsDrop);
+            }
+
+            document.getElementById('lsManualResolve').addEventListener('click', async () => {
+                const v = lsSearch.value.trim();
+                if (!v) { lsMsg.textContent = 'Paste exact Livestock ID first.'; lsMsg.style.color = '#dc2626'; return; }
+                const r = await fetch(LS.resolve + '?id=' + encodeURIComponent(v));
+                const j = await r.json();
+                if (!j.ok) { lsMsg.textContent = j.msg || 'Not found'; lsMsg.style.color = '#dc2626'; return; }
+                lsMsg.textContent = 'Found, adding…'; lsMsg.style.color = '#065f46';
+                await addLivestockById(j.item.id || j.item.Id);
+                lsSearch.value = '';
+            });
+
+            document.getElementById('lsAddBulk').addEventListener('click', async () => {
+                const ta = document.getElementById('lsBulkPaste');
+                const lines = (ta.value || '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+                if (!lines.length) return;
+                ta.value = '';
+                let added = 0, failed = 0;
+                for (const id of lines) {
+                    const r = await fetch(LS.resolve + '?id=' + encodeURIComponent(id));
+                    const j = await r.json();
+                    if (!j.ok) { failed++; continue; }
+                    const uid = j.item.id || j.item.Id;
+                    if (lsCart.find(x => x.Id === uid)) continue;
+                    await addLivestockById(uid); added++;
+                }
+                lsMsg.textContent = 'Bulk: added ' + added + (failed ? ' · failed ' + failed : '');
+                lsMsg.style.color = failed ? '#d97706' : '#065f46';
+            });
+
+            async function addLivestockById(id) {
+                if (lsCart.find(x => x.Id === id)) return;
+                const all = await (await fetch(LS.url + '?keyword=')).json();
+                let item = all.find(x => (x.id || x.Id) === id);
+                if (!item) {
+                    const r = await fetch(LS.resolve + '?id=' + encodeURIComponent(id));
+                    const j = await r.json();
+                    if (j && j.ok) item = j.item;
+                }
+                if (!item) return;
+                lsCart.push({
+                    Id: item.id || item.Id,
+                    LivestockId: item.livestockId || item.LivestockId,
+                    Type: item.typeLabel || item.TypeLabel || item.livestockTypeId || item.LivestockTypeId,
+                    Cost: item.purchaseAmount || item.PurchaseAmount || 0,
+                    Price: item.suggestedPrice || item.SuggestedPrice || Math.round(((item.purchaseAmount || item.PurchaseAmount || 0) * 1.3) * 100) / 100
+                });
+                renderCart();
+            }
+
+            function renderCart() {
+                const cart = document.getElementById('lsCart');
+                const empty = document.getElementById('lsEmpty');
+                Array.from(cart.children).forEach(function(n){ if (n !== empty) n.remove(); });
+                if (!lsCart.length) {
+                    empty.style.display = 'block';
+                    empty.classList.add('mob-empty');
+                } else {
+                    empty.style.display = 'none';
+                    lsCart.forEach(function(r, idx){
+                        const row = document.createElement('div');
+                        row.className = 'mob-card mob-subcard';
+                        row.style.marginBottom = '0.5rem';
+                        row.innerHTML =
+                            '<div class="d-flex justify-content-between align-items-center mb-2">' +
+                                '<code style="color:#065f46;">' + esc(r.LivestockId) + '</code>' +
+                                '<span class="pill info">' + esc(String(r.Type)) + '</span>' +
+                            '</div>' +
+                            '<div class="mob-list-two-col">' +
+                                '<div><div class="k">Cost</div><div class="v small">' + fmt(r.Cost) + '</div></div>' +
+                                '<div><div class="k">Qty</div><div class="v small">1</div></div>' +
+                            '</div>' +
+                            '<div class="mob-field" style="margin:0.5rem 0 0.25rem;">' +
+                                '<label>Unit Price</label>' +
+                                '<input type="number" name="livestockPrices" step="0.01" value="' + r.Price.toFixed(2) + '" class="text-end ls-price" data-idx="' + idx + '" />' +
+                            '</div>' +
+                            '<div class="d-flex justify-content-between align-items-center mt-1">' +
+                                '<input type="hidden" name="livestockIds" value="' + r.Id + '" />' +
+                                '<div class="small text-muted">Click ✕ to remove</div>' +
+                                '<button type="button" class="btn btn-sm btn-outline-danger ls-remove" data-idx="' + idx + '">✕</button>' +
+                            '</div>';
+                        cart.appendChild(row);
+                    });
+                    cart.querySelectorAll('.ls-price').forEach(el => {
+                        el.addEventListener('change', function(){ lsCart[el.dataset.idx].Price = parseFloat(el.value || '0'); recalc(); });
+                        el.addEventListener('input', function(){ lsCart[el.dataset.idx].Price = parseFloat(el.value || '0'); recalc(); });
+                    });
+                    cart.querySelectorAll('.ls-remove').forEach(el => {
+                        el.addEventListener('click', function(){ lsCart.splice(parseInt(el.dataset.idx, 10), 1); renderCart(); });
+                    });
+                }
+                document.getElementById('lsCount').textContent = lsCart.length;
+                recalc();
+            }
+
+            function recalc() {
+                let lsTotal = 0;
+                lsCart.forEach(r => { lsTotal += Number(r.Price) || 0; });
+                let lnTotal = 0;
+                document.querySelectorAll('.line-row').forEach(r => {
+                    const q = parseFloat(r.querySelector('.line-qty')?.value || '0');
+                    const p = parseFloat(r.querySelector('.line-price')?.value || '0');
+                    lnTotal += q * p;
+                });
+                const sub = lsTotal + lnTotal;
+                document.getElementById('lsSub').textContent = fmt(lsTotal);
+                document.getElementById('lnSub').textContent = fmt(lnTotal);
+                document.getElementById('sub').textContent = fmt(sub);
+                document.getElementById('grand').textContent = fmt(sub);
+            }
+
+            document.getElementById('addLineBtn').addEventListener('click', function () {
+                const wrap = document.getElementById('linesWrap');
+                const proto = wrap.querySelector('.line-row');
+                const clone = proto.cloneNode(true);
+                clone.querySelectorAll('input').forEach(function(i){ i.value = i.name === 'lineQty' ? '1' : '0'; });
+                clone.querySelector('.remove-line').addEventListener('click', function () { clone.remove(); recalc(); });
+                clone.querySelector('.line-qty').addEventListener('change', recalc);
+                clone.querySelector('.line-qty').addEventListener('input', recalc);
+                clone.querySelector('.line-price').addEventListener('change', recalc);
+                clone.querySelector('.line-price').addEventListener('input', recalc);
+                wrap.appendChild(clone);
+                recalc();
+            });
+            document.querySelectorAll('.remove-line').forEach(function(b){
+                b.addEventListener('click', function(){ b.closest('.line-row').remove(); recalc(); });
+            });
+            document.querySelectorAll('.line-qty, .line-price').forEach(el => { el.addEventListener('change', recalc); el.addEventListener('input', recalc); });
+
+            renderCart();
+        })();
+    </script>
+}

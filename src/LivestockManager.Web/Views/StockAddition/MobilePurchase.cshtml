@@ -1,5 +1,6 @@
 @model LivestockManager.Web.Models.StockAdditionViewModels.StockAdditionPurchaseViewModel
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Helpers
 @{
     Layout = "_MobileLayout";
     ViewData["Title"] = "New Purchase";
@@ -27,6 +28,7 @@
 
 <form asp-action="MobilePurchase" method="post" id="purchaseForm">
     <input type="hidden" asp-for="IdempotencyKey" />
+    <input type="hidden" asp-for="CostAllocationMethod" value="@((int)CostAllocationMethod.Equal)" />
 
     <div class="mob-card">
         <div class="mob-card-title">📍 Supplier & Farm</div>
@@ -59,9 +61,9 @@
             @{
                 var types = new[]
                 {
-                    new { Key = LivestockType.Ah, Label = "Ah", Desc = "Purchased ram (castrated)", Color = "#2d6a4f" },
-                    new { Key = LivestockType.Su, Label = "Su", Desc = "Uncastrated ram", Color = "#40916c" },
-                    new { Key = LivestockType.Sa, Label = "Sa", Desc = "Purchased ewe", Color = "#00a896" }
+                    new { Key = LivestockType.Ah, Label = "Ah", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Ah), Color = "#2d6a4f" },
+                    new { Key = LivestockType.Su, Label = "Su", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Su), Color = "#40916c" },
+                    new { Key = LivestockType.Sa, Label = "Sa", Desc = LivestockTypeDisplay.GetDisplayName(LivestockType.Sa), Color = "#00a896" }
                 };
             }
             @foreach (var t in types)
@@ -82,13 +84,13 @@
     </div>
 
     <div class="mob-card">
-        <div class="mob-card-title">⚖ Weight & Cost</div>
+        <div class="mob-card-title">⚖ Weight</div>
         <div class="f-row">
             <div class="g ps">
                 <div class="mob-field">
                     <label>Purchase Weight <span class="text-danger">*</span></label>
                     <input type="number" step="0.01" min="0.01" asp-for="PurchaseWeight" id="purchaseWeight" required
-                           placeholder="e.g. 45.5" />
+                           inputmode="decimal" placeholder="e.g. 45.5" />
                     <span asp-validation-for="PurchaseWeight" class="field-validation-error"></span>
                 </div>
             </div>
@@ -105,11 +107,67 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">💰 Purchase Costs</div>
+
         <div class="mob-field">
-            <label>Purchase Cost ($) <span class="text-danger">*</span></label>
-            <input type="number" step="0.01" min="0" asp-for="PurchaseCost" id="purchaseCost"
-                   placeholder="e.g. 250.00" required />
+            <label>Purchase Cost <span class="text-danger">*</span></label>
+            <input type="number" step="0.01" min="0" asp-for="PurchaseCost" id="cost-purchase"
+                   inputmode="decimal" placeholder="e.g. 1000.00" required />
             <span asp-validation-for="PurchaseCost" class="field-validation-error"></span>
+        </div>
+
+        <div class="mob-field">
+            <label>Commission</label>
+            <input type="number" step="0.01" min="0" asp-for="CommissionAmount" id="cost-commission"
+                   inputmode="decimal" placeholder="0.00" />
+            <span asp-validation-for="CommissionAmount" class="field-validation-error"></span>
+        </div>
+
+        <div class="mob-field">
+            <label>Taxes</label>
+            <input type="number" step="0.01" min="0" asp-for="TaxAmount" id="cost-tax"
+                   inputmode="decimal" placeholder="0.00" />
+            <span asp-validation-for="TaxAmount" class="field-validation-error"></span>
+        </div>
+
+        <div class="mob-field">
+            <label>Transportation</label>
+            <input type="number" step="0.01" min="0" asp-for="TransportationAmount" id="cost-transport"
+                   inputmode="decimal" placeholder="0.00" />
+            <span asp-validation-for="TransportationAmount" class="field-validation-error"></span>
+        </div>
+
+        <div class="mob-field">
+            <label>Other Costs</label>
+            <input type="number" step="0.01" min="0" asp-for="OtherCostAmount" id="cost-other"
+                   inputmode="decimal" placeholder="0.00" />
+            <span asp-validation-for="OtherCostAmount" class="field-validation-error"></span>
+        </div>
+
+        <div class="mob-field" id="otherDescWrap" style="display:none;">
+            <label>Other Cost Description <span class="text-danger">*</span></label>
+            <input type="text" asp-for="OtherCostDescription" id="cost-other-desc" maxlength="500"
+                   placeholder="What do Other Costs cover?" />
+            <span asp-validation-for="OtherCostDescription" class="field-validation-error"></span>
+        </div>
+    </div>
+
+    <div class="mob-card mob-totals-card" style="background:linear-gradient(135deg,#eafaf1 0%, #f8fff9 100%); border:1px solid #b7e4c7;">
+        <div class="mob-card-title" style="color:#1b4332;">🔎 Acquisition Summary <small class="text-muted fw-normal">(preview only · finalized on server)</small></div>
+        <div class="breakdown-row">
+            <div class="k">Purchase Cost</div>
+            <div class="v" id="sum-purchase">$0.00</div>
+        </div>
+        <div class="breakdown-row">
+            <div class="k">Additional Costs</div>
+            <div class="v" id="sum-additional">$0.00</div>
+        </div>
+        <div class="breakdown-row total-row">
+            <div class="k">Total Acquisition Cost</div>
+            <div class="v" id="sum-total">$0.00</div>
         </div>
     </div>
 
@@ -130,8 +188,108 @@
     <div class="mob-submit-row">
         <div class="sub-row">
             <a asp-action="MobileIndex" class="mob-submit-btn small-sub">Cancel</a>
-            <button type="submit" class="mob-submit-btn small-sub primary">💾 Save</button>
+            <button type="submit" class="mob-submit-btn small-sub primary" id="saveBtnSmall">💾 Save</button>
         </div>
-        <button type="submit" class="mob-submit-btn">🛒 Save Purchase</button>
+        <button type="submit" class="mob-submit-btn" id="saveBtn">🛒 Save Purchase</button>
     </div>
 </form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            var money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            var inputs = {
+                purchase: document.getElementById('cost-purchase'),
+                commission: document.getElementById('cost-commission'),
+                tax: document.getElementById('cost-tax'),
+                transport: document.getElementById('cost-transport'),
+                other: document.getElementById('cost-other')
+            };
+            var sums = {
+                purchase: document.getElementById('sum-purchase'),
+                additional: document.getElementById('sum-additional'),
+                total: document.getElementById('sum-total')
+            };
+            var otherDescWrap = document.getElementById('otherDescWrap');
+            var otherDesc = document.getElementById('cost-other-desc');
+
+            function nz(v) {
+                var n = parseFloat(v);
+                if (!isFinite(n) || n < 0) return 0;
+                return Math.round(n * 100) / 100;
+            }
+
+            function update() {
+                var purchase = nz(inputs.purchase.value);
+                var comm = nz(inputs.commission.value);
+                var tax = nz(inputs.tax.value);
+                var trans = nz(inputs.transport.value);
+                var other = nz(inputs.other.value);
+                var additional = comm + tax + trans + other;
+                var total = purchase + additional;
+
+                sums.purchase.textContent = money.format(purchase);
+                sums.additional.textContent = money.format(additional);
+                sums.total.textContent = money.format(total);
+
+                if (other > 0) {
+                    otherDescWrap.style.display = '';
+                    otherDesc.setAttribute('required', 'required');
+                    if (!otherDesc.value.trim()) {
+                        otherDesc.classList.add('border-danger');
+                    } else {
+                        otherDesc.classList.remove('border-danger');
+                    }
+                } else {
+                    otherDescWrap.style.display = 'none';
+                    otherDesc.removeAttribute('required');
+                    otherDesc.classList.remove('border-danger');
+                }
+            }
+
+            Object.keys(inputs).forEach(function (k) {
+                inputs[k].addEventListener('input', update);
+                inputs[k].addEventListener('change', update);
+            });
+            if (otherDesc) {
+                otherDesc.addEventListener('input', function () {
+                    if (nz(inputs.other.value) > 0 && otherDesc.value.trim()) {
+                        otherDesc.classList.remove('border-danger');
+                    }
+                });
+            }
+
+            update();
+
+            var form = document.getElementById('purchaseForm');
+            var submitted = false;
+            function lock() {
+                if (submitted) return false;
+                submitted = true;
+                var btns = form.querySelectorAll('button[type=submit]');
+                Array.prototype.forEach.call(btns, function (b) {
+                    b.disabled = true;
+                    b.classList.add('opacity-75');
+                });
+                return true;
+            }
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    if (!lock()) {
+                        e.preventDefault();
+                        return;
+                    }
+                    if (form.reportValidity && !form.reportValidity()) {
+                        submitted = false;
+                        var btns = form.querySelectorAll('button[type=submit]');
+                        Array.prototype.forEach.call(btns, function (b) {
+                            b.disabled = false;
+                            b.classList.remove('opacity-75');
+                        });
+                    }
+                });
+            }
+        })();
+    </script>
+}

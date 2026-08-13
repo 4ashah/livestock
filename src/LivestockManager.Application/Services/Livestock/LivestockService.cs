@@ -5,6 +5,7 @@ using LivestockManager.Domain.Abstractions;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Exceptions;
 using LivestockManager.Domain.Enums;
+using LivestockManager.Domain.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace LivestockManager.Application.Services.Livestock;
@@ -206,11 +207,13 @@ public class LivestockService : ILivestockService
     {
         var livestockList = await _db.Livestock.Where(l => l.CompanyId == companyId).ToListAsync(ct);
         var sb = new StringBuilder();
-        sb.AppendLine("Id,LivestockId,Type,Status,AcquisitionDate,InitialWeight,CurrentWeight,PurchaseAmount,SoldAmount,BasicProfitLoss");
+        sb.AppendLine("Id,LivestockId,Type,TypeLabel,Status,AcquisitionDate,InitialWeight,CurrentWeight,PurchaseAmount,AllocatedCommission,AllocatedTax,AllocatedTransportation,AllocatedOtherCost,OtherCostDescription,TotalAcquisitionCost,SoldAmount,BasicProfitLoss");
 
         foreach (var l in livestockList)
         {
-            sb.AppendLine($"{l.Id},{l.LivestockId},{l.LivestockTypeId},{l.Status},{l.AcquisitionDate:yyyy-MM-dd},{l.InitialWeight},{l.CurrentWeight},{l.PurchaseAmount},{l.SoldAmount},{l.BasicProfitLoss}");
+            var typeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId);
+            var otherCsv = string.IsNullOrWhiteSpace(l.OtherCostDescription) ? "" : $"\"{l.OtherCostDescription.Replace("\"", "\"\"")}\"";
+            sb.AppendLine($"{l.Id},{l.LivestockId},{l.LivestockTypeId},\"{typeLabel}\",{l.Status},{l.AcquisitionDate:yyyy-MM-dd},{l.InitialWeight},{l.CurrentWeight},{l.PurchaseAmount},{l.AllocatedCommission},{l.AllocatedTax},{l.AllocatedTransportation},{l.AllocatedOtherCost},{otherCsv},{l.TotalAcquisitionCost},{l.SoldAmount},{l.BasicProfitLoss}");
         }
 
         return Encoding.UTF8.GetBytes(sb.ToString());
@@ -281,6 +284,12 @@ public class LivestockService : ILivestockService
             InitialWeight = livestock.InitialWeight,
             WeightUnit = livestock.WeightUnit,
             PurchaseAmount = livestock.PurchaseAmount,
+            AllocatedCommission = livestock.AllocatedCommission,
+            AllocatedTax = livestock.AllocatedTax,
+            AllocatedTransportation = livestock.AllocatedTransportation,
+            AllocatedOtherCost = livestock.AllocatedOtherCost,
+            OtherCostDescription = livestock.OtherCostDescription,
+            TotalAcquisitionCost = livestock.TotalAcquisitionCost,
             CurrentWeight = livestock.CurrentWeight,
             CurrentWeightDate = livestock.CurrentWeightDate,
             Status = livestock.Status,
