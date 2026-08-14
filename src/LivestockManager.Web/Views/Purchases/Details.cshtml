@@ -1,4 +1,5 @@
 @model LivestockManager.Application.DTOs.Purchases.PurchaseDetailDto
+@using LivestockManager.Domain.Helpers
 @{
     ViewData["Title"] = "Purchase Details";
     var canEdit = (bool?)ViewData["CanEdit"] ?? false;
@@ -75,10 +76,10 @@
                     <dd class="col-sm-6 text-end">$@Model.Subtotal.ToString("F2")</dd>
                     @if (Model.DiscountPct > 0)
                     {
-                        <dt class="col-sm-6 text-muted small fw-semibold">Discount @(Model.DiscountPct * 100).ToString("0.##")%</dt>
+                        <dt class="col-sm-6 text-muted small fw-semibold">Discount @PercentageDisplay.Format(Model.DiscountPct)</dt>
                         <dd class="col-sm-6 text-end">- $@((Model.Subtotal * Model.DiscountPct).ToString("F2"))</dd>
                     }
-                    <dt class="col-sm-6 text-muted small fw-semibold">Tax @(Model.TaxRate * 100).ToString("0.##")%</dt>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Tax @PercentageDisplay.Format(Model.TaxRate)</dt>
                     <dd class="col-sm-6 text-end">+ $@Model.TaxTotal.ToString("F2")</dd>
                     <hr class="my-1" />
                     <dt class="col-sm-6 fw-bold">Grand Total</dt>
@@ -214,8 +215,8 @@
                                 { <span class="text-muted">—</span> }
                             </td>
                             <td class="text-end">$@it.UnitCost.ToString("F2")</td>
-                            <td class="text-end">@(it.DiscountPct * 100).ToString("0.##")%</td>
-                            <td class="text-end">@(it.TaxRate * 100).ToString("0.##")%</td>
+                            <td class="text-end">@PercentageDisplay.Format(it.DiscountPct)</td>
+                            <td class="text-end">@PercentageDisplay.Format(it.TaxRate)</td>
                             <td class="text-end fw-semibold">$@it.LineTotal.ToString("F2")</td>
                         </tr>
                     }

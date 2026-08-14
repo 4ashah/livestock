@@ -1,4 +1,5 @@
 @model LivestockManager.Web.Models.SettingsViewModels.SettingsViewModel
+@using LivestockManager.Domain.Helpers
 @{
     ViewData["Title"] = "Application Settings";
     var successMsg = TempData["SuccessMessage"] as string;
@@ -98,7 +99,7 @@
                         <label asp-for="TaxRate" class="form-label fw-semibold"></label>
                         <div class="input-group">
                             <input asp-for="TaxRate" class="form-control" step="0.0001" min="0" max="1" placeholder="0.15" inputmode="decimal" />
-                            <span class="input-group-text">@((Model.TaxRate * 100).ToString("N2"))%</span>
+                            <span class="input-group-text">@PercentageDisplay.FormatTwoDecimals(Model.TaxRate)</span>
                         </div>
                         <span asp-validation-for="TaxRate" class="text-danger small"></span>
                         <div class="text-muted small mt-1">Default tax rate for invoices and purchases (0.00 to 1.00)</div>

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using LivestockManager.Domain.Abstractions;
 using LivestockManager.Domain.Exceptions;
 using LivestockManager.Infrastructure.Persistence;
@@ -9,11 +10,13 @@ public class DocumentNumberGenerator
 {
     private readonly ISequenceGenerator _sequenceGenerator;
     private readonly AppDbContext _dbContext;
+    private readonly ILogger<DocumentNumberGenerator> _logger;
 
-    public DocumentNumberGenerator(ISequenceGenerator sequenceGenerator, AppDbContext dbContext)
+    public DocumentNumberGenerator(ISequenceGenerator sequenceGenerator, AppDbContext dbContext, ILogger<DocumentNumberGenerator> logger)
     {
         _sequenceGenerator = sequenceGenerator;
         _dbContext = dbContext;
+        _logger = logger;
     }
 
     public async Task<string> GeneratePurchaseNumberAsync(Guid companyId, CancellationToken ct = default)
@@ -81,8 +84,9 @@ public class DocumentNumberGenerator
         {
             throw;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Invoice prefix lookup failed for company {CompanyId}; falling back to default prefix 'INV'", companyId);
             return "INV";
         }
     }
@@ -105,8 +109,9 @@ public class DocumentNumberGenerator
         {
             throw;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Receipt prefix lookup failed for company {CompanyId}; falling back to default prefix 'RCP'", companyId);
             return "RCP";
         }
     }

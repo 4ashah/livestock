@@ -78,6 +78,14 @@
                     {
                         <option value="@((int)SaleStatus.Cancelled)">Cancelled</option>
                     }
+                    @if (selStatus == SaleStatus.Reversed)
+                    {
+                        <option value="@((int)SaleStatus.Reversed)" selected>↶ Reversed</option>
+                    }
+                    else
+                    {
+                        <option value="@((int)SaleStatus.Reversed)">↶ Reversed</option>
+                    }
                 </select>
             </div>
             <div class="col-md-2">
@@ -114,7 +122,9 @@
                                 ? $"DRAFT-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
                                 : (s.Status == SaleStatus.Cancelled
                                     ? $"VOID-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
-                                    : $"SALE-{s.Id.ToString("N")[..8].ToUpperInvariant()}"));
+                                    : (s.Status == SaleStatus.Reversed
+                                        ? $"REVERSED-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
+                                        : $"SALE-{s.Id.ToString("N")[..8].ToUpperInvariant()}")));
                         <tr>
                             <td><code title="@(string.IsNullOrWhiteSpace(s.SaleNumber) ? $"Internal Id: {s.Id}" : null)">@displaySaleNumber</code></td>
                             <td>@s.Date.ToString("yyyy-MM-dd")</td>
@@ -138,6 +148,8 @@
                                 { <span class="badge bg-success">Confirmed</span> }
                                 else if (s.Status == SaleStatus.Completed)
                                 { <span class="badge bg-primary">Completed</span> }
+                                else if (s.Status == SaleStatus.Reversed)
+                                { <span class="badge bg-danger">↶ Reversed</span> }
                                 else
                                 { <span class="badge bg-secondary">Cancelled</span> }
                             </td>

@@ -81,6 +81,8 @@ public class FarmService : IFarmService
     public async Task<FarmDetailDto> CreateAsync(FarmCreateDto dto, Guid companyId, CancellationToken ct)
     {
         var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+        if (resolvedCompanyId == Guid.Empty)
+            throw new DomainException("CompanyId is required.");
 
         var farm = new Farm(resolvedCompanyId, dto.Name, dto.Code)
         {

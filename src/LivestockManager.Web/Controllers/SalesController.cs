@@ -52,6 +52,20 @@ public class SalesController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
+    private async Task<Guid> GetUserIdAsync()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        return user?.Id ?? Guid.Empty;
+    }
+
+    private async Task<string?> GetUserRoleAsync()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return null;
+        var roles = await _userManager.GetRolesAsync(user);
+        return roles.FirstOrDefault();
+    }
+
     private bool CanEdit => User.IsInRole(RoleNames.Accounts)
         || User.IsInRole(RoleNames.FarmManager)
         || User.IsInRole(RoleNames.CompanyAdministrator)
@@ -130,7 +144,9 @@ public class SalesController : Controller
                 l.FarmId,
                 l.PurchaseAmount,
                 Display = l.LivestockId + " (" + LivestockManager.Domain.Helpers.LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")",
-                SuggestedPrice = l.PurchaseAmount * 1.3m
+                SuggestedPrice = Math.Round(l.PurchaseAmount * 1.3m, 2, MidpointRounding.AwayFromZero),
+                SuggestedWeight = (decimal?)l.CurrentWeight,
+                SuggestedWeightDate = (DateTimeOffset?)l.CurrentWeightDate
             })
             .ToListAsync(ct);
         return View();
@@ -139,12 +155,30 @@ public class SalesController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = "CanManageSales")]
-    public async Task<IActionResult> Create(SaleCreateDto dto, Guid[] livestockIds, decimal[] livestockPrices, string[] lineDesc, decimal[] lineQty, decimal[] linePrice, CancellationToken ct)
+    public async Task<IActionResult> Create(SaleCreateDto dto,
+        Guid[] livestockIds, decimal[] livestockPrices,
+        string[] lineDesc, decimal[] lineQty, decimal[] linePrice,
+        decimal commissionAmount = 0, decimal sellerTaxAmount = 0,
+        decimal transportationAmount = 0, decimal otherCostAmount = 0,
+        string? otherCostDescription = null,
+        CostAllocationMethod costAllocationMethod = CostAllocationMethod.Equal,
+        decimal discountPct = 0, decimal taxPct = 0,
+        CancellationToken ct = default)
     {
         var companyId = await GetCompanyIdAsync();
         dto.CompanyId = companyId;
         dto.Date = DateTimeOffset.UtcNow;
         dto.Items = new List<SaleItemDto>();
+
+        dto.CommissionAmount = commissionAmount;
+        dto.SellerTaxAmount = sellerTaxAmount;
+        dto.TransportationAmount = transportationAmount;
+        dto.OtherCostAmount = otherCostAmount;
+        dto.OtherCostDescription = otherCostDescription;
+        dto.CostAllocationMethod = costAllocationMethod;
+
+        var itemDiscountPct = Math.Clamp(discountPct, 0, 1);
+        var itemTaxPct = Math.Clamp(taxPct, 0, 1);
 
         if (livestockIds != null)
         {
@@ -157,8 +191,8 @@ public class SalesController : Controller
                     Description = "Livestock #" + livestockIds[i].ToString().Substring(0, 8),
                     Quantity = 1,
                     UnitPrice = price,
-                    DiscountPercent = 0,
-                    TaxPercent = 0
+                    DiscountPercent = itemDiscountPct,
+                    TaxPercent = itemTaxPct
                 });
             }
         }
@@ -176,8 +210,8 @@ public class SalesController : Controller
                         Description = lineDesc[i],
                         Quantity = qty,
                         UnitPrice = prc,
-                        DiscountPercent = 0,
-                        TaxPercent = 0
+                        DiscountPercent = itemDiscountPct,
+                        TaxPercent = itemTaxPct
                     });
                 }
             }
@@ -203,7 +237,9 @@ public class SalesController : Controller
                     l.FarmId,
                     l.PurchaseAmount,
                     Display = l.LivestockId + " (" + LivestockManager.Domain.Helpers.LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")",
-                    SuggestedPrice = l.PurchaseAmount * 1.3m
+                    SuggestedPrice = Math.Round(l.PurchaseAmount * 1.3m, 2, MidpointRounding.AwayFromZero),
+                    SuggestedWeight = (decimal?)l.CurrentWeight,
+                    SuggestedWeightDate = (DateTimeOffset?)l.CurrentWeightDate
                 })
                 .ToListAsync(ct);
             return View();
@@ -259,6 +295,122 @@ public class SalesController : Controller
 
     [HttpGet]
     [Authorize(Policy = "CanManageSales")]
+    public async Task<IActionResult> ListEligibleLivestockBulkAdd(Guid? farmId, string? keyword, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var q = _db.Livestock
+            .Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active);
+
+        if (farmId.HasValue)
+            q = q.Where(l => l.FarmId == farmId.Value);
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var kw = keyword.Trim();
+            q = q.Where(l => l.LivestockId.Contains(kw)
+                || (l.Comments != null && l.Comments.Contains(kw)));
+        }
+
+        var results = await q
+            .OrderBy(l => l.LivestockId)
+            .Take(200)
+            .Select(l => new
+            {
+                l.Id,
+                l.LivestockId,
+                l.LivestockTypeId,
+                TypeLabel = LivestockManager.Domain.Helpers.LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
+                l.FarmId,
+                InitialWeight = (decimal?)l.InitialWeight,
+                PurchaseAmount = (decimal?)l.PurchaseAmount,
+                SuggestedPrice = Math.Round(((decimal?)l.PurchaseAmount ?? 0) * 1.3m, 2, MidpointRounding.AwayFromZero),
+                SuggestedPriceMethod = SuggestedPricingMethod.CostMarkupLegacy,
+                SuggestedWeight = (decimal?)l.CurrentWeight,
+                SuggestedWeightDate = (DateTimeOffset?)l.CurrentWeightDate,
+                SuggestedRate = (decimal?)null
+            })
+            .ToListAsync(ct);
+
+        return Json(results);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanManageSales")]
+    public async Task<IActionResult> BulkAdd(Guid saleId, [FromForm] Guid[] selectedLivestockIds, CancellationToken ct)
+    {
+        if (saleId == Guid.Empty) return NotFound();
+        var companyId = await GetCompanyIdAsync();
+        var actingUserId = await GetUserIdAsync();
+
+        try
+        {
+            var result = await _saleService.BulkAddLivestockToDraftSaleAsync(
+                saleId, companyId, selectedLivestockIds ?? Array.Empty<Guid>(),
+                actingUserId == Guid.Empty ? null : actingUserId, ct);
+
+            TempData["Success"] = $"Bulk add complete: {result.AddedCount} added, " +
+                                  $"{result.AlreadyPresentCount} already present, " +
+                                  $"{result.IneligibleCount} ineligible.";
+
+            if (result.Messages.Count > 0)
+                TempData["Messages"] = string.Join(" | ", result.Messages);
+
+            return Ok(result);
+        }
+        catch (DomainException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            return BadRequest(ModelState);
+        }
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanManageSales")]
+    public async Task<IActionResult> Reverse(SaleReversalDto dto, CancellationToken ct)
+    {
+        if (!ModelState.IsValid)
+        {
+            return RedirectToAction(nameof(Details), new { id = dto.Id });
+        }
+
+        var companyId = await GetCompanyIdAsync();
+        var actingUserId = await GetUserIdAsync();
+        var actingUserRole = await GetUserRoleAsync();
+
+        var allowed = User.IsInRole(RoleNames.FarmManager)
+                      || User.IsInRole(RoleNames.Accounts)
+                      || User.IsInRole(RoleNames.CompanyAdministrator)
+                      || User.IsInRole(RoleNames.SystemAdministrator);
+
+        if (!allowed)
+        {
+            return Forbid();
+        }
+
+        if (actingUserId == Guid.Empty)
+        {
+            ModelState.AddModelError(string.Empty, "Could not identify current user.");
+            return RedirectToAction(nameof(Details), new { id = dto.Id });
+        }
+
+        try
+        {
+            var result = await _saleService.ReverseSaleAsync(dto, companyId, actingUserId, actingUserRole, ct);
+            TempData["Success"] = "Sale reversed successfully.";
+            return RedirectToAction(nameof(Details), new { id = dto.Id });
+        }
+        catch (DomainException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Details), new { id = dto.Id });
+        }
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanManageSales")]
     public async Task<JsonResult> SearchLivestock(string? keyword, Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -284,7 +436,9 @@ public class SalesController : Controller
                 l.FarmId,
                 InitialWeight = (decimal?)l.InitialWeight,
                 PurchaseAmount = (decimal?)l.PurchaseAmount,
-                SuggestedPrice = Math.Round(((decimal?)l.PurchaseAmount ?? 0) * 1.3m, 2)
+                SuggestedPrice = Math.Round(((decimal?)l.PurchaseAmount ?? 0) * 1.3m, 2, MidpointRounding.AwayFromZero),
+                SuggestedWeight = (decimal?)l.CurrentWeight,
+                SuggestedWeightDate = (DateTimeOffset?)l.CurrentWeightDate
             })
             .ToListAsync(ct);
         return Json(results);
@@ -309,7 +463,9 @@ public class SalesController : Controller
                 x.FarmId,
                 InitialWeight = (decimal?)x.InitialWeight,
                 PurchaseAmount = (decimal?)x.PurchaseAmount,
-                SuggestedPrice = Math.Round(((decimal?)x.PurchaseAmount ?? 0) * 1.3m, 2)
+                SuggestedPrice = Math.Round(((decimal?)x.PurchaseAmount ?? 0) * 1.3m, 2, MidpointRounding.AwayFromZero),
+                SuggestedWeight = (decimal?)x.CurrentWeight,
+                SuggestedWeightDate = (DateTimeOffset?)x.CurrentWeightDate
             })
             .FirstOrDefaultAsync(ct);
         if (l == null) return Json(new { ok = false, msg = "No active livestock matches '" + clean + "'" });
@@ -380,12 +536,31 @@ public class SalesController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Policy = "CanManageSales")]
-    public async Task<IActionResult> MobileCreate(SaleCreateDto dto, Guid[] livestockIds, decimal[] livestockPrices, string[] lineDesc, decimal[] lineQty, decimal[] linePrice, CancellationToken ct)
+    public async Task<IActionResult> MobileCreate(SaleCreateDto dto,
+        Guid[] livestockIds, decimal[] livestockPrices,
+        string[] lineDesc, decimal[] lineQty, decimal[] linePrice,
+        decimal commissionAmount = 0, decimal sellerTaxAmount = 0,
+        decimal transportationAmount = 0, decimal otherCostAmount = 0,
+        string? otherCostDescription = null,
+        CostAllocationMethod costAllocationMethod = CostAllocationMethod.Equal,
+        decimal discountPct = 0, decimal taxPct = 0,
+        CancellationToken ct = default)
     {
         var companyId = await GetCompanyIdAsync();
         dto.CompanyId = companyId;
         dto.Date = DateTimeOffset.UtcNow;
         dto.Items = new List<SaleItemDto>();
+
+        dto.CommissionAmount = commissionAmount;
+        dto.SellerTaxAmount = sellerTaxAmount;
+        dto.TransportationAmount = transportationAmount;
+        dto.OtherCostAmount = otherCostAmount;
+        dto.OtherCostDescription = otherCostDescription;
+        dto.CostAllocationMethod = costAllocationMethod;
+
+        var itemDiscountPct = Math.Clamp(discountPct, 0, 1);
+        var itemTaxPct = Math.Clamp(taxPct, 0, 1);
+
         if (livestockIds != null)
         {
             for (int i = 0; i < livestockIds.Length; i++)
@@ -397,8 +572,8 @@ public class SalesController : Controller
                     Description = "Livestock #" + livestockIds[i].ToString().Substring(0, 8),
                     Quantity = 1,
                     UnitPrice = price,
-                    DiscountPercent = 0,
-                    TaxPercent = 0
+                    DiscountPercent = itemDiscountPct,
+                    TaxPercent = itemTaxPct
                 });
             }
         }
@@ -415,8 +590,8 @@ public class SalesController : Controller
                         Description = lineDesc[i],
                         Quantity = qty,
                         UnitPrice = prc,
-                        DiscountPercent = 0,
-                        TaxPercent = 0
+                        DiscountPercent = itemDiscountPct,
+                        TaxPercent = itemTaxPct
                     });
                 }
             }

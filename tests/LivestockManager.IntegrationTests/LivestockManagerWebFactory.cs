@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Enums;
+using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Infrastructure.Persistence;
 using LivestockManager.Web.Controllers;
 using System.Data.Common;
@@ -127,7 +128,7 @@ public class LivestockManagerWebFactory : WebApplicationFactory<HomeController>
                     if (!_dbCreated)
                     {
                         try { db.Database.EnsureDeleted(); } catch { }
-                        db.Database.EnsureCreated();
+                        db.Database.MigrateAsync().GetAwaiter().GetResult();
                         try
                         {
                             SeedTestData(db);
@@ -159,21 +160,22 @@ public class LivestockManagerWebFactory : WebApplicationFactory<HomeController>
             var roleNames = new[] { "Viewer", "DataEntry", "FarmManager", "Accounts", "CompanyAdministrator", "SystemAdministrator" };
             foreach (var r in roleNames)
             {
-                int exists = db.Database.SqlQueryRaw<int>(
-                    "SELECT COUNT(*) FROM AspNetRoles WHERE Name = {0}",
-                    r).First();
-                if (exists == 0)
+                if (db.Roles.Any(x => x.Name == r))
+                    continue;
+
+                try
                 {
-                    var roleId = Guid.NewGuid();
-                    try
+                    db.Roles.Add(new ApplicationRole
                     {
-                        db.Database.ExecuteSqlRaw(
-                            "INSERT INTO AspNetRoles (Id, Name, NormalizedName, ConcurrencyStamp) VALUES ({0}, {1}, {2}, {3})",
-                            roleId, r, r.ToUpperInvariant(), Guid.NewGuid().ToString());
-                    }
-                    catch
-                    {
-                    }
+                        Id = Guid.NewGuid(),
+                        Name = r,
+                        NormalizedName = r.ToUpperInvariant(),
+                        ConcurrencyStamp = Guid.NewGuid().ToString()
+                    });
+                    db.SaveChanges();
+                }
+                catch
+                {
                 }
             }
         }

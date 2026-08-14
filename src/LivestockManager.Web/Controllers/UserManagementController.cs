@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using LivestockManager.Application.Common;
 using LivestockManager.Domain.Common;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models.UserViewModels;
@@ -14,12 +15,14 @@ public class UserManagementController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly RoleManager<ApplicationRole> _roleManager;
+    private readonly IAppDbContext _db;
     private const string DefaultResetPassword = "Dev@123456";
 
-    public UserManagementController(UserManager<ApplicationUser> um, RoleManager<ApplicationRole> rm)
+    public UserManagementController(UserManager<ApplicationUser> um, RoleManager<ApplicationRole> rm, IAppDbContext db)
     {
         _userManager = um;
         _roleManager = rm;
+        _db = db;
     }
 
     [HttpGet]
@@ -144,16 +147,35 @@ public class UserManagementController : Controller
             CreatedAt = DateTimeOffset.Now
         };
 
-        var createRes = await _userManager.CreateAsync(user, vm.TemporaryPassword);
-        if (!createRes.Succeeded)
+        await using var tx = await _db.BeginTransactionAsync(ct);
+        try
         {
-            foreach (var err in createRes.Errors)
-                ModelState.AddModelError(string.Empty, err.Description);
-            PopulateRoleOptions(vm);
-            return View(vm);
-        }
+            var createRes = await _userManager.CreateAsync(user, vm.TemporaryPassword);
+            if (!createRes.Succeeded)
+            {
+                foreach (var err in createRes.Errors)
+                    ModelState.AddModelError(string.Empty, err.Description);
+                PopulateRoleOptions(vm);
+                return View(vm);
+            }
 
-        await _userManager.AddToRoleAsync(user, vm.SelectedRole);
+            var addRoleRes = await _userManager.AddToRoleAsync(user, vm.SelectedRole);
+            if (!addRoleRes.Succeeded)
+            {
+                await tx.RollbackAsync(ct);
+                foreach (var err in addRoleRes.Errors)
+                    ModelState.AddModelError(string.Empty, err.Description);
+                PopulateRoleOptions(vm);
+                return View(vm);
+            }
+
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
 
         var indexVm = await BuildVm(ct);
         indexVm.SuccessMessage = $"User {vm.UserName} created. Temporary password: {vm.TemporaryPassword}. The user must reset password after first login.";

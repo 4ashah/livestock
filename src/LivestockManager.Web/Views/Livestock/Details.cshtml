@@ -1,4 +1,5 @@
 @using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Common
 @using LivestockManager.Application.DTOs.Livestock
 @using LivestockManager.Web.Models.LivestockViewModels
 @model LivestockDetailsViewModel
@@ -7,8 +8,8 @@
     var getStatusBadge = (Func<LivestockStatus, string>)ViewData["GetStatusBadgeClass"]!;
     var getStatusDesc = (Func<LivestockStatus, string>)ViewData["GetStatusDescription"]!;
     var getTypeDesc = (Func<LivestockType, string>)ViewData["GetLivestockTypeDescription"]!;
-    var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
-    var canDataEntry = canEdit || User.IsInRole("DataEntry");
+    var canEdit = User.IsInRole(RoleNames.CompanyAdministrator) || User.IsInRole(RoleNames.SystemAdministrator) || User.IsInRole(RoleNames.FarmManager);
+    var canDataEntry = canEdit || User.IsInRole(RoleNames.DataEntry);
     var isActive = Model.Status == LivestockStatus.Active;
 }
 

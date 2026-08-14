@@ -96,20 +96,22 @@
             <div class="card-body">
                 @if (invId.HasValue && invId != Guid.Empty)
                 {
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Invoice</th>
-                                <th class="text-end">Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>@invNum</td>
-                                <td class="text-end fw-semibold">$@Model.Amount.ToString("F2")</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Invoice</th>
+                                    <th class="text-end">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>@invNum</td>
+                                    <td class="text-end fw-semibold">$@Model.Amount.ToString("F2")</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 }
                 else
                 {

@@ -35,6 +35,8 @@ public class InvoiceService : IInvoiceService
         var items = await _db.InvoiceItems.Where(it => it.InvoiceId == id).ToListAsync(ct);
         var payments = await _db.Payments.Where(p => p.InvoiceId == id).ToListAsync(ct);
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == invoice.CustomerId, ct);
+        if (customer != null && customer.CompanyId != companyId)
+            throw new DomainException("Customer does not belong to this company.");
 
         invoice.Items = items;
         invoice.Payments = payments;

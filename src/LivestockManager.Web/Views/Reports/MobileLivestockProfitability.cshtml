@@ -1,0 +1,210 @@
+@using LivestockManager.Application.DTOs.Farms
+@using LivestockManager.Application.DTOs.Reports
+@using LivestockManager.Domain.Helpers
+@model IList<LivestockProfitabilityReportRowDto>
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Livestock Profitability";
+    ViewData["PageIcon"] = "📊";
+    ViewData["PageSubtitle"] = "Per-animal realized profitability";
+    ViewData["DockKey"] = "profit";
+
+    var from = ViewData["From"] as string ?? string.Empty;
+    var to = ViewData["To"] as string ?? string.Empty;
+    var farms = ViewData["Farms"] as IList<FarmSummaryDto> ?? new List<FarmSummaryDto>();
+    var farmId = ViewData["FarmId"] as Guid?;
+
+    var numberSold = Model.Count(r => r.SoldAmount.HasValue);
+    var grossSaleRevenue = Model.Sum(r => r.SoldAmount ?? 0);
+    var totalAcquisitionCost = Model.Sum(r => r.TotalAcquisitionCosts);
+    var operatingExpenses = Model.Sum(r => r.DirectExpenses);
+    var additionalSaleCosts = Model.Sum(r => r.AdditionalSaleCosts);
+    var completeProfit = Model.Sum(r => r.CompleteProfitLoss ?? 0);
+}
+
+<div class="chip-tabs">
+    <a asp-action="MobileLivestockProfitability"
+       asp-route-format="csv"
+       asp-route-from="@from"
+       asp-route-to="@to"
+       asp-route-farmId="@(farmId.HasValue ? farmId.ToString() : "")"
+       class="chip-tab">⬇ Export CSV</a>
+</div>
+
+<div style="background:#dbeafe;color:#1e40af;padding:0.65rem 0.85rem;border-radius:8px;font-size:0.85rem;font-weight:600;margin-bottom:0.85rem;">
+    📅 Date Basis: Sale Date (Realized Profitability)
+</div>
+
+<div class="mob-card">
+    <div class="mob-card-title">🔍 Filters</div>
+    <form method="get" asp-action="MobileLivestockProfitability">
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>From</label>
+                    <input type="date" name="from" value="@from" />
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>To</label>
+                    <input type="date" name="to" value="@to" />
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label>Farm</label>
+            <select name="farmId">
+                <option value="">All Farms</option>
+                @foreach (var f in farms)
+                {
+                    var selected = farmId == f.Id;
+                    <option value="@f.Id" selected="@selected">@f.Name</option>
+                }
+            </select>
+        </div>
+        <div class="f-row">
+            <a asp-action="MobileLivestockProfitability" class="mob-btn ghost">Reset</a>
+            <button type="submit" class="mob-btn primary">🔍 Apply</button>
+        </div>
+    </form>
+</div>
+
+<div class="mob-totals-card @(completeProfit < 0 ? " warn" : "")">
+    <div class="label">Complete Profit</div>
+    <div class="total">@(completeProfit >= 0 ? "+" : "-")$@Math.Abs(completeProfit).ToString("N2")</div>
+    @if (!string.IsNullOrEmpty(from) || !string.IsNullOrEmpty(to))
+    {
+        <div class="breakdown">
+            <div><div class="k">Period</div><div class="v">@(string.IsNullOrEmpty(from) ? "(All)" : from) → @(string.IsNullOrEmpty(to) ? "(All)" : to)</div></div>
+        </div>
+    }
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#3a6ea5;">
+        <div class="k-label">Number of Livestock Sold</div>
+        <div class="k-value">@numberSold.ToString("N0")</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#00a896;">
+        <div class="k-label">Gross Sale Revenue</div>
+        <div class="k-value">$@grossSaleRevenue.ToString("N0")</div>
+    </div>
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#c81d25;">
+        <div class="k-label">Total Acquisition Cost</div>
+        <div class="k-value">$@totalAcquisitionCost.ToString("N0")</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#d97706;">
+        <div class="k-label">Direct Operating Expenses</div>
+        <div class="k-value">$@operatingExpenses.ToString("N0")</div>
+    </div>
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#f59e0b;">
+        <div class="k-label">Additional Sale Costs</div>
+        <div class="k-value">$@additionalSaleCosts.ToString("N0")</div>
+    </div>
+</div>
+
+<div class="mob-card">
+    <div class="mob-card-title">🐄 Profitability Details</div>
+    @if (Model.Count == 0)
+    {
+        <div style="text-align:center;padding:2rem 1rem;color:#6b7280;font-size:0.9rem;">
+            No livestock profitability data for these filters.
+        </div>
+    }
+    else
+    {
+        @foreach (var r in Model)
+        {
+            var basicProfit = r.BasicProfitLoss ?? 0;
+            var completeProfitVal = r.CompleteProfitLoss ?? 0;
+
+            <details style="border-top:1px solid #e5e7eb;margin-top:0.5rem;">
+                <summary style="cursor:pointer;list-style:none;padding:0.55rem 0;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;">
+                    <div style="display:flex;flex-direction:column;gap:0.15rem;flex:1;min-width:0;">
+                        <div style="font-size:0.72rem;color:#6b7280;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">@r.LivestockDisplayId</div>
+                        <div style="font-weight:600;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@LivestockTypeDisplay.GetDisplayName(r.Type)</div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0;">
+                        <div style="font-size:0.72rem;color:#6b7280;">Complete</div>
+                        <div style="font-weight:700;@(completeProfitVal >= 0 ? "color:#00a896" : "color:#c81d25");">
+                            @(completeProfitVal >= 0 ? "+" : "")$@completeProfitVal.ToString("N0")
+                        </div>
+                    </div>
+                </summary>
+                <div style="display:flex;flex-direction:column;gap:0.45rem;padding:0.5rem 0 0.25rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Livestock ID</span>
+                        <span style="font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:0.85rem;">@r.LivestockDisplayId</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Type</span>
+                        <span style="font-weight:600;">@LivestockTypeDisplay.GetDisplayName(r.Type)</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Sale Farm</span>
+                        <span style="font-weight:600;">@(r.SaleFarmName ?? (r.SaleFarmId.HasValue ? "(Unknown)" : "—"))</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Purchase Date</span>
+                        <span style="font-weight:600;">@r.AcquisitionDate.ToString("yyyy-MM-dd")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Sale Date</span>
+                        <span style="font-weight:600;">@(r.SaleDate.HasValue ? r.SaleDate.Value.ToString("yyyy-MM-dd") : "—")</span>
+                    </div>
+
+                    <div style="height:1px;background:#e5e7eb;margin:0.3rem 0;"></div>
+
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Gross</span>
+                        <span style="font-weight:700;color:#00a896;">$@(r.SoldAmount ?? 0).ToString("F2")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Purchase Price</span>
+                        <span style="font-weight:600;">$@r.PurchaseAmount.ToString("F2")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Additional Acq Costs</span>
+                        <span style="font-weight:600;color:#d97706;">$@r.AdditionalAcquisitionCosts.ToString("F2")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Total Acq Cost</span>
+                        <span style="font-weight:700;color:#c81d25;">$@r.TotalAcquisitionCosts.ToString("F2")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Direct Op. Expenses</span>
+                        <span style="font-weight:600;color:#d97706;">$@r.DirectExpenses.ToString("F2")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Sale Costs</span>
+                        <span style="font-weight:600;color:#f59e0b;">$@r.AdditionalSaleCosts.ToString("F2")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Net Proceeds</span>
+                        <span style="font-weight:700;color:#3a6ea5;">$@r.NetSaleProceeds.ToString("F2")</span>
+                    </div>
+
+                    <div style="height:1px;background:#e5e7eb;margin:0.3rem 0;"></div>
+
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Basic Profit</span>
+                        <span style="font-weight:700;@(basicProfit >= 0 ? "color:#00a896" : "color:#c81d25");">
+                            @(basicProfit >= 0 ? "+" : "")$@basicProfit.ToString("F2")
+                        </span>
+                    </div>
+                    <div class="mob-totals-card @(completeProfitVal < 0 ? " warn" : "")" style="margin:0.3rem 0 0.1rem;">
+                        <div class="label">Complete Profit</div>
+                        <div class="total" style="font-size:1.3rem;">@(completeProfitVal >= 0 ? "+" : "")$@completeProfitVal.ToString("F2")</div>
+                    </div>
+                </div>
+            </details>
+        }
+    }
+</div>

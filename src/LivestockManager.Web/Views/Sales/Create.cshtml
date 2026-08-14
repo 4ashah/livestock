@@ -11,17 +11,16 @@
         <h1 class="h3 mb-1">🧾 New Sale</h1>
         <div class="text-muted small">Create a draft sale order — find livestock by search, not scrolling</div>
     </div>
-    <a asp-action="Index" class="btn btn-outline-secondary">← Cancel</a>
 </div>
 
 <form asp-action="Create" method="post" class="row g-3" id="saleForm">
     <div class="col-md-12">
-        <div class="card shadow-sm border-0 mb-3">
+        <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-transparent border-bottom">
-                <h6 class="mb-0 fw-bold">📝 Sale Details</h6>
+                <h6 class="mb-0 fw-bold">👥 Customer &amp; Farm</h6>
             </div>
             <div class="card-body row g-3">
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label class="form-label small fw-semibold">Farm *</label>
                     <div class="position-relative">
                         <input id="farmSearch" type="text" class="form-control" placeholder="Search farm by name..." autocomplete="off" />
@@ -40,7 +39,7 @@
                     </div>
                     <span asp-validation-for="FarmId" class="text-danger small"></span>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label class="form-label small fw-semibold">Customer *</label>
                     <div class="position-relative">
                         <input id="custSearch" type="text" class="form-control" placeholder="Type to search customer…" autocomplete="off" />
@@ -59,7 +58,7 @@
                     </div>
                     <span asp-validation-for="CustomerId" class="text-danger small"></span>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <label class="form-label small fw-semibold">Sale Date</label>
                     <input asp-for="Date" type="date" class="form-control" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
                 </div>
@@ -72,9 +71,9 @@
     </div>
 
     <div class="col-md-12">
-        <div class="card shadow-sm border-0 mb-3">
+        <div class="card border-0 shadow-sm mb-4">
             <div class="card-header bg-transparent border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
-                <h6 class="mb-0 fw-bold">🐑 Selected Livestock</h6>
+                <h6 class="mb-0 fw-bold">🐑 Livestock Selection</h6>
                 <span class="small text-muted"><span id="lsCount">0</span> animal(s) added</span>
             </div>
             <div class="card-body">
@@ -83,18 +82,22 @@
                         <label class="form-label small fw-semibold">Find by ID / comment</label>
                         <div class="input-group">
                             <input id="lsSearch" type="text" class="form-control" placeholder="Start typing Livestock ID…" autocomplete="off" />
-                            <button class="btn btn-outline-primary" type="button" id="lsManualResolve" title="Paste exact ID">Manual Resolve</button>
+                            <button class="btn btn-outline-primary" type="button" id="lsManualResolve" title="Paste an exact livestock ID and press this button to add it directly to the sale (no search required)." aria-label="Add livestock by exact ID">Add Exact ID</button>
                         </div>
                         <ul id="lsDrop" class="dropdown-menu shadow w-100" style="max-height:280px;overflow:auto;display:none;margin-top:2px;"></ul>
-                        <small id="lsMsg" class="text-muted d-block mt-1">Search returns up to 25 matches. Pick one to add it below.</small>
+                        <small id="lsMsg" class="text-muted d-block mt-1">Type to search 25 closest matches, or paste exact ID and click Add Exact ID to skip search.</small>
                     </div>
                     <div class="col-md-5">
-                        <label class="form-label small fw-semibold">Or paste Livestock IDs (one per line, bulk)</label>
-                        <textarea id="lsBulkPaste" class="form-control" rows="3" placeholder="e.g.&#10;AH-2026-00123&#10;SA-2026-04567"></textarea>
-                        <small class="text-muted d-block mt-1">All IDs must be exact &amp; active. Click Add Bulk.</small>
-                    </div>
-                    <div class="col-md-2 d-flex align-items-end">
-                        <button type="button" class="btn btn-outline-primary w-100" id="lsAddBulk">+ Add Bulk</button>
+                        <label class="form-label small fw-semibold">Bulk Add - Select eligible animals</label>
+                        <div>
+                            <button type="button" class="btn btn-outline-primary w-100" id="btnShowBulkModal">📋 Open Bulk Add Modal</button>
+                            <span class="small text-muted ms-2">Select multiple eligible active / unsold livestock at once</span>
+                        </div>
+                        <div class="card border-0 bg-light mt-3 p-3">
+                            <label class="form-label small fw-semibold mb-2">Or paste exact IDs (one per line)</label>
+                            <textarea id="lsBulkPaste" class="form-control" rows="2" placeholder="e.g.&#10;AH-2026-00123&#10;SA-2026-04567"></textarea>
+                            <button type="button" class="btn btn-outline-primary w-100 mt-2" id="lsAddBulk">+ Add Bulk Paste</button>
+                        </div>
                     </div>
                 </div>
 
@@ -103,15 +106,19 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Livestock ID</th>
-                                <th class="w-100px">Type</th>
+                                <th>Type</th>
                                 <th class="text-end">Cost</th>
-                                <th class="text-end" style="width:180px;">Unit Price (editable)</th>
-                                <th class="text-end" style="width:60px;"></th>
+                                <th class="text-end" style="width:160px;">
+                                    Suggested Price Basis
+                                    <div class="small text-muted fw-normal">auto-fills based on cost</div>
+                                </th>
+                                <th class="text-end" style="width:180px;">Unit Price (Editable)</th>
+                                <th class="text-end" style="width:60px;">Action</th>
                             </tr>
                         </thead>
                         <tbody id="lsCartBody">
                             <tr id="lsEmpty">
-                                <td colspan="5" class="text-center text-muted py-4 small">No livestock added yet. Use search above.</td>
+                                <td colspan="6" class="text-center text-muted py-4 small">No livestock added yet. Use search above.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -121,9 +128,117 @@
     </div>
 
     <div class="col-md-12">
-        <div class="card shadow-sm border-0 mb-3">
-            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">💲 Suggested &amp; Final Prices</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-light border mb-3" role="alert">
+                    <small class="text-muted">Each animal is pre-filled with a suggested sale price based on the current pricing method. You can override any Unit Price above; overridden values are recorded as Manual Override.</small>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center py-2 px-3 border rounded">
+                            <span class="text-muted small fw-semibold">Total Suggested</span>
+                            <span class="fw-semibold" id="totSuggested">$0.00</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex justify-content-between align-items-center py-2 px-3 border rounded bg-success bg-opacity-5">
+                            <span class="text-muted small fw-semibold">Total Final Unit Prices</span>
+                            <span class="fw-bold text-success" id="totFinal">$0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">🧾 Customer Charges (Invoice Totals)</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Discount % <span class="small text-muted">(0.00–1.00)</span></label>
+                        <input name="discountPct" placeholder="0.15" step="0.0001" min="0" max="1" inputmode="decimal" id="saleDiscountPct" class="form-control" value="0" />
+                        <span class="text-danger small field-validation-valid" data-valmsg-for="discountPct" data-valmsg-replace="true"></span>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold">Customer Tax % <span class="small text-muted">(0.00–1.00)</span></label>
+                        <input id="saleTaxPct" name="taxPct" class="form-control" step="0.0001" min="0" max="1" inputmode="decimal" placeholder="0.15" value="0" />
+                        <span class="text-danger small field-validation-valid" data-valmsg-for="taxPct" data-valmsg-replace="true"></span>
+                    </div>
+                </div>
+                <small class="text-muted d-block mt-2">Discount and Tax apply per line item to the invoice paid by the customer. These are seller-side cost categories further below.</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">💸 Seller-Side Sale Costs (Reduce Net Proceeds)</h6>
+            </div>
+            <div class="card-body row g-3">
+                <div class="col-md-6 col-12">
+                    <label class="form-label small fw-semibold">Commission <span class="small text-muted">(USD)</span></label>
+                    <input name="commissionAmount" id="commissionAmount" class="form-control text-end" step="0.01" min="0" inputmode="decimal" value="0.00" />
+                </div>
+                <div class="col-md-6 col-12">
+                    <label class="form-label small fw-semibold">Seller-Paid Tax Amount <span class="small text-muted">(USD, NOT percentage)</span></label>
+                    <input name="sellerTaxAmount" id="sellerTaxAmount" class="form-control text-end" step="0.01" min="0" inputmode="decimal" value="0.00" />
+                </div>
+                <div class="col-md-6 col-12">
+                    <label class="form-label small fw-semibold">Transportation <span class="small text-muted">(USD)</span></label>
+                    <input name="transportationAmount" id="transportationAmount" class="form-control text-end" step="0.01" min="0" inputmode="decimal" value="0.00" />
+                </div>
+                <div class="col-md-6 col-12">
+                    <label class="form-label small fw-semibold">Other Cost <span class="small text-muted">(USD)</span></label>
+                    <input name="otherCostAmount" id="otherCostAmount" class="form-control text-end" step="0.01" min="0" inputmode="decimal" value="0.00" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label small fw-semibold">Other Cost Description <span id="otherCostRequiredStar" class="text-danger d-none">*</span> <span class="small text-muted">(Required when Other Cost &gt; 0; max 500 characters)</span></label>
+                    <textarea name="otherCostDescription" id="otherCostDescription" class="form-control" rows="2" maxlength="500" placeholder="e.g. Loading/unloading charges, Animal inspection fee, Documentation charge"></textarea>
+                    <small id="otherCostDescError" class="text-danger d-none mt-1">Other Cost Description is required when Other Cost is greater than 0.</small>
+                    <small class="text-muted d-block mt-1">These seller costs are deducted from the gross revenue to calculate Net Sale Proceeds. Do not enter customer-charged tax here.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-transparent border-bottom">
+                <h6 class="mb-0 fw-bold">🧮 Totals</h6>
+            </div>
+            <div class="card-body">
+                <div class="mob-list-two-col" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem 1rem;">
+                    <div><div class="k text-muted small fw-semibold">Gross Livestock Sale Revenue</div><div class="v text-end fw-semibold" id="totGross">$0.00</div></div>
+                    <div><div class="k text-muted small fw-semibold">Customer Invoice Total (incl. tax)</div><div class="v text-end fw-semibold" id="totInvoice">$0.00</div></div>
+                    <div><div class="k text-muted small fw-semibold">Seller Commission</div><div class="v text-end" id="totComm">$0.00</div></div>
+                    <div><div class="k text-muted small fw-semibold">Seller-Paid Tax</div><div class="v text-end" id="totSellerTax">$0.00</div></div>
+                    <div><div class="k text-muted small fw-semibold">Transportation</div><div class="v text-end" id="totTransport">$0.00</div></div>
+                    <div><div class="k text-muted small fw-semibold">Other Seller Costs</div><div class="v text-end" id="totOther">$0.00</div></div>
+                    <div style="grid-column: 1 / -1;"><hr class="my-1"/></div>
+                    <div><div class="k text-muted small fw-semibold">Total Seller-Side Costs</div><div class="v text-end fw-semibold" id="totSaleCosts">$0.00</div></div>
+                    <div><div class="k fw-bold fs-5 text-success">Net Sale Proceeds</div><div class="v text-end fw-bold fs-5 text-success" id="totNet">$0.00</div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12">
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-bottom d-none d-md-block">
                 <h6 class="mb-0 fw-bold">📦 Additional Line Items</h6>
+            </div>
+            <div class="card-header bg-transparent border-bottom d-md-none">
+                <h6 class="mb-0 fw-bold">📦 Additional Line Items</h6>
+            </div>
+            <div class="card-header bg-transparent border-0 d-flex justify-content-end">
                 <button type="button" class="btn btn-sm btn-outline-primary" id="addLineBtn">+ Add Row</button>
             </div>
             <div class="card-body p-0">
@@ -142,7 +257,7 @@
                                 <td><input type="text" name="lineDesc" class="form-control form-control-sm" placeholder="e.g. Delivery fee" /></td>
                                 <td><input type="number" name="lineQty" value="1" step="0.01" class="form-control form-control-sm text-end line-qty" /></td>
                                 <td><input type="number" name="linePrice" value="0" step="0.01" class="form-control form-control-sm text-end line-price" /></td>
-                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-line" tabindex="-1">✕</button></td>
+                                <td><button type="button" class="btn btn-sm btn-outline-danger remove-line" tabindex="-1" aria-label="Remove this additional item line" title="Remove this additional item line">✕</button></td>
                             </tr>
                         </tbody>
                     </table>
@@ -151,34 +266,57 @@
         </div>
     </div>
 
-    <div class="col-md-6 offset-md-6">
-        <div class="card shadow-sm border-0">
+    <div class="col-md-12">
+        <div class="card border-0 shadow-sm mb-5">
             <div class="card-header bg-transparent border-bottom">
-                <h6 class="mb-0 fw-bold">💵 Totals</h6>
+                <h6 class="mb-0 fw-bold">✅ Review &amp; Confirm</h6>
             </div>
-            <div class="card-body">
-                <dl class="row mb-0">
-                    <dt class="col-sm-6 text-muted small fw-semibold">Selected Livestock Subtotal</dt>
-                    <dd class="col-sm-6 text-end" id="lsSub">$0.00</dd>
-                    <dt class="col-sm-6 text-muted small fw-semibold">Line Items Subtotal</dt>
-                    <dd class="col-sm-6 text-end" id="lnSub">$0.00</dd>
-                    <dt class="col-sm-6 text-muted small fw-semibold">Subtotal</dt>
-                    <dd class="col-sm-6 text-end" id="sub">$0.00</dd>
-                    <dt class="col-sm-6 text-muted small fw-semibold">Discount</dt>
-                    <dd class="col-sm-6 text-end" id="disc">$0.00</dd>
-                    <dt class="col-sm-6 text-muted small fw-semibold">Tax</dt>
-                    <dd class="col-sm-6 text-end" id="tax">$0.00</dd>
-                    <hr class="my-2" />
-                    <dt class="col-sm-6 fw-bold">Grand Total</dt>
-                    <dd class="col-sm-6 text-end fw-bold fs-5" id="grand">$0.00</dd>
-                </dl>
-            </div>
-            <div class="card-footer bg-transparent border-top text-end">
-                <button type="submit" class="btn btn-primary px-5">💾 Save as Draft</button>
+            <div class="card-body d-flex justify-content-end flex-wrap gap-2">
+                <button type="button" onclick="history.back()" class="btn btn-outline-secondary me-2">Cancel</button>
+                <button type="submit" class="btn btn-primary px-5">💾 Create Sale</button>
             </div>
         </div>
     </div>
 </form>
+
+<div class="modal fade" id="bulkAddModal" tabindex="-1" aria-labelledby="bulkAddModalLabel">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title">📋 Bulk Add Livestock</h5> <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+            <div class="modal-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-md-5"><input id="bulkKeyword" class="form-control" placeholder="Search by ID / type / farm…"/></div>
+                    <div class="col-md-4"><select id="bulkFarm" class="form-select"><option value="">All farms</option></select></div>
+                    <div class="col-md-3 d-flex gap-2">
+                        <button type="button" id="bulkSearch" class="btn btn-primary w-100">Search</button>
+                        <button type="button" id="bulkSelectAll" class="btn btn-outline-secondary w-100">Select Page</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width:52px;"><input type="checkbox" id="chkPageAll" class="form-check-input"/></th>
+                                <th>Livestock ID</th>
+                                <th>Type</th>
+                                <th>Farm</th>
+                                <th class="text-end">Weight</th>
+                                <th class="text-end">Suggested</th>
+                                <th class="text-end">Basis</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulkTbody"><tr><td colspan="7" class="text-center text-muted py-4">Click Search to load eligible livestock.</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="me-auto small text-muted" id="bulkCount">0 selected</div>
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" id="bulkAddConfirm" class="btn btn-success" disabled>Add Selected to Sale</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
@@ -186,11 +324,14 @@
         (function () {
             const esc = s => (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
             const fmt = n => '$' + (Number(n) || 0).toFixed(2);
-            const LS = { url: '@Url.Action("SearchLivestock")', resolve: '@Url.Action("ResolveLivestock")' };
+            const LS = { url: '@Url.Action("SearchLivestock")', resolve: '@Url.Action("ResolveLivestock")', bulkUrl: '@Url.Action("ListEligibleLivestockBulkAdd")' };
             const CU = { url: '@Url.Action("SearchCustomers")' };
-            const __CSRFTOKEN = document.querySelector('input[name="__RequestVerificationToken"]').value;
+            const __CSRFTOKEN = document.querySelector('input[name="__RequestVerificationToken"]')?.value;
             let lsCart = [];
             let farmFilter = null;
+
+            const bulkSelected = new Set();
+            let bulkPageItems = [];
 
             function showDrop(ul) { ul.style.display = 'block'; }
             function hideDrop(ul) { ul.style.display = 'none'; }
@@ -251,7 +392,6 @@
                 onPick: (it) => {
                     document.getElementById('farmSelect').value = it.Id;
                     farmFilter = it.Id ? it.Id : null;
-                    // refresh livestock search when farm filter changes:
                     if (document.getElementById('lsSearch').value.trim() !== '') {
                         const e = new Event('input');
                         document.getElementById('lsSearch').dispatchEvent(e);
@@ -393,29 +533,38 @@
                 const all = await r.json();
                 let item = all.find(x => (x.id || x.Id) === id);
                 if (!item) {
-                    const rr = await fetch(LS.resolve + '&id=' + encodeURIComponent('x')).then(() => null).catch(() => null);
-                    const res = await fetch(LS.resolve + '?id=' + encodeURIComponent(''));
-                    // re-use the resolve endpoint
-                    const res2 = await fetch(LS.resolve + '?id=' + encodeURIComponent('_lookup&id='));
-                    const dr = await fetch(LS.resolve + '?id=' + encodeURIComponent('dummy'));
-                    const dj = await dr.json();
-                    if (dj && dj.ok && dj.item && ((dj.item.id || dj.item.Id) === id)) item = dj.item;
-                }
-                if (!item) {
                     const dr3 = await fetch(LS.resolve + '?id=' + encodeURIComponent(id));
                     const dj3 = await dr3.json();
                     if (dj3 && dj3.ok) item = dj3.item;
                 }
                 if (!item) return;
+                const suggestedPrice = item.suggestedPrice || item.SuggestedPrice;
+                const suggestedWeight = item.suggestedWeight || item.SuggestedWeight;
+                const suggestedRate = item.suggestedRate || item.SuggestedRate;
+                const suggestedMethod = item.suggestedMethod || item.SuggestedMethod;
                 const row = {
                     Id: item.id || item.Id,
                     LivestockId: item.livestockId || item.LivestockId,
                     Type: item.typeLabel || item.TypeLabel || item.livestockTypeId || item.LivestockTypeId,
                     Cost: item.purchaseAmount || item.PurchaseAmount || 0,
-                    Price: item.suggestedPrice || item.SuggestedPrice || Math.round(((item.purchaseAmount || item.PurchaseAmount || 0) * 1.3) * 100) / 100
+                    SuggestedPrice: suggestedPrice,
+                    SuggestedWeight: suggestedWeight,
+                    SuggestedRate: suggestedRate,
+                    SuggestedMethod: suggestedMethod,
+                    Price: suggestedPrice || Math.round(((item.purchaseAmount || item.PurchaseAmount || 0) * 1.3) * 100) / 100
                 };
                 lsCart.push(row);
                 renderCart();
+            }
+
+            function getBasisText(method) {
+                switch (method) {
+                    case 'CostMarkupLegacy': return 'Cost × 1.30 legacy';
+                    case 'WeightPerCwt': return 'Weight × Rate/cwt';
+                    case 'WeightPerKg': return 'Weight × Rate/kg';
+                    case 'HeadPrice': return 'Per-head fixed';
+                    default: return method ? method : '';
+                }
             }
 
             function renderCart() {
@@ -423,21 +572,32 @@
                 const empty = document.getElementById('lsEmpty');
                 if (!lsCart.length) {
                     body.innerHTML = '';
-                    body.appendChild(empty);
-                    empty.classList.remove('d-none');
-                    empty.innerHTML = '<td colspan="5" class="text-center text-muted py-4 small">No livestock added yet. Use search above.</td>';
-                    body.appendChild(empty);
+                    if (empty) {
+                        empty.classList.remove('d-none');
+                        empty.innerHTML = '<td colspan="6" class="text-center text-muted py-4 small">No livestock added yet. Use search above.</td>';
+                        body.appendChild(empty);
+                    } else {
+                        const tr = document.createElement('tr');
+                        tr.id = 'lsEmpty';
+                        tr.innerHTML = '<td colspan="6" class="text-center text-muted py-4 small">No livestock added yet. Use search above.</td>';
+                        body.appendChild(tr);
+                    }
                 } else {
                     body.innerHTML = '';
                     lsCart.forEach((r, idx) => {
                         const tr = document.createElement('tr');
                         tr.dataset.id = r.Id;
+                        let basisHtml = '<span class="text-muted small">—</span>';
+                        if (r.SuggestedPrice != null && !isNaN(Number(r.SuggestedPrice))) {
+                            basisHtml = `<div class="small"><div class="fw-semibold text-success">${fmt(r.SuggestedPrice)}</div><div class="text-muted">${esc(getBasisText(r.SuggestedMethod))}</div></div>`;
+                        }
                         tr.innerHTML =
                             `<td><input type="hidden" name="livestockIds" value="${r.Id}" /><code>${esc(r.LivestockId)}</code></td>` +
                             `<td><span class="badge bg-light text-dark border">${esc(String(r.Type))}</span></td>` +
                             `<td class="text-end text-muted small">${fmt(r.Cost)}</td>` +
+                            `<td class="text-end">${basisHtml}</td>` +
                             `<td><input type="number" name="livestockPrices" step="0.01" value="${r.Price.toFixed(2)}" class="form-control form-control-sm text-end ls-price" data-idx="${idx}" /></td>` +
-                            `<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger ls-remove" data-idx="${idx}" title="Remove">✕</button></td>`;
+                            `<td class="text-end"><button type="button" class="btn btn-sm btn-outline-danger ls-remove" data-idx="${idx}" title="Remove this livestock from the sale" aria-label="Remove livestock ${idx + 1} from sale">✕</button></td>`;
                         body.appendChild(tr);
                     });
                     document.querySelectorAll('#lsCartBody .ls-price').forEach(el => {
@@ -454,7 +614,11 @@
 
             function recalc() {
                 let lsTotal = 0;
-                lsCart.forEach(r => { lsTotal += Number(r.Price) || 0; });
+                let lsSuggestedTotal = 0;
+                lsCart.forEach(r => {
+                    lsTotal += Number(r.Price) || 0;
+                    lsSuggestedTotal += (r.SuggestedPrice != null && !isNaN(Number(r.SuggestedPrice))) ? Number(r.SuggestedPrice) : 0;
+                });
                 var lnTotal = 0;
                 document.querySelectorAll('.line-row').forEach(r => {
                     var q = parseFloat(r.querySelector('.line-qty')?.value || '0');
@@ -462,11 +626,82 @@
                     lnTotal += q * p;
                 });
                 var sub = lsTotal + lnTotal;
-                document.getElementById('lsSub').textContent = fmt(lsTotal);
-                document.getElementById('lnSub').textContent = fmt(lnTotal);
-                document.getElementById('sub').textContent = fmt(sub);
-                document.getElementById('grand').textContent = fmt(sub);
+                const discPct = parseFloat(document.getElementById('saleDiscountPct')?.value || '0') || 0;
+                const taxPct = parseFloat(document.getElementById('saleTaxPct')?.value || '0') || 0;
+                const discountAmt = sub * discPct;
+                const afterDiscount = sub - discountAmt;
+                const taxAmt = afterDiscount * taxPct;
+                const invoiceTotal = afterDiscount + taxAmt;
+
+                const commission = parseFloat(document.getElementById('commissionAmount')?.value || '0') || 0;
+                const sellerTax = parseFloat(document.getElementById('sellerTaxAmount')?.value || '0') || 0;
+                const transport = parseFloat(document.getElementById('transportationAmount')?.value || '0') || 0;
+                const otherCost = parseFloat(document.getElementById('otherCostAmount')?.value || '0') || 0;
+                const totalSellerCosts = commission + sellerTax + transport + otherCost;
+                const netProceeds = invoiceTotal - totalSellerCosts;
+
+                const totS = document.getElementById('totSuggested');
+                const totF = document.getElementById('totFinal');
+                if (totS) totS.textContent = fmt(lsSuggestedTotal);
+                if (totF) totF.textContent = fmt(lsTotal);
+
+                const lsSub = document.getElementById('lsSub');
+                const lnSub = document.getElementById('lnSub');
+                const subEl = document.getElementById('sub');
+                const discEl = document.getElementById('disc');
+                const taxEl = document.getElementById('tax');
+                const grand = document.getElementById('grand');
+                if (lsSub) lsSub.textContent = fmt(lsTotal);
+                if (lnSub) lnSub.textContent = fmt(lnTotal);
+                if (subEl) subEl.textContent = fmt(sub);
+                if (discEl) discEl.textContent = fmt(discountAmt);
+                if (taxEl) taxEl.textContent = fmt(taxAmt);
+                if (grand) grand.textContent = fmt(invoiceTotal);
+
+                const totG = document.getElementById('totGross');
+                const totI = document.getElementById('totInvoice');
+                const totC = document.getElementById('totComm');
+                const totST = document.getElementById('totSellerTax');
+                const totTr = document.getElementById('totTransport');
+                const totO = document.getElementById('totOther');
+                const totSC = document.getElementById('totSaleCosts');
+                const totN = document.getElementById('totNet');
+                if (totG) totG.textContent = fmt(lsTotal);
+                if (totI) totI.textContent = fmt(invoiceTotal);
+                if (totC) totC.textContent = fmt(commission);
+                if (totST) totST.textContent = fmt(sellerTax);
+                if (totTr) totTr.textContent = fmt(transport);
+                if (totO) totO.textContent = fmt(otherCost);
+                if (totSC) totSC.textContent = fmt(totalSellerCosts);
+                if (totN) totN.textContent = fmt(netProceeds);
+
+                const star = document.getElementById('otherCostRequiredStar');
+                const descTa = document.getElementById('otherCostDescription');
+                const descErr = document.getElementById('otherCostDescError');
+                if (star && descTa) {
+                    if (otherCost > 0) {
+                        star.classList.remove('d-none');
+                        if (descTa.value.trim() === '') {
+                            descTa.classList.add('is-invalid');
+                            if (descErr) descErr.classList.remove('d-none');
+                        } else {
+                            descTa.classList.remove('is-invalid');
+                            if (descErr) descErr.classList.add('d-none');
+                        }
+                    } else {
+                        star.classList.add('d-none');
+                        descTa.classList.remove('is-invalid');
+                        if (descErr) descErr.classList.add('d-none');
+                    }
+                }
             }
+
+            ['commissionAmount','sellerTaxAmount','transportationAmount','otherCostAmount','saleDiscountPct','saleTaxPct'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.addEventListener('change', recalc); el.addEventListener('input', recalc); }
+            });
+            const ocd = document.getElementById('otherCostDescription');
+            if (ocd) { ocd.addEventListener('change', recalc); ocd.addEventListener('input', recalc); }
 
             document.getElementById('addLineBtn')?.addEventListener('click', function () {
                 var tbody = document.querySelector('#linesTable tbody');
@@ -484,10 +719,141 @@
             document.querySelectorAll('.line-qty, .line-price').forEach(function (el) { el.addEventListener('change', recalc); el.addEventListener('input', recalc); });
 
             document.getElementById('saleForm').addEventListener('submit', function (e) {
-                if (!lsCart.length && !document.querySelectorAll('.line-row').length) {
-                    // allow blank sales? prevent if no content
-                }
             });
+
+            const btnShowBulk = document.getElementById('btnShowBulkModal');
+            const bulkModal = document.getElementById('bulkAddModal');
+            if (btnShowBulk && bulkModal && typeof bootstrap !== 'undefined') {
+                const bsModal = new bootstrap.Modal(bulkModal);
+                btnShowBulk.addEventListener('click', () => bsModal.show());
+
+                (function initBulkFarm() {
+                    const bf = document.getElementById('bulkFarm');
+                    if (!bf) return;
+                    Array.from(document.querySelectorAll('#farmSelect option')).slice(1).forEach(o => {
+                        const opt = document.createElement('option');
+                        opt.value = o.value;
+                        opt.textContent = o.textContent;
+                        bf.appendChild(opt);
+                    });
+                })();
+
+                const bulkSearch = document.getElementById('bulkSearch');
+                const bulkKeyword = document.getElementById('bulkKeyword');
+                const bulkFarm = document.getElementById('bulkFarm');
+                const bulkTbody = document.getElementById('bulkTbody');
+                const bulkCount = document.getElementById('bulkCount');
+                const bulkAddConfirm = document.getElementById('bulkAddConfirm');
+                const chkPageAll = document.getElementById('chkPageAll');
+                const bulkSelectAll = document.getElementById('bulkSelectAll');
+
+                function updateBulkCount() {
+                    bulkCount.textContent = bulkSelected.size + ' selected';
+                    bulkAddConfirm.disabled = bulkSelected.size === 0;
+                }
+
+                async function runBulkSearch() {
+                    let url = LS.bulkUrl + '?keyword=' + encodeURIComponent(bulkKeyword.value.trim() || '');
+                    if (bulkFarm && bulkFarm.value) url += '&farmId=' + encodeURIComponent(bulkFarm.value);
+                    let items = [];
+                    try {
+                        const r = await fetch(url);
+                        if (r.ok) {
+                            items = await r.json();
+                        } else {
+                            throw new Error('bulk endpoint not ready');
+                        }
+                    } catch (_) {
+                        try {
+                            const r2 = await fetch(LS.url + '?keyword=' + encodeURIComponent(bulkKeyword.value.trim() || '') + (bulkFarm && bulkFarm.value ? '&farmId=' + encodeURIComponent(bulkFarm.value) : ''));
+                            items = await r2.json();
+                        } catch (_2) { items = []; }
+                    }
+                    bulkPageItems = items.map(l => ({
+                        Id: l.id || l.Id,
+                        LivestockId: l.livestockId || l.LivestockId,
+                        Type: l.typeLabel || l.TypeLabel || l.type || l.Type || '',
+                        FarmName: l.farmName || l.FarmName || l.farm || l.Farm || '',
+                        Weight: l.weight || l.Weight || 0,
+                        SuggestedPrice: l.suggestedPrice || l.SuggestedPrice,
+                        SuggestedMethod: l.suggestedMethod || l.SuggestedMethod
+                    }));
+                    renderBulkRows();
+                }
+
+                function renderBulkRows() {
+                    bulkTbody.innerHTML = '';
+                    if (!bulkPageItems.length) {
+                        bulkTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No eligible livestock found.</td></tr>';
+                        if (chkPageAll) chkPageAll.checked = false;
+                        return;
+                    }
+                    let pageAllChecked = true;
+                    bulkPageItems.forEach(item => {
+                        if (lsCart.find(x => x.Id === item.Id)) return;
+                        const checked = bulkSelected.has(item.Id);
+                        if (!checked) pageAllChecked = false;
+                        const tr = document.createElement('tr');
+                        let sp = '';
+                        if (item.SuggestedPrice != null && !isNaN(Number(item.SuggestedPrice))) sp = fmt(item.SuggestedPrice);
+                        tr.innerHTML =
+                            `<td><input type="checkbox" class="form-check-input bulk-chk" data-id="${item.Id}" ${checked ? 'checked' : ''}/></td>` +
+                            `<td><code>${esc(item.LivestockId)}</code></td>` +
+                            `<td><span class="badge bg-light text-dark border">${esc(String(item.Type))}</span></td>` +
+                            `<td>${esc(item.FarmName)}</td>` +
+                            `<td class="text-end">${Number(item.Weight || 0).toFixed(2)}</td>` +
+                            `<td class="text-end fw-semibold text-success">${sp || '—'}</td>` +
+                            `<td class="text-end small text-muted">${esc(getBasisText(item.SuggestedMethod)) || '—'}</td>`;
+                        bulkTbody.appendChild(tr);
+                    });
+                    if (!bulkTbody.children.length) {
+                        bulkTbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">All results already added to sale.</td></tr>';
+                    }
+                    if (chkPageAll) chkPageAll.checked = pageAllChecked && bulkTbody.children.length > 0;
+                    bulkTbody.querySelectorAll('.bulk-chk').forEach(cb => {
+                        cb.addEventListener('change', () => {
+                            const id = cb.dataset.id;
+                            if (cb.checked) bulkSelected.add(id);
+                            else bulkSelected.delete(id);
+                            updateBulkCount();
+                        });
+                    });
+                    updateBulkCount();
+                }
+
+                if (bulkSearch) bulkSearch.addEventListener('click', runBulkSearch);
+                if (bulkKeyword) bulkKeyword.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); runBulkSearch(); } });
+                if (chkPageAll) chkPageAll.addEventListener('change', () => {
+                    bulkTbody.querySelectorAll('.bulk-chk').forEach(cb => {
+                        cb.checked = chkPageAll.checked;
+                        const id = cb.dataset.id;
+                        if (chkPageAll.checked) bulkSelected.add(id);
+                        else bulkSelected.delete(id);
+                    });
+                    updateBulkCount();
+                });
+                if (bulkSelectAll) bulkSelectAll.addEventListener('click', () => {
+                    bulkTbody.querySelectorAll('.bulk-chk').forEach(cb => {
+                        cb.checked = true;
+                        bulkSelected.add(cb.dataset.id);
+                    });
+                    if (chkPageAll) chkPageAll.checked = true;
+                    updateBulkCount();
+                });
+                if (bulkAddConfirm) bulkAddConfirm.addEventListener('click', async () => {
+                    const ids = Array.from(bulkSelected);
+                    let added = 0;
+                    for (const id of ids) {
+                        if (lsCart.find(x => x.Id === id)) { bulkSelected.delete(id); continue; }
+                        await addLivestockById(id);
+                        bulkSelected.delete(id);
+                        added++;
+                    }
+                    updateBulkCount();
+                    renderBulkRows();
+                    bsModal.hide();
+                });
+            }
 
             renderCart();
         })();

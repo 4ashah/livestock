@@ -245,8 +245,11 @@ using (IServiceScope scope = app.Services.CreateScope())
     {
         await db.Database.MigrateAsync();
     }
-    catch
+    catch (Exception ex)
     {
+        app.Logger.LogCritical(ex, "[STARTUP][FATAL] Database migration failed");
+        Environment.Exit(1);
+        throw;
     }
 
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
@@ -257,8 +260,11 @@ using (IServiceScope scope = app.Services.CreateScope())
     {
         await DemoDataSeeder.SeedAsync(db, userManager, roleManager, app.Environment, config);
     }
-    catch
+    catch (Exception ex)
     {
+        app.Logger.LogCritical(ex, "[STARTUP][FATAL] Demo data seeding failed");
+        Environment.Exit(1);
+        throw;
     }
 }
 
@@ -293,7 +299,10 @@ if (hasFirstAdminSwitch)
     {
         Environment.SetEnvironmentVariable("FIRST_ADMIN_PASSWORD", null, EnvironmentVariableTarget.Process);
     }
-    catch { }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine("[STARTUP] Failed to clear FIRST_ADMIN_PASSWORD env var: " + ex.Message);
+    }
 
     if (string.IsNullOrWhiteSpace(cliCompany) || string.IsNullOrWhiteSpace(cliFullName)
         || string.IsNullOrWhiteSpace(cliEmail) || string.IsNullOrWhiteSpace(envPassword))

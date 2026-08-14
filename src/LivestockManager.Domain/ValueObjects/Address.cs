@@ -1,9 +1,7 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.EntityFrameworkCore;
 
 namespace LivestockManager.Domain.ValueObjects;
 
-[Owned]
 public class Address : IEquatable<Address>
 {
     [MaxLength(256)]

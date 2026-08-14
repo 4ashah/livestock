@@ -60,6 +60,8 @@
     </div>
 </div>
 
+@if (ViewData["CanViewFinancials"] is true)
+{
 <div class="mob-kpi-row">
     <div class="mob-kpi" style="--kpi-color:#2a9d8f;">
         <div class="k-label">Revenue MTD</div>
@@ -95,12 +97,16 @@
         <div><div class="k">Active</div><div class="v">@Model.ActiveLivestockCount</div></div>
     </div>
 </div>
+}
 
 <div class="mob-card">
     <div class="mob-card-title">
         <span>🕒 Recent Activity</span>
         <span id="recStockBadge" class="pill ok" style="cursor:pointer;" onclick="switchRecent('stock')">🐑 Livestock</span>
+        @if (ViewData["CanViewFinancials"] is true)
+        {
         <span id="recInvBadge" class="pill idle" style="cursor:pointer;" onclick="switchRecent('inv')">📄 Invoices</span>
+        }
     </div>
 
     <div id="recStock">
@@ -152,6 +158,8 @@
         }
     </div>
 
+@if (ViewData["CanViewFinancials"] is true)
+{
     <div id="recInv" style="display:none;">
         @if (recentInvoices != null && recentInvoices.Any())
         {
@@ -200,9 +208,10 @@
         }
         else
         {
-            <div class="mob-empty">No recent invoices.</div>
-        }
+<div class="mob-empty">No recent invoices.</div>
+    }
     </div>
+}
 </div>
 
 @section Scripts {

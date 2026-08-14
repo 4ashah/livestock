@@ -8,6 +8,7 @@ using LivestockManager.Application.DTOs.Dashboard;
 using LivestockManager.Application.DTOs.Livestock;
 using LivestockManager.Application.DTOs.Invoices;
 using LivestockManager.Application.Services.Reports;
+using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models;
@@ -40,6 +41,23 @@ public class HomeController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
+    private bool UserCanViewFinancials() =>
+        User.IsInRole(RoleNames.Accounts) ||
+        User.IsInRole(RoleNames.FarmManager) ||
+        User.IsInRole(RoleNames.CompanyAdministrator) ||
+        User.IsInRole(RoleNames.SystemAdministrator);
+
+    private static void SanitizeFinancialKpis(DashboardKpisDto kpis)
+    {
+        kpis.RevenueMonthToDate = 0m;
+        kpis.PaidReceiptsMonthToDate = 0m;
+        kpis.OutstandingInvoicesAmountTotal = 0m;
+        kpis.OverdueInvoicesAmountTotal = 0m;
+        kpis.PurchasesMonthToDateAmount = 0m;
+        kpis.ExpensesMonthToDateAmount = 0m;
+        kpis.NetOperatingResultMonthToDate = 0m;
+    }
+
     [HttpGet]
     [Authorize(Policy = "CanViewOperationalData")]
     public async Task<IActionResult> Index(CancellationToken ct)
@@ -47,6 +65,11 @@ public class HomeController : Controller
         var companyId = await GetCompanyIdAsync();
 
         var kpis = await _reportService.GetDashboardKpisAsync(companyId, ct);
+
+        var canViewFinancials = UserCanViewFinancials();
+        if (!canViewFinancials)
+            SanitizeFinancialKpis(kpis);
+        ViewData["CanViewFinancials"] = canViewFinancials;
 
         var recentLivestock = await _db.Livestock
             .Where(l => l.CompanyId == companyId)
@@ -101,6 +124,11 @@ public class HomeController : Controller
     {
         var companyId = await GetCompanyIdAsync();
         var kpis = await _reportService.GetDashboardKpisAsync(companyId, ct);
+
+        var canViewFinancials = UserCanViewFinancials();
+        if (!canViewFinancials)
+            SanitizeFinancialKpis(kpis);
+        ViewData["CanViewFinancials"] = canViewFinancials;
 
         var recentLivestock = await _db.Livestock
             .Where(l => l.CompanyId == companyId)

@@ -54,6 +54,8 @@ public static class ServiceCollectionExtensions
 
         services.AddHttpContextAccessor();
 
+        services.AddScoped<ICurrentUserService, CurrentUserService>();
+
         services.AddScoped<IDateTime, DateTimeProvider>();
         services.AddScoped<ISequenceGenerator, EfSequenceGenerator>();
         services.AddScoped<IPdfGenerator, FormattedPdfWriter>();

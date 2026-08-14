@@ -42,6 +42,8 @@ public class ReceiptService : IReceiptService
             ?? throw new DomainException("Receipt not found.");
 
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == receipt.CustomerId, ct);
+        if (customer != null && customer.CompanyId != companyId)
+            throw new DomainException("Customer does not belong to this company.");
 
         string? invoiceNumber = null;
         if (receipt.PaymentId != Guid.Empty)
@@ -139,6 +141,9 @@ public class ReceiptService : IReceiptService
                 .FirstOrDefaultAsync(p => p.Id == paymentId && p.CompanyId == companyId, ct)
                 ?? throw new DomainException("Payment not found.");
 
+            if (payment.Customer != null && payment.Customer.CompanyId != companyId)
+                throw new DomainException("Customer does not belong to this company.");
+
             if (payment.IsReversed)
                 throw new DomainException("Cannot generate receipt for a reversed payment.");
 
@@ -205,7 +210,7 @@ public class ReceiptService : IReceiptService
 
             receipt.Status = ReceiptStatus.Reversed;
             receipt.ReversalReason = reason;
-            receipt.ReversedAt = DateTimeOffset.UtcNow;
+            receipt.ReversedAt = _dateTime.Now;
             receipt.ReversedByUserId = reversedByUserId;
 
             if (receipt.Payment != null && !receipt.Payment.IsReversed)
@@ -259,8 +264,10 @@ public class ReceiptService : IReceiptService
             ?? throw new DomainException("Payment not found for receipt.");
 
         var customer = await _db.Customers
-            .FirstOrDefaultAsync(c => c.Id == receipt.CustomerId, ct)
-            ?? new Customer(receipt.CompanyId, "UNKNOWN", receipt.CustomerName ?? "Customer");
+            .FirstOrDefaultAsync(c => c.Id == receipt.CustomerId, ct);
+        if (customer != null && customer.CompanyId != companyId)
+            throw new DomainException("Customer does not belong to this company.");
+        customer ??= new Customer(receipt.CompanyId, "UNKNOWN", receipt.CustomerName ?? "Customer");
 
         return await _pdfGenerator.GenerateReceiptPdfAsync(payment, receipt, company, customer);
     }

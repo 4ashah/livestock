@@ -4,7 +4,7 @@
 @{
     ViewData["Title"] = "Farms";
     var search = ViewData["Search"] as string;
-    var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
+    var canEdit = User.IsInRole(RoleNames.CompanyAdministrator) || User.IsInRole(RoleNames.SystemAdministrator) || User.IsInRole(RoleNames.FarmManager);
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">

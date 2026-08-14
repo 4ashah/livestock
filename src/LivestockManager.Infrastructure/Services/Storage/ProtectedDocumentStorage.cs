@@ -287,6 +287,7 @@ public class ProtectedDocumentStorage : IProtectedDocumentStorage
                     int tr = await fullContent.ReadAsync(trailer, 0, 2, ct);
                     if (tr < 2 || trailer[0] != 0xFF || trailer[1] != 0xD9)
                     {
+                        throw new InvalidOperationException("JPEG/JPG file missing valid end-of-image (FF D9) marker.");
                     }
                     fullContent.Position = 0;
                 }

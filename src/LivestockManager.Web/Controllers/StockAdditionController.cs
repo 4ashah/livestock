@@ -23,6 +23,7 @@ public class StockAdditionController : Controller
     private readonly ISupplierService? _supplierService;
     private readonly IAppDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ILogger<StockAdditionController> _logger;
 
     public StockAdditionController(
         IStockAdditionService stockAdditionService,
@@ -30,6 +31,7 @@ public class StockAdditionController : Controller
         IFarmService farmService,
         IAppDbContext db,
         UserManager<ApplicationUser> userManager,
+        ILogger<StockAdditionController> logger,
         ISupplierService? supplierService = null)
     {
         _stockAdditionService = stockAdditionService;
@@ -37,6 +39,7 @@ public class StockAdditionController : Controller
         _farmService = farmService;
         _db = db;
         _userManager = userManager;
+        _logger = logger;
         _supplierService = supplierService;
     }
 
@@ -232,8 +235,9 @@ public class StockAdditionController : Controller
             ViewData["LivestockDetail"] = detail;
             return View(livestockId);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to load livestock details for success page (LivestockId={LivestockId}); redirecting to index", livestockId);
             return RedirectToAction(nameof(Index));
         }
     }
@@ -394,8 +398,9 @@ public class StockAdditionController : Controller
             ViewData["LivestockDetail"] = detail;
             return View("MobileSuccess", livestockId);
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to load livestock details for mobile success page (LivestockId={LivestockId}); redirecting to index", livestockId);
             return RedirectToAction(nameof(MobileIndex));
         }
     }

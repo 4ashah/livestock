@@ -163,6 +163,7 @@ public class Phase2SmokeTests
 
         var services = new ServiceCollection();
         services.AddSingleton<IConfiguration>(config);
+        services.AddLogging();
         services.AddInfrastructure(config);
         services.AddApplicationServices();
 

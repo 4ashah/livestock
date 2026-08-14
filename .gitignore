@@ -67,6 +67,9 @@ artifacts/pdf-samples/
 artifacts/pdf-samples-live/
 artifacts/live-screenshots-2a/
 
+# Auditor git-worktree checkouts (large, disposable)
+artifacts/audit-worktrees/
+
 # E2E Playwright outputs + local browser install
 artifacts/e2e/results/
 artifacts/e2e/screenshots/

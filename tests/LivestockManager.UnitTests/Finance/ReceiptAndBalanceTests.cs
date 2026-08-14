@@ -126,15 +126,13 @@ public class ReceiptAndBalanceTests
             Assert.Equal(600m, invoice.PaidAmount);
 
             var reversedBy = Guid.NewGuid();
-            var beforeReverse = DateTimeOffset.UtcNow;
             var reversedResult = await receiptService.ReverseReceiptAsync(receiptId, "Customer returned goods", reversedBy, companyId, CancellationToken.None);
-            var afterReverse = DateTimeOffset.UtcNow;
 
             Assert.Equal(ReceiptStatus.Reversed, reversedResult.Status);
             Assert.Equal("Customer returned goods", reversedResult.ReversalReason);
             Assert.Equal(reversedBy, reversedResult.ReversedByUserId);
             Assert.NotNull(reversedResult.ReversedAt);
-            Assert.InRange(reversedResult.ReversedAt.Value, beforeReverse, afterReverse);
+            Assert.Equal(fixedNow, reversedResult.ReversedAt.Value);
 
             var dbPayment = await db.Payments.FirstAsync(p => p.Id == payment.Id);
             Assert.True(dbPayment.IsReversed);

@@ -1,3 +1,6 @@
+using System.ComponentModel.DataAnnotations;
+using LivestockManager.Domain.Enums;
+
 namespace LivestockManager.Application.DTOs.Sales;
 
 public class SaleDetailDto
@@ -20,4 +23,20 @@ public class SaleDetailDto
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset? ModifiedAt { get; set; }
     public IList<SaleItemDto> Items { get; set; } = new List<SaleItemDto>();
+
+    public decimal CommissionAmount { get; set; }
+    public decimal SellerTaxAmount { get; set; }
+    public decimal TransportationAmount { get; set; }
+    public decimal OtherCostAmount { get; set; }
+
+    [MaxLength(500)]
+    public string? OtherCostDescription { get; set; }
+
+    public decimal TotalAdditionalSaleCosts { get; set; }
+    public decimal NetSaleProceeds { get; set; }
+    public CostAllocationMethod CostAllocationMethod { get; set; }
+    public DateTimeOffset? ReversedAt { get; set; }
+    public Guid? ReversedByUserId { get; set; }
+    public string? ReversalReason { get; set; }
+    public string? ReversalNotes { get; set; }
 }

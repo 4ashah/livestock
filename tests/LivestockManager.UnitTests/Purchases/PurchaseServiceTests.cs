@@ -256,7 +256,7 @@ public class PurchaseServiceTests
     }
 
     [Fact]
-    public async Task PostPurchase_CreatesLivestockIntakeIdempotently()
+    public async Task PostPurchase_LivestockItemWithoutLinkedId_ThrowsDomainException_NoLivestockCreated()
     {
         var seq = new TestSequenceGenerator();
         seq.SetNextDocumentNumber("PUR:2026", 1);
@@ -278,18 +278,12 @@ public class PurchaseServiceTests
         var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
         Assert.Empty(db.Livestock.ToList());
 
-        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None);
+        var ex = await Assert.ThrowsAsync<DomainException>(() =>
+            service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None));
+        Assert.Contains("cannot create livestock automatically", ex.Message, StringComparison.OrdinalIgnoreCase);
 
-        var livestockList = db.Livestock.ToList();
-        Assert.Single(livestockList);
-        var livestockItem = posted.Items.First();
-        Assert.NotNull(livestockItem.LivestockId);
-        Assert.Equal(livestockList.Single().Id, livestockItem.LivestockId);
-        Assert.Equal(LivestockStatus.Active, livestockList.Single().Status);
-        Assert.Equal(farmId, livestockList.Single().FarmId);
-
-        seq.SetNextLivestockId("LS00002");
-        Assert.Equal(1, db.Livestock.Count());
+        Assert.Empty(db.Livestock.ToList());
+        Assert.Equal(PurchaseStatus.Draft, db.Purchases.Single(p => p.Id == created.Id).Status);
     }
 
     [Fact]
@@ -320,7 +314,7 @@ public class PurchaseServiceTests
     }
 
     [Fact]
-    public async Task PostPurchase_LivestockInitialWeightLinkedIfProvided()
+    public async Task PostPurchase_LivestockItemWithoutLinkedId_Throws_NoWeightRowsCreated()
     {
         var seq = new TestSequenceGenerator();
         seq.SetNextDocumentNumber("PUR:2026", 1);
@@ -340,17 +334,13 @@ public class PurchaseServiceTests
             }
         };
         var created = await service.CreateDraftAsync(createDto, companyId, CancellationToken.None);
-        var posted = await service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None);
 
-        var livestock = db.Livestock.Single();
-        Assert.Equal(75.5m, livestock.InitialWeight);
-        Assert.Equal(WeightUnit.Kg, livestock.WeightUnit);
+        var ex = await Assert.ThrowsAsync<DomainException>(() =>
+            service.PostPurchaseAsync(new PurchasePostDto { Id = created.Id }, companyId, CancellationToken.None));
+        Assert.Contains("cannot create livestock automatically", ex.Message, StringComparison.OrdinalIgnoreCase);
 
-        var weights = db.LivestockWeights.Where(w => w.LivestockId == livestock.Id).ToList();
-        Assert.NotEmpty(weights);
-        var initialWt = weights.First();
-        Assert.Equal(75.5m, initialWt.Weight);
-        Assert.Equal(WeightUnit.Kg, initialWt.Unit);
+        Assert.Empty(db.Livestock.ToList());
+        Assert.Empty(db.LivestockWeights.ToList());
     }
 
     [Fact]

@@ -1,4 +1,5 @@
 @model LivestockManager.Application.DTOs.Sales.SaleDetailDto
+@using LivestockManager.Domain.Helpers
 @{
     ViewData["Title"] = "Sale Details";
     var canEdit = (bool?)ViewData["CanEdit"] ?? false;
@@ -11,6 +12,7 @@
         {
             SaleStatus.Draft => $"DRAFT-{shortId}",
             SaleStatus.Cancelled => $"VOID-{shortId}",
+            SaleStatus.Reversed => $"REVERSED-{shortId}",
             _ => $"SALE-{shortId}"
         };
     }
@@ -25,6 +27,8 @@
             { <span class="badge bg-success me-2">Confirmed</span> }
             else if (Model.Status == SaleStatus.Cancelled)
             { <span class="badge bg-secondary me-2">Cancelled</span> }
+            else if (Model.Status == SaleStatus.Reversed)
+            { <span class="badge bg-danger me-2">↶ Reversed</span> }
             Sale @DisplaySaleNumber()
             @if (string.IsNullOrWhiteSpace(Model.SaleNumber))
             { <small class="text-muted fw-normal ms-2" title="Internal Id: @Model.Id">(reference only)</small> }
@@ -46,12 +50,35 @@
                 </button>
             </form>
         }
+        @if (Model.Status == SaleStatus.Confirmed)
+        {
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#reverseModal">↶ Reverse Sale</button>
+        }
+        @if (Model.Status == SaleStatus.Reversed)
+        {
+            <span class="badge bg-light text-danger border align-self-center">Reversed @(Model.ReversedAt.HasValue ? Model.ReversedAt.Value.LocalDateTime.ToString("yyyy-MM-dd HH:mm") : "")</span>
+        }
         @if (invoiceId.HasValue && invoiceId != Guid.Empty)
         {
             <a asp-controller="Invoices" asp-action="Details" asp-route-id="@invoiceId" class="btn btn-outline-primary">📄 View Invoice</a>
         }
     </div>
 </div>
+
+@if (Model.Status == SaleStatus.Reversed)
+{
+    <div class="alert alert-warning border-0 shadow-sm mb-4 d-flex gap-2 flex-wrap">
+        <div class="me-auto">
+            <div class="fw-semibold">This sale has been reversed.</div>
+            @if (!string.IsNullOrWhiteSpace(Model.ReversalReason))
+            { <div class="small text-muted mb-1">Reason: @Model.ReversalReason</div> }
+            @if (!string.IsNullOrWhiteSpace(Model.ReversalNotes))
+            { <div class="small text-muted">Notes: @Model.ReversalNotes</div> }
+        </div>
+        @if (Model.ReversedAt.HasValue)
+        { <span class="small text-muted align-self-center">Reversed @Model.ReversedAt.Value.LocalDateTime.ToString("yyyy-MM-dd HH:mm")</span> }
+    </div>
+}
 
 <div class="row g-3 mb-4">
     <div class="col-md-6">
@@ -85,18 +112,37 @@
     </div>
     <div class="col-md-6">
         <div class="card shadow-sm border-0 h-100">
-            <div class="card-header bg-transparent border-bottom"><h6 class="mb-0 fw-bold">💰 Totals</h6></div>
+            <div class="card-header bg-transparent border-bottom"><h6 class="mb-0 fw-bold">💰 Totals &amp; Proceeds</h6></div>
             <div class="card-body">
                 <dl class="row mb-0">
-                    <dt class="col-sm-6 text-muted small fw-semibold">Subtotal</dt>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Gross Livestock Sale Revenue (Subtotal)</dt>
                     <dd class="col-sm-6 text-end">$@Model.Subtotal.ToString("F2")</dd>
-                    <dt class="col-sm-6 text-muted small fw-semibold">Discount</dt>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Customer Discount</dt>
                     <dd class="col-sm-6 text-end">- $@Model.DiscountTotal.ToString("F2")</dd>
-                    <dt class="col-sm-6 text-muted small fw-semibold">Tax</dt>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Customer-Charged Tax (on invoice)</dt>
                     <dd class="col-sm-6 text-end">+ $@Model.TaxTotal.ToString("F2")</dd>
                     <hr class="my-1" />
-                    <dt class="col-sm-6 fw-bold">Grand Total</dt>
-                    <dd class="col-sm-6 text-end fw-bold fs-5">$@Model.GrandTotal.ToString("F2")</dd>
+                    <dt class="col-sm-6 fw-bold">Customer Invoice Total</dt>
+                    <dd class="col-sm-6 text-end fw-bold">$@Model.GrandTotal.ToString("F2")</dd>
+                    <hr class="my-2" />
+                    <dt class="col-sm-6 text-muted small fw-semibold">Seller Commission</dt>
+                    <dd class="col-sm-6 text-end">@(Model.CommissionAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.CommissionAmount.ToString("F2")))</dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Seller-Paid Tax</dt>
+                    <dd class="col-sm-6 text-end">@(Model.SellerTaxAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.SellerTaxAmount.ToString("F2")))</dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Transportation</dt>
+                    <dd class="col-sm-6 text-end">@(Model.TransportationAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.TransportationAmount.ToString("F2")))</dd>
+                    <dt class="col-sm-6 text-muted small fw-semibold">Other Seller Cost</dt>
+                    <dd class="col-sm-6 text-end">@(Model.OtherCostAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.OtherCostAmount.ToString("F2")))</dd>
+                    @if (Model.OtherCostAmount > 0 && !string.IsNullOrWhiteSpace(Model.OtherCostDescription))
+                    {
+                        <dt class="col-sm-6 text-muted small fst-italic ps-3">↳ Other Cost Description</dt>
+                        <dd class="col-sm-6 small text-muted">@Model.OtherCostDescription</dd>
+                    }
+                    <hr class="my-1" />
+                    <dt class="col-sm-6 text-muted small fw-semibold">Total Seller-Side Costs</dt>
+                    <dd class="col-sm-6 text-end fw-semibold">$@Model.TotalAdditionalSaleCosts.ToString("F2")</dd>
+                    <dt class="col-sm-6 fw-bold fs-5 text-success">Net Sale Proceeds</dt>
+                    <dd class="col-sm-6 text-end fw-bold fs-5 text-success">$@Model.NetSaleProceeds.ToString("F2")</dd>
                 </dl>
             </div>
         </div>
@@ -133,8 +179,8 @@
                             </td>
                             <td class="text-end">@it.Quantity</td>
                             <td class="text-end">$@it.UnitPrice.ToString("F2")</td>
-                            <td class="text-end">@(it.DiscountPercent * 100).ToString("0.##")%</td>
-                            <td class="text-end">@(it.TaxPercent * 100).ToString("0.##")%</td>
+                            <td class="text-end">@PercentageDisplay.Format(it.DiscountPercent)</td>
+                            <td class="text-end">@PercentageDisplay.Format(it.TaxPercent)</td>
                             <td class="text-end fw-semibold">$@it.LineTotal.ToString("F2")</td>
                         </tr>
                     }
@@ -143,3 +189,80 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="reverseModal" tabindex="-1" aria-labelledby="reverseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <form asp-action="Reverse" method="post" id="reverseForm" onsubmit="return confirm('Are you sure you want to reverse this confirmed sale? Livestock will be restored to Active status. This action is audited and cannot be undone via ordinary edit.');">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold" id="reverseModalLabel">↶ Reverse Confirmed Sale</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" asp-for="Id" id="reverseId" value="@Model.Id" />
+                    <input type="hidden" name="ReversalDate" value="@DateTimeOffset.Now.ToString("yyyy-MM-ddTHH:mm")" />
+                    <div class="alert alert-warning border-0 bg-warning-subtle mb-3 small">
+                        <div class="fw-semibold mb-1">⚠️ Important</div>
+                        <div class="mb-1">Reversing this sale will:</div>
+                        <ul class="mb-0 ps-3">
+                            <li>Restore all discharged livestock to <strong>Active</strong> status</li>
+                            <li>Void any associated unpaid invoice</li>
+                            <li>Block if payments/receipts have been applied (reverse those first)</li>
+                            <li>Be recorded in the audit log with your user identity</li>
+                        </ul>
+                    </div>
+                    <div class="mb-3">
+                        <label for="ReversalReason" class="form-label fw-semibold small">Reversal Reason <span class="text-danger">*</span></label>
+                        <input type="text" id="ReversalReason" name="ReversalReason" class="form-control" maxlength="500" required
+                               placeholder="e.g., Duplicate entry, incorrect customer, returned livestock..."
+                               aria-describedby="reasonHelp" />
+                        <div id="reasonHelp" class="form-text small">Required. 500 characters maximum. Explain why this sale is being reversed.</div>
+                        <div class="invalid-feedback">Please provide a non-empty reason for this reversal.</div>
+                    </div>
+                    <div class="mb-0">
+                        <label for="ReversalNotes" class="form-label fw-semibold small">Additional Notes (optional)</label>
+                        <textarea id="ReversalNotes" name="ReversalNotes" class="form-control" rows="3" maxlength="2000"
+                                  placeholder="Any additional context, reference numbers, or follow-up actions..."></textarea>
+                        <div class="form-text small text-end" id="notesCount">0 / 2000</div>
+                    </div>
+                </div>
+                <div class="modal-footer border-top flex-wrap gap-2">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger" id="reverseConfirmBtn">
+                        ↶ Confirm Reversal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    var revModal = document.getElementById('reverseModal');
+    if (!revModal) return;
+    var reason = document.getElementById('ReversalReason');
+    var notes = document.getElementById('ReversalNotes');
+    var notesCount = document.getElementById('notesCount');
+    var confirmBtn = document.getElementById('reverseConfirmBtn');
+    function updateState() {
+        var r = (reason.value || '').trim();
+        confirmBtn.disabled = r.length === 0;
+        if (notesCount) notesCount.textContent = (notes.value || '').length + ' / 2000';
+    }
+    if (reason) reason.addEventListener('input', updateState);
+    if (notes) notes.addEventListener('input', updateState);
+    revModal.addEventListener('shown.bs.modal', function () {
+        reason.focus();
+        updateState();
+    });
+    document.getElementById('reverseForm').addEventListener('submit', function (e) {
+        if (confirmBtn.disabled) { e.preventDefault(); return; }
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Processing...';
+    });
+    updateState();
+})();
+</script>
+}

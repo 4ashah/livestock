@@ -36,6 +36,40 @@ public class Sale : BaseAuditableEntity
 
     public SaleStatus Status { get; set; } = SaleStatus.Draft;
 
+    [Precision(18, 2)]
+    public decimal CommissionAmount { get; set; }
+
+    [Precision(18, 2)]
+    public decimal SellerTaxAmount { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TransportationAmount { get; set; }
+
+    [Precision(18, 2)]
+    public decimal OtherCostAmount { get; set; }
+
+    [MaxLength(500)]
+    public string? OtherCostDescription { get; set; }
+
+    [Precision(18, 2)]
+    public decimal TotalAdditionalSaleCosts { get; set; }
+
+    [Precision(18, 2)]
+    public decimal NetSaleProceeds { get; set; }
+
+    public CostAllocationMethod CostAllocationMethod { get; set; } = CostAllocationMethod.Equal;
+
+    [Column(TypeName = "datetimeoffset")]
+    public DateTimeOffset? ReversedAt { get; set; }
+
+    public Guid? ReversedByUserId { get; set; }
+
+    [MaxLength(500)]
+    public string? ReversalReason { get; set; }
+
+    [MaxLength(2000)]
+    public string? ReversalNotes { get; set; }
+
     [MaxLength(2000)]
     public string? Notes { get; set; }
 

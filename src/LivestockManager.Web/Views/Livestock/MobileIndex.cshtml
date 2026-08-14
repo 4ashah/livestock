@@ -1,6 +1,7 @@
 @model IEnumerable<LivestockManager.Web.Models.LivestockViewModels.LivestockListItemDto>
 @using LivestockManager.Domain.Enums
 @using LivestockManager.Domain.Helpers
+@using LivestockManager.Domain.Common
 @using LivestockManager.Application.DTOs.Livestock
 @using LivestockManager.Application.DTOs.Farms
 @using Microsoft.AspNetCore.Mvc.Rendering
@@ -20,8 +21,8 @@
     var sourceFilter = ViewData["SourceFilter"] as StockSource?;
     var search = ViewData["SearchString"] as string;
     var farmOptions = ViewData["FarmOptions"] as SelectList;
-    var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
-    var canDataEntry = canEdit || User.IsInRole("DataEntry");
+    var canEdit = User.IsInRole(RoleNames.CompanyAdministrator) || User.IsInRole(RoleNames.SystemAdministrator) || User.IsInRole(RoleNames.FarmManager);
+    var canDataEntry = canEdit || User.IsInRole(RoleNames.DataEntry);
 
     var list = Model?.ToList() ?? new List<LivestockListItemDto>();
     var activeCount = list.Count(x => x.Status == LivestockStatus.Active);

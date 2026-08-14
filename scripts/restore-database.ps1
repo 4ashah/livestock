@@ -102,6 +102,17 @@ if ($DataFileDirectory -ne "") {
     }
 }
 
+Write-Log "INFO" "Step 0: Verify backup integrity via RESTORE VERIFYONLY..."
+$verifyOnlyQuery = "RESTORE VERIFYONLY FROM DISK=N'$($BackupFile.Replace("'","''"))' WITH STATS=5;"
+& sqlcmd -S $ServerInstance -E -b -Q $verifyOnlyQuery
+$voExit = $LASTEXITCODE
+if ($voExit -ne 0) {
+    Write-Log "ERROR" "verifyonly-failed (exit=$voExit): Backup file failed RESTORE VERIFYONLY."
+    Write-Error -ErrorAction Continue "verifyonly-failed: Backup file failed RESTORE VERIFYONLY — aborting restore."
+    exit 19
+}
+Write-Log "INFO" "RESTORE VERIFYONLY passed."
+
 Write-Log "INFO" "Step 1: Enumerate files via RESTORE FILELISTONLY..."
 $flQuery = "RESTORE FILELISTONLY FROM DISK=N'$($BackupFile.Replace("'","''"))';"
 $flRaw = & sqlcmd -S $ServerInstance -E -b -W -h -1 -s "|" -Q $flQuery 2>&1

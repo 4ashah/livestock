@@ -44,6 +44,12 @@ public class PaymentsController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
+    private async Task<Guid> GetUserIdAsync()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        return user?.Id ?? Guid.Empty;
+    }
+
     private bool CanEdit => User.IsInRole(RoleNames.Accounts)
         || User.IsInRole(RoleNames.CompanyAdministrator)
         || User.IsInRole(RoleNames.SystemAdministrator);
@@ -180,5 +186,35 @@ public class PaymentsController : Controller
             return View(dto);
         }
         return RedirectToAction(nameof(Details), new { id = payment.Id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Policy = "CanManageAccounting")]
+    public async Task<IActionResult> Reverse(Guid id, string? reason, CancellationToken ct)
+    {
+        if (id == Guid.Empty) return NotFound();
+
+        var companyId = await GetCompanyIdAsync();
+        var actingUserId = await GetUserIdAsync();
+
+        if (actingUserId == Guid.Empty)
+        {
+            ModelState.AddModelError(string.Empty, "Could not identify current user.");
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        try
+        {
+            await _paymentService.ReverseAsync(id, reason ?? "User reversed payment", actingUserId, companyId, ct);
+            TempData["Success"] = "Payment reversed successfully.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+        catch (DomainException ex)
+        {
+            ModelState.AddModelError(string.Empty, ex.Message);
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Details), new { id });
+        }
     }
 }

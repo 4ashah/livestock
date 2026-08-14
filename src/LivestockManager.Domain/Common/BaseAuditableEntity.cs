@@ -16,7 +16,6 @@ public abstract class BaseAuditableEntity
 
     public bool IsDeleted { get; set; } = false;
 
-    [Timestamp]
     public byte[]? Version { get; set; }
 
     protected BaseAuditableEntity()

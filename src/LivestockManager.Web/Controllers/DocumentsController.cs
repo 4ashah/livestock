@@ -145,7 +145,7 @@ public class DocumentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> List(string entityType, Guid? entityId, CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();
@@ -208,7 +208,7 @@ public class DocumentsController : Controller
     public IActionResult Index() => RedirectToAction(nameof(List));
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = "CanViewFinancialData")]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();

@@ -1,12 +1,10 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace LivestockManager.Domain.ValueObjects;
 
-[Owned]
 public class TaxSettings
 {
-    [Precision(5, 4)]
+    [Column(TypeName = "decimal(5,4)")]
     public decimal? TaxRate { get; set; }
 
     public bool TaxOnShipping { get; set; }

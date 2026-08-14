@@ -132,6 +132,8 @@
     </div>
 </div>
 
+@if (ViewData["CanViewFinancials"] is true)
+{
 <h5 class="mb-2 text-muted small text-uppercase fw-bold border-bottom pb-1">Commercial</h5>
 <div class="row g-3 mb-4 kpi-row-wrap">
     <div class="col-12 col-sm-6 col-md-4 col-lg-3 col-xl-2">
@@ -247,6 +249,8 @@
         </div>
     </div>
 </div>
+}
+</div>
 
 <div class="row g-3">
     <div class="col-lg-6">
@@ -340,6 +344,8 @@
             </div>
         </div>
     </div>
+    @if (ViewData["CanViewFinancials"] is true)
+    {
     <div class="col-lg-6">
         <div class="card shadow-sm border-0 h-100">
             <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
@@ -435,4 +441,5 @@
             </div>
         </div>
     </div>
+    }
 </div>

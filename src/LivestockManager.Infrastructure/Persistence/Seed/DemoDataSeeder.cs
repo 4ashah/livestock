@@ -249,7 +249,7 @@ public static class DemoDataSeeder
             if (!r2) await userManager.AddToRoleAsync(existing, RoleNames.SystemAdministrator);
             if (!await userManager.IsInRoleAsync(existing, "Administrator"))
             {
-                try { await userManager.AddToRoleAsync(existing, "Administrator"); } catch { }
+                try { await userManager.AddToRoleAsync(existing, "Administrator"); } catch (Exception ex) { Console.WriteLine($"[SEED][WARN] Failed to assign legacy role 'Administrator' to existing admin user: {ex.Message}"); }
             }
             return;
         }
@@ -270,7 +270,7 @@ public static class DemoDataSeeder
         {
             await userManager.AddToRoleAsync(user, RoleNames.CompanyAdministrator);
             await userManager.AddToRoleAsync(user, RoleNames.SystemAdministrator);
-            try { await userManager.AddToRoleAsync(user, "Administrator"); } catch { }
+            try { await userManager.AddToRoleAsync(user, "Administrator"); } catch (Exception ex) { Console.WriteLine($"[SEED][WARN] Failed to assign legacy role 'Administrator' to new admin user: {ex.Message}"); }
         }
     }
 
@@ -319,7 +319,7 @@ public static class DemoDataSeeder
                 }
                 if (!await userManager.IsInRoleAsync(existing, spec.Role))
                 {
-                    try { await userManager.AddToRoleAsync(existing, spec.Role); } catch { }
+                    try { await userManager.AddToRoleAsync(existing, spec.Role); } catch (Exception ex) { Console.WriteLine($"[SEED][WARN] Failed to assign role '{spec.Role}' to user: {ex.Message}"); }
                 }
                 continue;
             }

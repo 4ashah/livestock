@@ -23,15 +23,15 @@
     </div>
 }
 
-<form asp-action="MobileCreate" method="post" class="mob-form" id="saleForm">
+<form asp-action="MobileCreate" method="post" class="mob-form" id="saleForm" style="overflow-x:hidden;">
     <input type="hidden" asp-for="CompanyId" />
 
-    <div class="mob-card">
-        <div class="mob-card-title">📝 Sale Details</div>
+    <div class="mob-card mb-3">
+        <div class="mob-card-title">👥 Customer &amp; Farm</div>
 
         <div class="mob-field">
             <label>Farm *</label>
-            <select asp-for="FarmId" required>
+            <select asp-for="FarmId" required style="width:100%; min-height:44px;">
                 <option value="">Select farm…</option>
                 @if (farms != null)
                 {
@@ -41,10 +41,11 @@
                     }
                 }
             </select>
+            <span asp-validation-for="FarmId" class="text-danger small"></span>
         </div>
         <div class="mob-field">
             <label>Customer *</label>
-            <select asp-for="CustomerId" required>
+            <select asp-for="CustomerId" required style="width:100%; min-height:44px;">
                 <option value="">Select customer…</option>
                 @if (customers != null)
                 {
@@ -54,36 +55,55 @@
                     }
                 }
             </select>
+            <span asp-validation-for="CustomerId" class="text-danger small"></span>
         </div>
         <div class="mob-field">
             <label>Sale Date</label>
-            <input asp-for="Date" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+            <input asp-for="Date" type="date" value="@DateTime.Today.ToString("yyyy-MM-dd")" style="width:100%; min-height:44px;" />
         </div>
         <div class="mob-field">
             <label>Notes</label>
-            <textarea asp-for="Notes" rows="2"></textarea>
+            <textarea asp-for="Notes" rows="2" style="width:100%;"></textarea>
         </div>
     </div>
 
-    <div class="mob-card">
-        <div class="mob-card-title">🐑 Select Livestock</div>
+    <div class="mob-card mb-3">
+        <div class="mob-card-title">🐑 Livestock Selection</div>
         <div class="mob-field">
             <label>Find by ID / comment</label>
-            <div class="input-group">
-                <input type="text" id="lsSearch" placeholder="Start typing Livestock ID…" autocomplete="off" />
-                <button type="button" id="lsManualResolve" class="btn btn-outline-primary" style="padding:0 0.75rem;">Resolve</button>
+            <div class="input-group" style="width:100%;">
+                <input type="text" id="lsSearch" placeholder="Start typing Livestock ID…" autocomplete="off" style="flex:1; min-height:44px; width:100%;" />
+                <button type="button" id="lsManualResolve" class="btn btn-outline-primary" style="min-height:44px; padding:0 0.75rem; white-space:normal;" title="Paste an exact livestock ID and press to add directly (skip search)." aria-label="Add livestock by exact ID">Add Exact ID</button>
             </div>
-            <ul id="lsDrop" style="list-style:none;max-height:260px;overflow:auto;margin-top:0.5rem;display:none;padding:0;"></ul>
-            <div class="small" id="lsMsg" style="margin-top:0.5rem;">Search returns 25 matches max. Tap to add.</div>
+            <ul id="lsDrop" style="list-style:none; max-height:260px; overflow:auto; margin-top:0.5rem; display:none; padding:0;"></ul>
+            <div class="small" id="lsMsg" style="margin-top:0.5rem;">Type to search 25 closest matches, or paste exact ID and tap Add Exact ID to skip search.</div>
         </div>
-        <div class="mob-field">
+
+        <details style="margin-top:0.5rem;">
+            <summary style="min-height:44px; display:flex; align-items:center; justify-content:space-between; padding:0.5rem 0; cursor:pointer; font-weight:600;">
+                <span>📋 Bulk Add <span id="bulkSelCount" class="small text-muted fw-normal">(0 selected)</span></span>
+                <span class="small text-muted">tap to open</span>
+            </summary>
+            <div style="padding:0.5rem 0 0.25rem;">
+                <div class="d-flex gap-2 mb-2" style="width:100%;">
+                    <input id="bulkKeyword" class="form-control" placeholder="Search ID/type/farm…" style="flex:1; min-height:44px; width:100%;" />
+                </div>
+                <div class="d-flex gap-2 mb-3">
+                    <button type="button" id="bulkSearchMob" class="mob-btn" style="flex:1; min-height:44px; justify-content:center;">🔍 Search Eligible</button>
+                    <button type="button" id="bulkAddMob" class="mob-btn" style="flex:1; min-height:44px; justify-content:center; background:#065f46;" disabled>➕ Add Selected</button>
+                </div>
+                <div id="bulkMobList" class="small text-muted text-center py-3" style="border:1px dashed #e5e7eb; border-radius:0.5rem;">Tap "Search Eligible" to load livestock.</div>
+            </div>
+        </details>
+
+        <div class="mob-field" style="margin-top:0.75rem;">
             <label>Or paste bulk IDs (one per line)</label>
-            <textarea id="lsBulkPaste" rows="3" placeholder="e.g. AH-2026-00123&#10;SA-2026-04567"></textarea>
-            <button type="button" id="lsAddBulk" class="mob-btn w-100 mt-2" style="justify-content:center;">＋ Add Bulk</button>
+            <textarea id="lsBulkPaste" rows="3" placeholder="e.g. AH-2026-00123&#10;SA-2026-04567" style="width:100%;"></textarea>
+            <button type="button" id="lsAddBulk" class="mob-btn w-100 mt-2" style="justify-content:center; min-height:44px;">＋ Add Bulk Paste</button>
         </div>
 
         <div class="mob-card-title mt-3">Added <span id="lsCount">0</span></div>
-        <div id="lsCart">
+        <div id="lsCart" style="width:100%;">
             <div id="lsEmpty" class="mob-empty" style="padding:1rem 0; border:1px dashed #e5e7eb; border-radius:0.75rem;">
                 <div class="icon" style="font-size:1.6rem;">🐑</div>
                 <div class="title" style="font-size:14px;">None added</div>
@@ -92,45 +112,108 @@
         </div>
     </div>
 
-    <div class="mob-card">
+    <div class="mob-card mb-3">
+        <div class="mob-card-title">💲 Suggested &amp; Final Prices</div>
+        <div style="background:#f9fafb; border-radius:0.5rem; padding:0.75rem; margin-bottom:0.75rem;">
+            <div class="small text-muted" style="white-space:normal;">Each animal is pre-filled with a suggested sale price based on the current pricing method. You can override any Unit Price above; overridden values are recorded as Manual Override.</div>
+        </div>
+        <div class="mob-list-two-col">
+            <div><div class="k">Total Suggested</div><div class="v" id="totSuggested">$0.00</div></div>
+            <div><div class="k fw-bold text-success">Total Final</div><div class="v fw-bold" style="color:#065f46;" id="totFinal">$0.00</div></div>
+        </div>
+    </div>
+
+    <div class="mob-card mb-3">
+        <div class="mob-card-title">🧾 Customer Charges <span class="small" style="background:#e0e7ff; color:#3730a3; padding:0.1rem 0.5rem; border-radius:9999px; font-weight:500; white-space:normal;">Paid by Customer (Invoice)</span></div>
+        <div class="mob-field">
+            <label style="white-space:normal;">Discount % <span class="small text-muted">(0.00–1.00)</span></label>
+            <input name="discountPct" placeholder="0.15" step="0.0001" min="0" max="1" inputmode="decimal" id="saleDiscountPct" value="0" style="width:100%; min-height:44px;" />
+            <span class="text-danger small field-validation-valid" data-valmsg-for="discountPct" data-valmsg-replace="true"></span>
+        </div>
+        <div class="mob-field">
+            <label style="white-space:normal;">Customer Tax % <span class="small text-muted">(0.00–1.00)</span></label>
+            <input id="saleTaxPct" name="taxPct" step="0.0001" min="0" max="1" inputmode="decimal" placeholder="0.15" value="0" style="width:100%; min-height:44px;" />
+            <span class="text-danger small field-validation-valid" data-valmsg-for="taxPct" data-valmsg-replace="true"></span>
+        </div>
+        <div class="small text-muted" style="white-space:normal;">Discount and Tax apply per line item to the invoice paid by the customer. Seller-side costs are further below.</div>
+    </div>
+
+    <div class="mob-card mb-3">
+        <div class="mob-card-title">💸 Seller Costs (reduce proceeds)</div>
+        <div class="mob-field">
+            <label style="white-space:normal;">Commission <span class="small text-muted">(USD)</span></label>
+            <input name="commissionAmount" id="commissionAmount" step="0.01" min="0" inputmode="decimal" value="0.00" style="width:100%; min-height:44px; text-align:right;" />
+        </div>
+        <div class="mob-field">
+            <label style="white-space:normal;">Seller-Paid Tax Amt <span class="small text-muted">(USD)</span></label>
+            <input name="sellerTaxAmount" id="sellerTaxAmount" step="0.01" min="0" inputmode="decimal" value="0.00" style="width:100%; min-height:44px; text-align:right;" />
+        </div>
+        <div class="mob-field">
+            <label style="white-space:normal;">Transportation <span class="small text-muted">(USD)</span></label>
+            <input name="transportationAmount" id="transportationAmount" step="0.01" min="0" inputmode="decimal" value="0.00" style="width:100%; min-height:44px; text-align:right;" />
+        </div>
+        <div class="mob-field">
+            <label style="white-space:normal;">Other Cost <span class="small text-muted">(USD)</span></label>
+            <input name="otherCostAmount" id="otherCostAmount" step="0.01" min="0" inputmode="decimal" value="0.00" style="width:100%; min-height:44px; text-align:right;" />
+        </div>
+        <div class="mob-field">
+            <label style="white-space:normal;">Other Cost Description <span id="otherCostRequiredStar" class="text-danger d-none">*</span> <span class="small text-muted">(Required when Other &gt; 0; max 500 chars)</span></label>
+            <textarea name="otherCostDescription" id="otherCostDescription" rows="2" maxlength="500" placeholder="e.g. Loading charges, inspection fee, docs" style="width:100%;"></textarea>
+            <small id="otherCostDescError" class="text-danger d-none" style="white-space:normal; display:block; margin-top:0.25rem;">Other Cost Description required when Other Cost &gt; 0.</small>
+        </div>
+    </div>
+
+    <div class="mob-card mb-3">
+        <div class="mob-card-title">🧮 Totals</div>
+        <div class="mob-list-two-col">
+            <div><div class="k">Gross Livestock</div><div class="v fw-semibold" id="totGross">$0.00</div></div>
+            <div><div class="k">Invoice Total (incl tax)</div><div class="v fw-semibold" id="totInvoice">$0.00</div></div>
+            <div><div class="k">Seller Commission</div><div class="v" id="totComm">$0.00</div></div>
+            <div><div class="k">Seller-Paid Tax</div><div class="v" id="totSellerTax">$0.00</div></div>
+            <div><div class="k">Transportation</div><div class="v" id="totTransport">$0.00</div></div>
+            <div><div class="k">Other Seller Costs</div><div class="v" id="totOther">$0.00</div></div>
+            <div style="grid-column: 1 / -1;"><hr class="my-1"/></div>
+            <div><div class="k">Total Seller Costs</div><div class="v fw-semibold" id="totSaleCosts">$0.00</div></div>
+            <div style="grid-column: 1 / -1;"><div class="k fw-bold fs-5 text-success">Net Sale Proceeds</div><div class="v fw-bold fs-5 text-success" id="totNet">$0.00</div></div>
+        </div>
+    </div>
+
+    <div class="mob-card mb-3">
         <div class="mob-card-title">📦 Additional Items</div>
-        <button type="button" id="addLineBtn" class="mob-btn w-100" style="justify-content:center; margin-bottom:0.75rem;">＋ Add Row</button>
-        <div id="linesWrap">
+        <button type="button" id="addLineBtn" class="mob-btn w-100" style="justify-content:center; margin-bottom:0.75rem; min-height:44px;">＋ Add Row</button>
+        <div id="linesWrap" style="width:100%;">
             <div class="mob-card mob-subcard line-row">
                 <div class="mob-field" style="margin-bottom:0.5rem;">
-                    <label>Description</label>
-                    <input type="text" name="lineDesc" placeholder="e.g. Delivery fee" />
+                    <label style="white-space:normal;">Description</label>
+                    <input type="text" name="lineDesc" placeholder="e.g. Delivery fee" style="width:100%; min-height:44px;" />
                 </div>
-                <div class="d-flex gap-2">
-                    <div class="mob-field" style="flex:1; margin:0;">
-                        <label>Qty</label>
-                        <input type="number" name="lineQty" value="1" step="0.01" class="text-end line-qty" />
+                <div class="d-flex gap-2" style="width:100%;">
+                    <div class="mob-field" style="flex:1; margin:0; min-width:0;">
+                        <label style="white-space:normal;">Qty</label>
+                        <input type="number" name="lineQty" value="1" step="0.01" class="text-end line-qty" style="width:100%; min-height:44px;" />
                     </div>
-                    <div class="mob-field" style="flex:1.4; margin:0;">
-                        <label>Unit Price</label>
-                        <input type="number" name="linePrice" value="0" step="0.01" class="text-end line-price" />
+                    <div class="mob-field" style="flex:1.4; margin:0; min-width:0;">
+                        <label style="white-space:normal;">Unit Price</label>
+                        <input type="number" name="linePrice" value="0" step="0.01" class="text-end line-price" style="width:100%; min-height:44px;" />
                     </div>
                     <div style="display:flex; align-items:flex-end;">
-                        <button type="button" class="btn btn-sm btn-outline-danger remove-line" style="margin-bottom:2px;">✕</button>
+                        <button type="button" class="btn btn-sm btn-outline-danger remove-line" style="margin-bottom:2px; min-height:44px;" aria-label="Remove this additional item line" title="Remove this additional item line">✕</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <div class="mob-card">
-        <div class="mob-card-title">💵 Totals</div>
-        <div class="mob-list-two-col">
-            <div><div class="k">Livestock</div><div class="v" id="lsSub">$0.00</div></div>
-            <div><div class="k">Lines</div><div class="v" id="lnSub">$0.00</div></div>
-            <div><div class="k">Subtotal</div><div class="v" id="sub">$0.00</div></div>
-            <div><div class="k fw-bold">Grand Total</div><div class="v fw-bold" id="grand" style="color:#065f46;">$0.00</div></div>
-        </div>
+    <div class="mob-card mb-3">
+        <div class="mob-card-title">✅ Review</div>
+        <div class="small text-muted" style="padding:0.25rem 0 0.5rem; white-space:normal;">Review all totals above before saving. Tap Create Sale when done.</div>
     </div>
 
-    <div class="mob-submit-row">
-        <a asp-action="MobileIndex" class="mob-btn" style="background:#f3f4f6; color:#374151; justify-content:center; flex:1;">Cancel</a>
-        <button type="submit" class="mob-btn" style="justify-content:center; flex:1.4; background:#065f46;">💾 Save Draft</button>
+    <div style="height:90px;"></div>
+
+    <div class="mob-submit-row" style="position:fixed; bottom:0; left:0; right:0; padding:0.75rem; background:#fff; border-top:1px solid #e5e7eb; z-index:1000; display:flex; gap:0.5rem;">
+        <button type="button" onclick="history.back()" class="mob-btn" style="background:#f3f4f6; color:#374151; justify-content:center; flex:1; min-height:44px;">Cancel</button>
+        <button type="submit" class="mob-btn" style="justify-content:center; flex:1.4; background:#065f46; min-height:44px;">💾 Create Sale</button>
     </div>
 </form>
 
@@ -140,7 +223,7 @@
         (function () {
             const esc = s => (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
             const fmt = n => '$' + (Number(n) || 0).toFixed(2);
-            const LS = { url: '@Url.Action("SearchLivestock")', resolve: '@Url.Action("ResolveLivestock")' };
+            const LS = { url: '@Url.Action("SearchLivestock")', resolve: '@Url.Action("ResolveLivestock")', bulkUrl: '@Url.Action("ListEligibleLivestockBulkAdd")' };
             let lsCart = [];
             function showDrop(ul){ ul.style.display='block'; }
             function hideDrop(ul){ ul.style.display='none'; }
@@ -151,6 +234,9 @@
             const farmSelect = document.querySelector('select[name="FarmId"]');
             function farmFilter() { return farmSelect.value || null; }
             farmSelect.addEventListener('change', () => { if (lsSearch.value.trim()) { var ev = new Event('input'); lsSearch.dispatchEvent(ev); } });
+
+            const bulkMobSelected = new Set();
+            let bulkMobItems = [];
 
             async function livestockList(q) {
                 let url = LS.url + '?keyword=' + encodeURIComponent(q || '');
@@ -249,9 +335,23 @@
                     LivestockId: item.livestockId || item.LivestockId,
                     Type: item.typeLabel || item.TypeLabel || item.livestockTypeId || item.LivestockTypeId,
                     Cost: item.purchaseAmount || item.PurchaseAmount || 0,
-                    Price: item.suggestedPrice || item.SuggestedPrice || Math.round(((item.purchaseAmount || item.PurchaseAmount || 0) * 1.3) * 100) / 100
+                    SuggestedPrice: item.suggestedPrice || item.SuggestedPrice,
+                    SuggestedWeight: item.suggestedWeight || item.SuggestedWeight,
+                    SuggestedRate: item.suggestedRate || item.SuggestedRate,
+                    SuggestedMethod: item.suggestedMethod || item.SuggestedMethod,
+                    Price: (item.suggestedPrice || item.SuggestedPrice) || Math.round(((item.purchaseAmount || item.PurchaseAmount || 0) * 1.3) * 100) / 100
                 });
                 renderCart();
+            }
+
+            function getBasisText(method) {
+                switch (method) {
+                    case 'CostMarkupLegacy': return 'Cost × 1.30 legacy';
+                    case 'WeightPerCwt': return 'Weight × Rate/cwt';
+                    case 'WeightPerKg': return 'Weight × Rate/kg';
+                    case 'HeadPrice': return 'Per-head fixed';
+                    default: return method ? method : '';
+                }
             }
 
             function renderCart() {
@@ -267,6 +367,10 @@
                         const row = document.createElement('div');
                         row.className = 'mob-card mob-subcard';
                         row.style.marginBottom = '0.5rem';
+                        let basisHtml = '<span class="small" style="color:#9ca3af;">—</span>';
+                        if (r.SuggestedPrice != null && !isNaN(Number(r.SuggestedPrice))) {
+                            basisHtml = '<div class="small"><div style="font-weight:600; color:#065f46;">' + fmt(r.SuggestedPrice) + '</div><div style="color:#6b7280;">' + esc(getBasisText(r.SuggestedMethod)) + '</div></div>';
+                        }
                         row.innerHTML =
                             '<div class="d-flex justify-content-between align-items-center mb-2">' +
                                 '<code style="color:#065f46;">' + esc(r.LivestockId) + '</code>' +
@@ -274,16 +378,16 @@
                             '</div>' +
                             '<div class="mob-list-two-col">' +
                                 '<div><div class="k">Cost</div><div class="v small">' + fmt(r.Cost) + '</div></div>' +
-                                '<div><div class="k">Qty</div><div class="v small">1</div></div>' +
+                                '<div><div class="k">Suggested</div><div class="v small text-end">' + basisHtml + '</div></div>' +
                             '</div>' +
                             '<div class="mob-field" style="margin:0.5rem 0 0.25rem;">' +
-                                '<label>Unit Price</label>' +
-                                '<input type="number" name="livestockPrices" step="0.01" value="' + r.Price.toFixed(2) + '" class="text-end ls-price" data-idx="' + idx + '" />' +
+                                '<label style="white-space:normal;">Unit Price</label>' +
+                                '<input type="number" name="livestockPrices" step="0.01" value="' + r.Price.toFixed(2) + '" class="text-end ls-price" data-idx="' + idx + '" style="width:100%; min-height:44px;" />' +
                             '</div>' +
                             '<div class="d-flex justify-content-between align-items-center mt-1">' +
                                 '<input type="hidden" name="livestockIds" value="' + r.Id + '" />' +
-                                '<div class="small text-muted">Click ✕ to remove</div>' +
-                                '<button type="button" class="btn btn-sm btn-outline-danger ls-remove" data-idx="' + idx + '">✕</button>' +
+                                '<div class="small text-muted">Tap ✕ to remove</div>' +
+                                '<button type="button" class="btn btn-sm btn-outline-danger ls-remove" data-idx="' + idx + '" style="min-height:44px;">✕</button>' +
                             '</div>';
                         cart.appendChild(row);
                     });
@@ -301,7 +405,11 @@
 
             function recalc() {
                 let lsTotal = 0;
-                lsCart.forEach(r => { lsTotal += Number(r.Price) || 0; });
+                let lsSuggestedTotal = 0;
+                lsCart.forEach(r => {
+                    lsTotal += Number(r.Price) || 0;
+                    lsSuggestedTotal += (r.SuggestedPrice != null && !isNaN(Number(r.SuggestedPrice))) ? Number(r.SuggestedPrice) : 0;
+                });
                 let lnTotal = 0;
                 document.querySelectorAll('.line-row').forEach(r => {
                     const q = parseFloat(r.querySelector('.line-qty')?.value || '0');
@@ -309,11 +417,78 @@
                     lnTotal += q * p;
                 });
                 const sub = lsTotal + lnTotal;
-                document.getElementById('lsSub').textContent = fmt(lsTotal);
-                document.getElementById('lnSub').textContent = fmt(lnTotal);
-                document.getElementById('sub').textContent = fmt(sub);
-                document.getElementById('grand').textContent = fmt(sub);
+                const discPct = parseFloat(document.getElementById('saleDiscountPct')?.value || '0') || 0;
+                const taxPct = parseFloat(document.getElementById('saleTaxPct')?.value || '0') || 0;
+                const discountAmt = sub * discPct;
+                const afterDiscount = sub - discountAmt;
+                const taxAmt = afterDiscount * taxPct;
+                const invoiceTotal = afterDiscount + taxAmt;
+
+                const commission = parseFloat(document.getElementById('commissionAmount')?.value || '0') || 0;
+                const sellerTax = parseFloat(document.getElementById('sellerTaxAmount')?.value || '0') || 0;
+                const transport = parseFloat(document.getElementById('transportationAmount')?.value || '0') || 0;
+                const otherCost = parseFloat(document.getElementById('otherCostAmount')?.value || '0') || 0;
+                const totalSellerCosts = commission + sellerTax + transport + otherCost;
+                const netProceeds = invoiceTotal - totalSellerCosts;
+
+                const totS = document.getElementById('totSuggested');
+                const totF = document.getElementById('totFinal');
+                if (totS) totS.textContent = fmt(lsSuggestedTotal);
+                if (totF) totF.textContent = fmt(lsTotal);
+
+                const lsSub = document.getElementById('lsSub');
+                const lnSub = document.getElementById('lnSub');
+                const subEl = document.getElementById('sub');
+                const grand = document.getElementById('grand');
+                if (lsSub) lsSub.textContent = fmt(lsTotal);
+                if (lnSub) lnSub.textContent = fmt(lnTotal);
+                if (subEl) subEl.textContent = fmt(sub);
+                if (grand) grand.textContent = fmt(invoiceTotal);
+
+                const totG = document.getElementById('totGross');
+                const totI = document.getElementById('totInvoice');
+                const totC = document.getElementById('totComm');
+                const totST = document.getElementById('totSellerTax');
+                const totTr = document.getElementById('totTransport');
+                const totO = document.getElementById('totOther');
+                const totSC = document.getElementById('totSaleCosts');
+                const totN = document.getElementById('totNet');
+                if (totG) totG.textContent = fmt(lsTotal);
+                if (totI) totI.textContent = fmt(invoiceTotal);
+                if (totC) totC.textContent = fmt(commission);
+                if (totST) totST.textContent = fmt(sellerTax);
+                if (totTr) totTr.textContent = fmt(transport);
+                if (totO) totO.textContent = fmt(otherCost);
+                if (totSC) totSC.textContent = fmt(totalSellerCosts);
+                if (totN) totN.textContent = fmt(netProceeds);
+
+                const star = document.getElementById('otherCostRequiredStar');
+                const descTa = document.getElementById('otherCostDescription');
+                const descErr = document.getElementById('otherCostDescError');
+                if (star && descTa) {
+                    if (otherCost > 0) {
+                        star.classList.remove('d-none');
+                        if (descTa.value.trim() === '') {
+                            descTa.classList.add('is-invalid');
+                            if (descErr) descErr.classList.remove('d-none');
+                        } else {
+                            descTa.classList.remove('is-invalid');
+                            if (descErr) descErr.classList.add('d-none');
+                        }
+                    } else {
+                        star.classList.add('d-none');
+                        descTa.classList.remove('is-invalid');
+                        if (descErr) descErr.classList.add('d-none');
+                    }
+                }
             }
+
+            ['commissionAmount','sellerTaxAmount','transportationAmount','otherCostAmount','saleDiscountPct','saleTaxPct'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) { el.addEventListener('change', recalc); el.addEventListener('input', recalc); }
+            });
+            const ocd = document.getElementById('otherCostDescription');
+            if (ocd) { ocd.addEventListener('change', recalc); ocd.addEventListener('input', recalc); }
 
             document.getElementById('addLineBtn').addEventListener('click', function () {
                 const wrap = document.getElementById('linesWrap');
@@ -332,6 +507,108 @@
                 b.addEventListener('click', function(){ b.closest('.line-row').remove(); recalc(); });
             });
             document.querySelectorAll('.line-qty, .line-price').forEach(el => { el.addEventListener('change', recalc); el.addEventListener('input', recalc); });
+
+            const bulkSearchMob = document.getElementById('bulkSearchMob');
+            const bulkKeywordMob = document.getElementById('bulkKeyword');
+            const bulkMobList = document.getElementById('bulkMobList');
+            const bulkAddMob = document.getElementById('bulkAddMob');
+            const bulkSelCount = document.getElementById('bulkSelCount');
+
+            function updateBulkMobCount() {
+                if (bulkSelCount) bulkSelCount.textContent = '(' + bulkMobSelected.size + ' selected)';
+                if (bulkAddMob) bulkAddMob.disabled = bulkMobSelected.size === 0;
+            }
+
+            function renderBulkMobRows() {
+                if (!bulkMobItems.length) {
+                    bulkMobList.className = 'small text-muted text-center py-3';
+                    bulkMobList.style.cssText = 'border:1px dashed #e5e7eb; border-radius:0.5rem;';
+                    bulkMobList.textContent = 'No results. Try a different search.';
+                    return;
+                }
+                bulkMobList.className = '';
+                bulkMobList.style.cssText = '';
+                bulkMobList.innerHTML = '';
+                bulkMobItems.forEach(item => {
+                    if (lsCart.find(x => x.Id === item.Id)) return;
+                    const checked = bulkMobSelected.has(item.Id);
+                    const card = document.createElement('div');
+                    card.className = 'mob-card mob-subcard';
+                    card.style.marginBottom = '0.5rem';
+                    let sp = '—';
+                    if (item.SuggestedPrice != null && !isNaN(Number(item.SuggestedPrice))) sp = fmt(item.SuggestedPrice);
+                    card.innerHTML =
+                        '<div class="d-flex gap-2 align-items-start">' +
+                            '<div style="padding-top:0.25rem;"><input type="checkbox" class="form-check-input bulk-mob-chk" data-id="' + item.Id + '" ' + (checked ? 'checked' : '') + ' style="width:20px; height:20px;"/></div>' +
+                            '<div style="flex:1; min-width:0;">' +
+                                '<div class="d-flex justify-content-between align-items-center mb-1">' +
+                                    '<code style="color:#065f46; white-space:normal; word-break:break-all;">' + esc(item.LivestockId) + '</code>' +
+                                    '<span class="pill info" style="margin-left:0.25rem; flex-shrink:0;">' + esc(String(item.Type)) + '</span>' +
+                                '</div>' +
+                                '<div class="small mb-1" style="color:#374151; white-space:normal;">' + esc(item.FarmName || '') + '</div>' +
+                                '<div class="mob-list-two-col">' +
+                                    '<div><div class="k small">Weight</div><div class="v small">' + Number(item.Weight || 0).toFixed(2) + '</div></div>' +
+                                    '<div><div class="k small">Suggested</div><div class="v small" style="color:#065f46; font-weight:600;">' + sp + '</div></div>' +
+                                '</div>' +
+                                '<div class="small text-muted mt-1" style="white-space:normal;">Basis: ' + (esc(getBasisText(item.SuggestedMethod)) || '—') + '</div>' +
+                            '</div>' +
+                        '</div>';
+                    bulkMobList.appendChild(card);
+                });
+                if (!bulkMobList.children.length) {
+                    bulkMobList.className = 'small text-muted text-center py-3';
+                    bulkMobList.style.cssText = 'border:1px dashed #e5e7eb; border-radius:0.5rem;';
+                    bulkMobList.textContent = 'All results already added to sale.';
+                }
+                bulkMobList.querySelectorAll('.bulk-mob-chk').forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        const id = cb.dataset.id;
+                        if (cb.checked) bulkMobSelected.add(id);
+                        else bulkMobSelected.delete(id);
+                        updateBulkMobCount();
+                    });
+                });
+                updateBulkMobCount();
+            }
+
+            if (bulkSearchMob) bulkSearchMob.addEventListener('click', async () => {
+                let url = LS.bulkUrl + '?keyword=' + encodeURIComponent(bulkKeywordMob.value.trim() || '');
+                if (farmFilter()) url += '&farmId=' + encodeURIComponent(farmFilter());
+                let items = [];
+                try {
+                    const r = await fetch(url);
+                    if (r.ok) items = await r.json();
+                    else throw new Error('no bulk endpoint');
+                } catch (_) {
+                    try {
+                        const r2 = await fetch(LS.url + '?keyword=' + encodeURIComponent(bulkKeywordMob.value.trim() || '') + (farmFilter() ? '&farmId=' + encodeURIComponent(farmFilter()) : ''));
+                        items = await r2.json();
+                    } catch (_2) { items = []; }
+                }
+                bulkMobItems = items.map(l => ({
+                    Id: l.id || l.Id,
+                    LivestockId: l.livestockId || l.LivestockId,
+                    Type: l.typeLabel || l.TypeLabel || l.type || l.Type || '',
+                    FarmName: l.farmName || l.FarmName || l.farm || l.Farm || '',
+                    Weight: l.weight || l.Weight || 0,
+                    SuggestedPrice: l.suggestedPrice || l.SuggestedPrice,
+                    SuggestedMethod: l.suggestedMethod || l.SuggestedMethod
+                }));
+                renderBulkMobRows();
+            });
+
+            if (bulkAddMob) bulkAddMob.addEventListener('click', async () => {
+                const ids = Array.from(bulkMobSelected);
+                let added = 0;
+                for (const id of ids) {
+                    if (lsCart.find(x => x.Id === id)) { bulkMobSelected.delete(id); continue; }
+                    await addLivestockById(id);
+                    bulkMobSelected.delete(id);
+                    added++;
+                }
+                updateBulkMobCount();
+                renderBulkMobRows();
+            });
 
             renderCart();
         })();

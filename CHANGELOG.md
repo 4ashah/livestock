@@ -165,3 +165,411 @@ LIVESTOCK TAB CORRECTIONS READY FOR USER REVIEW
 Full independent auditor write-up with root-cause analysis, responsive corrections, Other Cost Description rules, and file-by-file change log: see `audit/STOCK_ADDITION_DESKTOP_MOBILE_REPORT.md` → new Section **Livestock Tab Review Corrections**.
 
 Overall release status continues to be **PENDING INDEPENDENT AUDIT**. This LTC round addresses only the three specific user-review corrections scoped in the request.
+
+---
+
+## Phase 17 — Sales Tab User Review Corrections
+
+**Scope:** 23-section spec `C:\Users\Administrator\Desktop\livestock.txt` (sections 1108–1127) — **UPDATE ONLY the Sales tab, Sale Creation Workflow, Sale Reversal, Bulk Add, Suggested Price, Sale Costs, Percentage Display.** No unrelated modules modified. No Stock Addition / Livestock / Purchase / Security / Audit behavior changes outside Sales.
+
+### 17.1 Percentage Display Literal-ToString Bug Fix (Root Cause + Standardized Formatter)
+
+- **Root cause (6 exact lines reproduced):** Razor paren-scope mismatch `@(it.DiscountPercent*100).ToString("0.##")%` — closing `)` terminates the Razor expression BEFORE `.ToString()` is reached → the remainder `.ToString("0.##")%` renders as static LITERAL text. User sees `0.ToString("0.##")%` (the reported "display bug").
+- **Shared authoritative formatter:** New `src/LivestockManager.Domain/Helpers/PercentageDisplay.cs` — convention `0.15 stored = 15% displayed`. Methods: `Format(decimal?)` → `"15%"` or `"0%"`; `FormatTwoDecimals(decimal)` → `"15.00%"` for Settings pages with 2dp strict display.
+- **Fix locations (7 lines):**
+  - Sales/Details.cshtml L136-L137 (Discount%, Tax%)
+  - Purchases/Details.cshtml L78, L81, L217, L218 (header + rows DiscountPct, TaxRate)
+  - Settings/Index.cshtml L101 (TaxRate input-group display)
+- **Validation:** Stored fraction convention unchanged — SaleItem `DiscountPercent/TaxPercent` stay Precision(5,4); formula `DiscountAmount = baseAmount * DiscountPercent` (no hidden /100 applied anywhere else).
+
+### 17.2 Manual Resolve → "Add Exact ID" Rename + Adjacent Unlabeled Controls
+
+- **Renamed controls (semantic match to actual behavior):**
+  - Desktop Create.cshtml L86 button `Manual Resolve` → **`Add Exact ID`** with `aria-label` + tooltip explaining exact livestock-ID add (no search required).
+  - Mobile MobileCreate.cshtml L74 button `Resolve` → **`Add Exact ID`** same labeling.
+- **Adjacent unlabeled control fix (the 3 glyph-only ✕ remove buttons):**
+  - Desktop Create.cshtml L145 additional line-item remove → explicit `aria-label="Remove this additional item line"` + `title`.
+  - Desktop renderCart JS function livestock remove button → specific title+aria-label per livestock.
+  - Mobile MobileCreate.cshtml L114 additional line remove → title+aria-label.
+- **No adjacent controls removed:** All controls are functional (exact-ID add / remove items); rename + aria/title was the correct remediation.
+
+### 17.3 Additive Database Migration: Sale Costs, Reversal, Price Snapshots
+
+- **Migration name (authentic EF Core 8, not hand-written):** `20260813195614_AddSaleCostsReversalPriceSnapshots.cs` (auto Designer + ModelSnapshot).
+- **Sale entity new columns (13 fields):**
+  - 4 non-negative seller-side amounts: `CommissionAmount (18,2)`, `SellerTaxAmount (18,2)`, `TransportationAmount (18,2)`, `OtherCostAmount (18,2)` (4 SQL CHECK ≥0 constraints).
+  - `OtherCostDescription nvarchar(500) NULL`, `TotalAdditionalSaleCosts (18,2)`, `NetSaleProceeds (18,2)`.
+  - `CostAllocationMethod int DEFAULT 0` (Equal = 0 default; future ByPrice/ByWeight/Manual structured).
+  - 4 reversal fields: `ReversedAt datetimeoffset`, `ReversedByUserId uniqueidentifier`, `ReversalReason nvarchar(500)`, `ReversalNotes nvarchar(2000)`.
+- **SaleItem entity new columns (14 fields):**
+  - Price snapshot fields: `SuggestedPrice (18,2) NULL`, `SuggestedPriceMethod int NULL`, `SuggestedWeight (18,4) NULL`, `SuggestedWeightDate datetimeoffset NULL`, `SuggestedRate (18,4) NULL`.
+  - `FinalSalePrice (18,2) NOT NULL`, `PriceSource int DEFAULT 0` (NotSet / Suggested / ManualOverride via 2dp compare).
+  - 4 allocated seller costs: `AllocatedCommission/SellerTax/Transportation/OtherCost` each `(18,2)` (4 SQL CHECK ≥0 constraints).
+  - `NetSaleProceeds (18,2)`.
+- **Additive enum:** `SaleStatus.Reversed = 4` appended after Cancelled (0=Draft/1=Confirmed/2=Completed/3=Cancelled/4=Reversed).
+- **SQL Server Express compatible indexes:** `IX_Sales_Status_ReversedAt` and `IX_Sales_CompanyId_Date` (no INCLUDE clause needed).
+- **DOWN method:** drops 8 constraints, drops 2 indexes, removes 27 columns in safe reverse order.
+
+### 17.4 Transparent Suggested Sale Price (Server-Authoritative + Historical Snapshots)
+
+- **Single authoritative service source:** `ISaleService.GetSuggestedSalePriceAsync(livestockId, companyId, ct)` returns tuple `(SuggestedPrice, Method, Weight, WeightDate, Rate)`.
+- **Pricing methods (new enum `SuggestedPricingMethod`):**
+  1. `WeightTimesConfiguredRate = 1` (preferred): `LatestWeight * ConfiguredPricePerWeightUnit` → basis text = "Based on: 50kg × 25.00 per kg".
+  2. `CostMarkupLegacy = 2` (fallback when no rate configured): `PurchaseAmount * 1.3m` → basis text = "Based on: Cost markup (PurchasePrice × 1.30)".
+  3. `NotSet = 0` if neither data available → message + manual entry required. NO FABRICATED DEFAULT VALUES.
+- **Stored per-SaleItem historical snapshot (immutable after Confirm):**
+  - Suggested 5-tuple captured **at draft creation** (reflects weight-date + rate of that moment).
+  - `FinalSalePrice` = user-accepted price at confirm; `PriceSource` = `Suggested` if `|FinalSalePrice - SuggestedPrice| < 0.01`, else `ManualOverride`.
+- **Read projections (1):** 25-200 row search/bulk/resolve candidates inline the same 1.3m fallback to avoid N+1 service call; snapshot fields populated in resolver and bulk-add endpoints.
+
+### 17.5 Bulk Add Repair (Server Validated, Desktop Responsive Table, Mobile Selectable Cards)
+
+- **Server eligibility gatekeeper:** GET `SalesController.ListEligibleLivestockBulkAdd` → each candidate must satisfy: `Status == Active`, `DischargeCondition NOT Sold`, same CompanyId as caller, not cross-company hidden via FarmId policy (authorization propagated).
+- **POST `SalesController.BulkAdd(saleId, selectedLivestockIds[])` → service transaction wrapped:**
+  - Sale must be Draft only.
+  - 3 counters returned in `SaleBulkAddResultDto`: `AddedCount`, `AlreadyPresentCount`, `IneligibleCount` + per-skipped `Messages[]`.
+  - In-request duplicate detection: HashSet `seenInRequest` → same-ID twice → AlreadyPresent + skip.
+  - In-sale duplicate detection: existing SaleItem.LivestockId hashset → AlreadyPresent.
+  - Double-click idempotent: any subset of IDs re-sent is safe via the two HashSet checks.
+- **Desktop UX (Bootstrap modal-xl modal-dialog-scrollable):**
+  - Modal opened via "📋 Bulk Add (select many)" button.
+  - Filter row: keyword search + farm filter + "🔍 Search" + "☑ Select page (all visible)" header checkbox (Select-All-Current-Page; not global — deterministic pagination scoped).
+  - Responsive selectable table: per-row checkbox + columns (Livestock ID, Type, Farm, Weight, Suggested Price, Basis).
+  - Footer live counter badge: `0 animals selected`; Confirm button disabled when count === 0; on confirm → resolves IDs → calls same `addLivestockById(id)` function today (shared integration point).
+- **Mobile UX (native HTML `<details><summary>` NO drawer):**
+  - `<summary>📋 Bulk Add (tap to open)</summary>` expands to per-animal cards with checkbox + selected count sticky footer → "＋ Add N Selected" green confirm.
+  - Touch targets: 44px min-height; zero page-level horizontal overflow (cards flex 1-col).
+
+### 17.6 Sale Reversal Workflow (Confirmed → Reversed ONLY; 3 Cases; All-or-Nothing)
+
+**Confirmed sale immutability policy:** Draft → Cancel / Confirm; Confirmed → NEVER Edit, use Reverse + Reasons. Reversed → never un-reversed, never deleted from database.
+
+**Authorization policy (SalesController.Reverse POST):** User role NOT IN {Viewer, DataEntry} → allowed = FarmManager w/ CanManageSales + Accounts + CompanyAdm + SystemAdm.
+
+**New backend: SaleService.ReverseSaleAsync(reversalDto, companyId, actingUserId, role, ct)** — 1 atomic SQL transaction; idempotent; all-or-nothing livestock restore validation.
+
+1. **Idempotency guard:** Status already `SaleStatus.Reversed` → return immediately (no double-processing).
+2. **Draft-only check escape:** Only `Confirmed` reversible; Draft/Cancelled throw.
+3. **3 Case Categorization:**
+   - **Case A (Confirmed + no final invoices):** Draft invoices → set status Cancelled with reason appended to Notes. Sale → `Reversed`; livestock restored; write audit activities.
+   - **Case B (Unpaid finalized invoice + NO Payments/Receipts):** First each unpaid invoice → `InvoiceStatus.Voided` with reversal reason appended to Invoice.Notes; then Case A remainder flow.
+   - **Case C (has Payments / Receipts / Paid / PartiallyPaid invoices):** THROW DomainException with ordered remediation step list → `"Reverse all receipts, reverse all payment allocations, recalculate balance, void invoice, then retry reverse."`.
+4. **All-or-Nothing Livestock Restoration Pre-validation (BEFORE mutation):**
+   - For every livestock-linked SaleItem: load Livestock entity → MUST satisfy: `Status == LivestockStatus.DischargedSold` AND `DischargeCondition == DischargeCondition.Sold` AND `SoldViaSaleItemId == item.Id`.
+   - Collect mismatches into `conflicts` string list.
+   - If any conflicts, throw DomainException listing them → **transaction rolls back (zero partial-state restored / zero activity inserted / zero status changes)**.
+5. **Livestock restoration actions (after validation passes):** Clear `SoldViaSaleItemId`, clear `DischargeCondition`, clear `DischargeDate`. Set `Status = LivestockStatus.Active`. **HISTORICAL: `SoldAmount` preserved (snapshot kept for financial traceability); SoldAmount never zeroed.**
+6. **Audit trail per-animal deduplicated:** Insert each `LivestockActivity` with `Note="SaleReversed;SaleId:{id};Reason:{trim};Date:{utc}"`. **Deduplication guard:** `AnyAsync(a => a.LivestockId == l.Id && a.Note.StartsWith("SaleReversed;SaleId:" + sale.IdStr))` → skip if already written (idempotent re-run safe).
+7. **Sale header fields stamped:** `Status = Reversed`, `ReversedAt = utcNow`, `ReversedByUserId = actingUserId`, `ReversalReason = trimmed-nonempty (required)`, `ReversalNotes = trimmed (optional, max 2000)`.
+8. **SaveChanges + Commit transaction.** Returns the updated SaleDetailDto.
+
+**Desktop UI (Sales/Details.cshtml):**
+- Header badges: Status=Reversed → `<span class="badge bg-danger">↶ Reversed</span>`; action buttons replaced with reversed date.
+- Reversed yellow alert block: Reason + Notes + date.
+- NEW Bootstrap modal `#reverseModal` (centered):
+  - Required input `ReversalReason` (500 maxlength; placeholder examples; JS validate trim>0 → confirm button disabled if empty).
+  - Optional textarea `ReversalNotes` (2000 maxlength with live counter "0 / 2000").
+  - Hidden input `Id=@Model.Id`; hidden `ReversalDate=Now`.
+  - Warning alert bullet list (restore livestock, void unpaid invoice, blocked if payments, audited).
+  - Confirm dialog: `"Are you sure you want to reverse this confirmed sale? Livestock will be restored to Active status. This action is audited and cannot be undone via ordinary edit."`
+  - On submit: Confirm button → disabled + "Processing..." to prevent double-tap.
+
+**Sales Index (desktop list + mobile list):**
+- Desktop: Filter dropdown `↶ Reversed` option added; sale number prefix `REVERSED-{shortId}`; status badge `bg-danger ↶ Reversed`.
+- Mobile: Same prefix + badge color class `bad`.
+
+### 17.7 Additional Sale Costs + Profitability Distinctions (Gross / Net / Basic / Complete)
+
+#### Sale-level fields + server triple-guard
+- 4 seller-side amount fields `CommissionAmount / SellerTaxAmount / TransportationAmount / OtherCostAmount`.
+- `ValidateCosts()` private helper, called from: CreateDraftAsync entry → RecalculateSaleTotals → ConfirmAsync final.
+  - Rule 1: Each of 4 amounts ≥ 0 (negative → DomainException specifying which).
+  - Rule 2: If `OtherCostAmount > 0` → `OtherCostDescription` trimmed non-empty AND ≤ 500 chars, else → DomainException.
+- Totals (server only, browser preview ignored):
+  - `TotalAdditionalSaleCosts = CommissionAmount + SellerTaxAmount + TransportationAmount + OtherCostAmount`.
+  - `GrossRevenue = sum(items.UnitPrice * Qty)`.
+  - `NetSaleProceeds = (Invoice GrandTotal AS PAID BY CUSTOMER) - TotalAdditionalSaleCosts`.
+
+#### Allocation to per-animal (not to generic non-livestock additional lines)
+New method `ApplyCostAllocation(Sale sale, List<SaleItem> items)` with default `AllocateCostEqual`.
+- 1 animal → entire cost = that single item.
+- N animals → each cost C: for index 0 ≤ i < N-1: `Round(C/N, 2, MidpointRounding.AwayFromZero)`. Item at index N-1: `C - Σ(previous)`. This guarantees the sum of all AllocatedCost == cost exactly to the cent (no lost pennies).
+- 0 animals (pure generic-item sale) → safely 0 (no /0, graceful).
+- Future allocations: structured enum `CostAllocationMethod { Equal = 0, ByPrice = 1, ByWeight = 2, Manual = 3 }` already stored; service switch statement easy to extend.
+
+#### Per-animal line item values
+Each livestock SaleItem carries: AllocatedCommission / AllocatedSellerTax / AllocatedTransportation / AllocatedOtherCost; `NetSaleProceeds` per-item = FinalSalePrice - sum(4 allocated).
+
+#### Label strict separation (never ambiguous):
+- **🧾 Customer Tax %**: percent (0.00–1.00) `TaxPercent` (sale-level Discount%+Tax% now POSTed FromForm and applied per-item from the top-level shared form inputs).
+- **💸 Seller-Paid Tax Amount**: flat dollar amount `SellerTaxAmount` (Seller-Side Costs section).
+- Both labels, sections, colors are visually different.
+
+#### Profitability formula distinctions preserved (no double count):
+- **Gross Profit = FinalSalePrice - PurchaseAmount**
+- **Net Profit = FinalSalePrice - AllocatedCommission - AllocatedTax - AllocatedTransport - AllocatedOtherCost**
+- **Basic Profit = Gross Profit (uses only acquisition cost)**
+- **Complete Profit = Net Profit - TotalAcquisitionCost (adds the seller-side sale costs)**
+→ No overlap: Basic never sees the 4 new sale costs; Complete always does.
+
+### 17.8 Desktop + Mobile Create Sale Page 7 Sections
+
+**Desktop (Create.cshtml) – 7 card sections, 12-col Bootstrap responsive:**
+1. **👥 Customer / Farm:** bindCombo combobox preserved (hidden select bindCombo pattern unchanged so POST GUIDs stay clean).
+2. **🐄 Livestock Selection:** 3-col (search / "Add Exact ID" button + NEW 📋 Bulk Modal Open Button + existing paste textarea). Cart table gains "Suggested Price Basis" new column showing per-row suggestion + basis.
+3. **💲 Suggested & Final Prices:** Info alert "Basis explanation". Totals: Total Suggested vs Total Final.
+4. **🧾 Customer Charges:** Discount % + Customer Tax % (range 0.00–1.00; inputmode decimal; step 0.0001; min=0 max=1).
+5. **💸 Seller-Side Costs:** Commission/SellerTax/Transport/Other numeric inputs (min=0, step=0.01, inputmode decimal). OtherCostDescription * required-asterisk + live JS: OtherCostAmount>0 && empty description → red is-invalid + inline error message; description nonempty → clear.
+6. **🧮 Totals:** 2-section split list: Gross → Customer Discount → Customer Tax → bold "Customer Invoice Total" (divider); 4 seller cost rows (inline conditional other cost description indented ↳); Final "Total Seller Costs" divider → bold green "Net Sale Proceeds".
+7. **✅ Review/Confirm:** sticky submit bottom row sticky-sm, double-tap guard.
+
+**Mobile (MobileCreate.cshtml) – dedicated mobile page separate route:**
+- 7 stacked `mob-card` sections; 100% width inputs; 44px min-height buttons; `inputmode="decimal"` everywhere.
+- Bulk Add inside native `<details><summary>📋 Bulk Add (tap to open)</summary>` with per-card checkbox.
+- Seller-Side Costs inside collapsible details `<summary>💸 Seller Costs (tap to expand — reduce Net Proceeds)</summary>` to save vertical space.
+- Totals summary cards with matching 2-section split.
+- Sticky `mob-submit-row` bottom bar: primary confirm green, disabled until cart length > 0, double-tap disables.
+
+### 17.9 Build & Test Results (Sales Tab Gate)
+
+| Metric | Value | Notes |
+|:-------|:-----:|:------|
+| dotnet build Release | 0 Warnings / 0 Errors | — |
+| Architecture Tests | 60 / 60 Passed | 0 Failed 0 Skipped |
+| Integration Tests | 15 / 15 Passed | WebAppFactory/Kestrel |
+| Unit Tests | 322 / 324 Passed | †2 pre-existing intentionally-throwing `PurchaseServiceTests.PostPurchase_*` (unchanged from Phase 16). |
+| HTTP /Account/Login smoke | 200 OK, 27,112 bytes | — |
+| HTTP /Sales smoke | 302 → /Account/Login | Correct authenticated redirect |
+| HTTP /Sales/Create smoke | 302 | Correct |
+| HTTP /Sales/MobileIndex smoke | 302 | Correct |
+| HTTP /Sales/MobileCreate smoke | 302 | Correct |
+| VS Code GetDiagnostics | [] empty array | No IDE diagnostics |
+
+### 17.10 Final Sales Tab Status
+
+```
+SALES TAB CORRECTIONS READY FOR USER REVIEW
+```
+
+Full independent auditor write-up: see `audit/SALES_TAB_USER_REVIEW_REPORT.md`.
+
+Overall release status continues to be **PENDING INDEPENDENT AUDIT** (see prior Phase 15 gate table).
+
+---
+
+## Phase 18 — Reports Tab User Review Corrections (RFC)
+
+**Scope:** 23-section spec `C:\Users\Administrator\Desktop\livestock.txt` (Sections 1–23) — **UPDATE ONLY the Reports Tab.** Four user-review report corrections only. No other module modified. Zero functional changes to: P&L, Livestock, Sales, Stock Addition, Purchases, Newborn, Security, Identity.
+
+### 18.1 Active Livestock by Type Farm Filter — Root Cause & Fix
+
+**Root cause (CRITICAL bug reproduced 100%):**
+- File: [ActiveLivestock.cshtml L5](file:///C:/Projects/livestock/src/LivestockManager.Web/Views/Reports/ActiveLivestock.cshtml#L5)
+- Original code:
+  ```csharp
+  var farms = ViewData["Farms"] as List<dynamic> ?? new List<dynamic>();
+  ```
+- Actual runtime object passed from ReportsController `_farmService.ListAsync(companyId, ct)` is `IList<FarmSummaryDto>` strong typed. The `as List<dynamic>` cast always returns null. Code falls back to empty `new List<dynamic>()` → dropdown contains only the hardcoded default `<option value="">All Farms</option>` → user literally could never pick an authorized farm.
+- Service-side filtering was intact; if a user manually crafted URL with `?farmId=GUID` in query string, the service still applied company-authorized filtering. The UI was the broken component.
+- CSV export was unaffected (CSV uses controller parameter binding directly from URL `farmId` string).
+
+**Fix:**
+- Use correct cast `IList<FarmSummaryDto>`.
+- Add explicit company-authorized farmId validation at service `ActiveLivestockByTypeReportAsync`: load company farms → if user-provided farmId NOT in authorized list → nullify (empty safe authorized dataset returned; cross-company leak blocked).
+- Labels use `LivestockTypeDisplay.GetDisplayName()` for 5 authoritative type codes (Ah/Su/Sa/Ad/Sd combined code + description).
+- Responsive filter row (Bootstrap col-12 col-md-4) with Apply + Clear filter buttons.
+
+### 18.2 Sales by Period — Terminology Standardization (# → Number)
+
+Every user-facing "count of heads" label uses `Number Sold` / `Total Number Sold`.
+Scope of replacement (all verified after rewrite):
+- Desktop SalesByPeriod.cshtml: 4 headline cards "Total Number Sold".
+- Farm summary table header column: `Number Sold`.
+- Sale details table header column: `Number Sold`.
+- Mobile kpi card chip-tabs: `Number Sold`.
+- Farm summary / sale detail mobile per-animal number sold label: `Number Sold`.
+- CSV export column header: `Number Sold` (columns 6 in sale detail CSV rows).
+
+**Explicitly NOT replaced (different legitimate meaning per spec Sec 7):**
+- Sale document number prefix `SALE-YYYY-NNNNNN` `Sale Number` column header kept.
+- Livestock IDs `Number` column (livestock tab) untouched. These are identifier numbers not head-counts.
+
+### 18.3 Sales by Period — Farm Filter + Farm Summary Breakdown + Preserved Headline Totals
+
+**New Farm filter:**
+- Controller signature `SalesByPeriod(DateTime? from, DateTime? to, Guid? farmId)` → dropdown renders authorized farms (same pattern Active Livestock fixed cast).
+- Validation: farmId submitted → must be in company-authorized farms; if not → coerce null (empty safe authorized result).
+- From defaults to `-30 days`; To defaults to `Now`. Both use `AsUtcDayStart` / `AsUtcDayEnd` inclusive boundaries (midnight start → 23:59:59.999 end).
+
+**New Farm Summary Breakdown table (server-side authoritative grouping):**
+Table columns: `Farm | Number Sold | Gross Sale Amount | Additional Sale Costs | Net Sale Proceeds`.
+- **Row order:** Sorted by FarmName ascending (All Farms + specific Farm filtered modes).
+- **Number Sold per farm:** count of SaleItems where `LivestockId.HasValue` (distinct livestock sold). Generic non-livestock additional lines do NOT count toward Number Sold (matches Sec 8 formula).
+- **Financials per farm row:** Gross Sale Amount = GrandTotal of Confirmed/Completed Sales to that farm; Additional Sale Costs = sale.TotalAdditionalSaleCosts (4 seller costs summed: Commission + SellerTax + Transportation + Other); Net = NetSaleProceeds.
+- **Headline totals preserved exactly:** They are Sum of same grouped aggregates → identical byte-for-byte numbers. Farm breakdown reconciles.
+
+**Sale Status filter backend (server-side authoritative):**
+Only `Confirmed/Completed` Sales counted. Excluded: Draft / Cancelled / Voided / Reversed. Reversed sales suppressed from totals (they reverse all financial meaning per Phase 17 ReverseSaleAsync; already have Reversed status).
+
+**Date Basis banner (desktop + mobile):**
+Desktop top info banner blue: `📅 Date Basis: Sale Date (period filter uses confirmed completed sale date — inclusive)`. Mobile same banner inside mob-card with info class.
+
+**Sale details table (desktop) + collapsible (mobile):**
+Columns: Sale Date, Sale Number (with ↶ REVERSED prefix if Reversed), Sale Farm, Customer, Number Sold, Gross Sale Amount, Status badge (Draft/Confirmed/Completed/Cancelled/↶Reversed/Other), View link → `/Sales/Details/{id}`. Farm names populated from actual Farm navigation (fixed prior DischargesAsync FarmName null bug → farm name always actual not string "(All)").
+
+### 18.4 Livestock Profitability — From/To Date Filters (Realization-Based Date Semantics)
+
+**Added controller parameters:**
+`LivestockProfitability(DateTime? from, DateTime? to, Guid? farmId, LivestockType[]? types, StockSource[]? sources, LivestockStatus[]? statuses, …)`
+- Inclusive range: `from.AsUtcDayStart() / to.AsUtcDayEnd()`.
+- Filter form shows: From Date, To Date, Farm dropdown, Apply + Reset buttons. Reset = same page action (preserves route but empties form → all-dates behavior).
+
+**Realization-based dispatch (critical semantic):**
+Service method `LivestockProfitabilityWithDatesAsync`:
+- **Dispatch case A (Both dates null):** Pass through to original `LivestockProfitabilityAsync` (no date filter). Behaves exactly like OLD report (shows Active / Sold / Deceased / Lost / Stolen / Other statuses combined; returns all-company-authorized livestock with profitability). Matches user expectations of "the default report".
+- **Dispatch case B (Any date set):** Call `CompleteLivestockProfitabilityAsync` → filter to `DischargedSold` only → apply `DischargeDate` or (if linked via SaleItem.Sale) use `Sale.Date` as realization date (prefer sale date when linked). Unsold animals excluded from realized profitability. Reversed/Cancelled/Voided invoice sales excluded (consistent with Phase 17 Sale Reversal).
+
+**Historical acquisition + operating costs always preserved:**
+For animals whose realization dates are inside the report range, include the FULL historical:
+- `PurchaseAmount` (acquisition cost of that animal regardless when bought)
+- `AllocatedCommission, AllocatedTax, AllocatedTransport, AllocatedOtherCost` (4 acquisition additions regardless when allocated)
+- `TotalAcquisitionCosts = PurchaseAmount + sum(4 allocated)`
+- Operating expenses allocated to the animal (via expense-to-livestock links, full amounts regardless expense date)
+- NEVER filter expenses by report date range (forbidden Sec 12 incorrect calculation list item "discard pre-period costs").
+
+**4 existing filters combined with dates:**
+Farm, Livestock Type (multi), Stock Source (multi), Status (multi) — composition works as before. FarmId authorization validated first.
+
+**Date Basis banner (desktop + mobile):**
+Desktop top banner: `📅 Date Basis: Sale Date (Realized Profitability — includes sold animals whose sale/disposal date falls inside From…To; shows historical costs)`. Mobile identical.
+
+**Summary 6 cards (desktop) + 3 mob-kpi-rows (mobile):**
+1. Number Livestock Sold (count = rows in realized set)
+2. Gross Sale Revenue (sum FinalSalePrice / per-animal gross)
+3. Total Acquisition Cost (sum)
+4. Operating Costs Allocated (sum)
+5. Additional Sale Costs (sum)
+6. Complete Profit (Gross - Total Acq - Operating - Additional Sale Costs)
+Color coding: Complete Profit ≥ 0 → green; < 0 → red with warning class.
+
+**Details table columns (14 columns per animal, 14 CSV):**
+Livestock ID, Type (via LivestockTypeDisplay.GetDisplayName), Sale Farm, Stock Source, Acquired Date, DOB, Sale Date, Gross Sale Amount, Purchase Amount, Additional Acquisition Costs, Total Acquisition Costs, Operating Costs, Additional Sale Costs, Net Sale Proceeds, Basic Profit, Complete Profit.
+Basic Profit color when >=0 green else red. Complete Profit same.
+
+### 18.5 New 4 Typed Report DTOs + 1 Modified DTO + 3 New Service Method Signatures
+
+Service interface preserves OLD signatures to prevent build breaks (P&L + existing callers 100% untouched):
+- Preserved: `Task<(Guid? FarmId, string? FarmName, int Count, decimal TotalValue)> ActiveLivestockByTypeAsync(...)` (anonymous tuple)
+- Preserved: `Task<IList<LivestockProfitabilityReportRowDto>> LivestockProfitabilityAsync(companyId, farmId, ct)`
+- Preserved: `Task<IList<LivestockProfitabilityReportRowDto>> CompleteLivestockProfitabilityAsync(...)`
+- Preserved: `Task<ProfitLossReportDto> ProfitLossAsync(...)`
+
+**3 new signatures appended (additive only — none removed/renamed):**
+1. `ActiveLivestockByTypeReportAsync(companyId, farmId, ct)` → typed `IList<ActiveLivestockByTypeReportDto>` (counts + percentages + LivestockTypeDisplay labels + percentageOfTotal).
+2. `SalesByPeriodReportAsync(companyId, fromDate, toDate, farmId, ct)` → `SalesByPeriodReportDto` aggregate (date range, headline totals, FarmSummaries list, SaleDetails list). All navigation Include(Farm).Include(s => s.Customer).Include(s => s.Items). AsNoTracking. NumberSold counts livestock-linked items only.
+3. `LivestockProfitabilityWithDatesAsync(companyId, farmId, fromDate, toDate, ct)` → dispatch A/B above; returns typed rows with 7 new fields populated.
+
+**Modified (added 7 fields, all old fields unchanged — existing property order preserved):**
+[LivestockProfitabilityReportRowDto.cs](file:///C:/Projects/livestock/src/LivestockManager.Application/DTOs/Reports/LivestockProfitabilityReportRowDto.cs)
+- `Guid? SaleFarmId`
+- `string? SaleFarmName` (prefer sale.Farm.Name over animal.Farm.Name when link present)
+- `DateTimeOffset? SaleDate` (prefer sale.Date over animal.DischargeDate when link present)
+- `decimal AdditionalAcquisitionCosts` = AllocatedCommission + AllocatedTax + AllocatedTransport + AllocatedOtherCost
+- `decimal TotalAcquisitionCosts = PurchaseAmount + AdditionalAcquisitionCosts`
+- `decimal AdditionalSaleCosts` populated from sale.TotalAdditionalSaleCosts via navigation
+- `decimal NetSaleProceeds` populated from SaleItem.NetSaleProceeds via navigation
+
+### 18.6 Desktop Views Rewritten — 3 Reports (Strongly Typed; No More dynamic Anonymous Projection)
+
+1. **ActiveLivestock.cshtml**
+   - `@model IList<ActiveLivestockByTypeReportDto>`
+   - Farm filter `IList<FarmSummaryDto>` correctly cast (root cause fix)
+   - LivestockTypeDisplay.GetDisplayName combined label "Ah - Purchased Castrated Ram" etc
+   - Responsive filter row 1-col then 3-col md
+   - Apply + Clear buttons flex next to dropdown
+   - Table: Livestock Type, Number Active, Percentage Of Total (progress bar)
+   - Export CSV with same farmId preserved
+
+2. **SalesByPeriod.cshtml** — COMPLETE rewrite from ground up
+   - `@model SalesByPeriodReportDto`
+   - Date Basis Sale Date blue banner
+   - From / To / Farm / Apply + Reset filter row
+   - 4 headline cards: Total Number Sold, Total Gross Sale Amount, Total Additional Sale Costs (badge None when 0), Total Net Sale Proceeds
+   - Farm Summary Table (5 columns: Farm / Number Sold / Gross Sale Amount / Additional Sale Costs / Net Sale Proceeds)
+   - Sale Details Table responsive wrapper with 8 columns Sale Date / Sale Number (↶ prefix if Reversed) / Sale Farm / Customer / Number Sold / Gross Sale Amount / Status badge (color per status) / View Sale link
+   - CSV: preserves from/to/farm; columns "Sale Date, Sale Number, Farm, Customer, Number Sold, Gross Sale Amount, Status"
+
+3. **LivestockProfitability.cshtml** — COMPLETE rewrite
+   - `@model IList<LivestockProfitabilityReportRowDto>`
+   - Date Basis Sale Date (Realized Profitability) banner
+   - From / To / Farm / Apply + Clear filter row (native date pickers with min/max)
+   - 6 summary cards as per 18.4
+   - 14-column details table with LivestockTypeDisplay labels, Sale Farm name, Sale Date populated
+   - Color-coded Basic/Complete Profit (green/red per sign)
+   - Export CSV includes same 15 columns (with from/to/farm route params preserved — so user gets same rows on-screen as in CSV)
+
+### 18.7 Separate Mobile Pages Created — 3 Reports (Cards, No Wide Tables)
+
+1. **MobileActiveLivestock.cshtml**
+   - Layout: `_MobileLayout`. 1-column stack. No tables.
+   - Farm filter mob-card: dropdown "All Farms" default, farms Name+Code combined when Code present; Reset + Apply flex:1 btn each, 44px min.
+   - mob-totals-card: Total Number Active (sum).
+   - Per type: mob-card title `LivestockTypeDisplay.GetDisplayName(type)`; Number Active count; PercentageOfTotal with progress bar `<div class="mob-progress"><div style="width:@(pct)%"></div></div>`.
+   - Export CSV via chip-tab button top-right.
+
+2. **MobileSalesByPeriod.cshtml**
+   - Info banner mob-card "📅 Date Basis: Sale Date"
+   - From / To / Farm mob-fields (label above, min-height:44px each). Apply + Reset.
+   - mob-totals-card: Total Net Sale Proceeds (green if positive).
+   - mob-kpi-row: 2 cols = Number Sold + Gross Sale Amount.
+   - mob-kpi-row: 2 cols = Total Additional Sale Costs + Net Sale Proceeds.
+   - Farm Summaries: if >6 farms → wrap `<details><summary>🏘️ Farm Summaries ({count} farms, tap to open)</summary>` collapsible. If ≤6 → flat cards directly. Each farm card contains FarmName, Number Sold, Gross, Add Sale Costs, Net 4 lines.
+   - Sale Details: each sale as collapsed `<details><summary>{SaleDateOrToday displaySaleNumber↶REVERSED prefix if Reversed}</summary>` expand → Sale Farm, Customer, Number Sold, Gross Amount, 6 status inline badges with color class. `mob-btn primary View Sale` link `/Sales/Details/{id}`.
+
+3. **MobileLivestockProfitability.cshtml**
+   - Info banner "Date Basis: Sale Date (Realized Profitability)"
+   - From / To / Farm mob-fields. Apply + Reset.
+   - mob-totals-card: Complete Profit total (red warning class if negative; green if >=0).
+   - 3 mob-kpi-rows: Livestock Sold + Gross; Total Acq Cost + Operating; Additional Sale Costs + Net Sale Proceeds.
+   - Per-animal collapsed `<details><summary>{LivestockId} → {TypeCode} {Gross:n0} → profit/gain colored</summary>`. Expand = 14 field rows + mini Complete Profit inline mob-totals-card same color as desktop.
+   - Export CSV chip-tab.
+
+### 18.8 CSV Export Parity
+
+All reports (desktop filter values → CSV rows) preserved.
+- **ActiveLivestock CSV** export columns: `Livestock Type, Number Active, Percentage Of Total` → exactly matches table display. Filter farmId passed in route.
+- **SalesByPeriod CSV** export columns: `Sale Date, Sale Number, Farm, Customer, Number Sold, Gross Sale Amount, Status` → from/to/farm passed in route.
+- **LivestockProfitability CSV** export columns: 15 columns matches details table (per 18.4). From/To/Farm passed in route. Realization date basis same rows as UI.
+- **Profit & Loss CSV** — completely untouched. Preserves existing columns, filters, and date basis (PeriodStart/PeriodEnd + existing granularity).
+
+### 18.9 Build & Test Results Table (RFC Gate)
+
+| Metric | Value | Notes |
+|:-------|:-----:|:------|
+| dotnet build Release | 0 Warnings / 0 Errors | — |
+| Architecture Tests | 60 / 60 Passed | 0 Skipped 0 Failed |
+| Integration Tests | 15 / 15 Passed | WebAppFactory / Kestrel |
+| Unit Tests | 322 / 324 Passed | †2 pre-existing intentionally-throwing `PurchaseServiceTests.PostPurchase_*` (unchanged Phase 16/17) — not a regression |
+| HTTP /Account/Login smoke | 200 OK 27,132 bytes | — |
+| HTTP /Reports/Index smoke | 302 auth redirect | Correct |
+| HTTP /Reports/ActiveLivestock smoke | 302 | Correct |
+| HTTP /Reports/SalesByPeriod smoke | 302 | Correct |
+| HTTP /Reports/LivestockProfitability smoke | 302 | Correct |
+| HTTP /Reports/ProfitLoss smoke | 302 | Correct (untouched) |
+| HTTP /Reports/MobileActiveLivestock smoke | 302 | NEW (was 404 before controller append) |
+| HTTP /Reports/MobileSalesByPeriod smoke | 302 | NEW |
+| HTTP /Reports/MobileLivestockProfitability smoke | 302 | NEW |
+| HTTP /Reports/MobileProfitLoss smoke | 302 | Untouched |
+| VS Code GetDiagnostics | [] empty | No C# / CSHTML / JS issues |
+
+### 18.10 Final Reports Tab Status
+
+```
+REPORTS TAB CORRECTIONS READY FOR USER REVIEW
+```
+
+Full independent auditor write-up with root cause analysis, semantic date rules, terminology changes, file-by-file change log, authorization matrix: see `audit/REPORTS_TAB_USER_REVIEW_REPORT.md`.
+
+Profit & Left completely left untouched (zero source code modifications to ProfitLoss view, MobileProfitLoss view, ProfitLossAsync service method, ProfitLoss CSV rows). Per spec Section 1, Section 15, Section 22 completion #25.
+
+Overall release status continues to be **PENDING INDEPENDENT AUDIT** (see Phase 15 gate table).

@@ -9,14 +9,18 @@ using LivestockManager.Application.Common;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Infrastructure.Identity;
+using LivestockManager.Infrastructure.Services;
 
 namespace LivestockManager.Infrastructure.Persistence;
 
 public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, Guid>, IAppDbContext
 {
-    public AppDbContext(DbContextOptions<AppDbContext> options)
+    private readonly ICurrentUserService? _currentUserService;
+
+    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserService? currentUserService = null)
         : base(options)
     {
+        _currentUserService = currentUserService;
     }
 
     public DbSet<Company> Companies => Set<Company>();
@@ -56,6 +60,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
 
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
+        builder.Entity<Company>(b =>
+        {
+            b.OwnsOne(c => c.TaxSettings, ts =>
+            {
+                ts.Property(t => t.TaxRate).HasPrecision(5, 4);
+            });
+        });
+
         ConfigureGlobalFilters(builder);
     }
 
@@ -73,6 +85,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
 
                 var lambda = Expression.Lambda(isDeletedEqualFalse, parameter);
                 builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
+
+                builder.Entity(entityType.ClrType)
+                    .Property(nameof(BaseAuditableEntity.Version))
+                    .IsRowVersion();
             }
         }
     }
@@ -193,75 +209,106 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
         if (auditEntries.Count == 0)
             return;
 
-        var options = new JsonSerializerOptions
+        try
         {
-            WriteIndented = false,
-            DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
-        };
-
-        foreach (var auditEntry in auditEntries)
-        {
-            if (string.IsNullOrWhiteSpace(auditEntry.Action))
+            Guid? currentUserId = _currentUserService?.UserId;
+            Guid? userCompanyId = null;
+            if (currentUserId.HasValue)
             {
-                auditEntry.Action = auditEntry.Entry.State switch
-                {
-                    EntityState.Added => "Create",
-                    EntityState.Deleted => "Delete",
-                    EntityState.Modified => "Update",
-                    _ => auditEntry.Action
-                };
+                userCompanyId = await Users
+                    .Where(u => u.Id == currentUserId.Value)
+                    .Select(u => (Guid?)u.CompanyId)
+                    .FirstOrDefaultAsync(cancellationToken);
             }
 
-            foreach (var property in auditEntry.Entry.Properties)
+            var options = new JsonSerializerOptions
             {
-                var propertyName = property.Metadata.Name;
-                if (propertyName is "Version" or "IsDeleted")
-                    continue;
-
-                if (property.Metadata.IsPrimaryKey())
-                    continue;
-
-                switch (auditEntry.Entry.State)
-                {
-                    case EntityState.Added:
-                        auditEntry.NewValues[propertyName] = property.CurrentValue;
-                        break;
-
-                    case EntityState.Deleted:
-                        auditEntry.OldValues[propertyName] = property.OriginalValue;
-                        break;
-
-                    case EntityState.Modified:
-                        if (property.IsModified)
-                        {
-                            auditEntry.OldValues[propertyName] = property.OriginalValue;
-                            auditEntry.NewValues[propertyName] = property.CurrentValue;
-                        }
-                        break;
-                }
-            }
-
-            if (auditEntry.Action == "Update" && auditEntry.OldValues.Count == 0)
-                continue;
-
-            if (string.IsNullOrWhiteSpace(auditEntry.Action))
-                continue;
-
-            var auditLog = new AuditLog(auditEntry.Action, auditEntry.CreatedAt)
-            {
-                EntityType = auditEntry.EntityType,
-                EntityId = auditEntry.EntityId,
-                OldValuesJson = auditEntry.OldValues.Count > 0 ? JsonSerializer.Serialize(auditEntry.OldValues, options) : null,
-                NewValuesJson = auditEntry.NewValues.Count > 0 ? JsonSerializer.Serialize(auditEntry.NewValues, options) : null,
-                UserId = auditEntry.UserId,
-                CompanyId = auditEntry.CompanyId
+                WriteIndented = false,
+                DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             };
 
-            AuditLogs.Add(auditLog);
-        }
+            foreach (var auditEntry in auditEntries)
+            {
+                if (string.IsNullOrWhiteSpace(auditEntry.Action))
+                {
+                    auditEntry.Action = auditEntry.Entry.State switch
+                    {
+                        EntityState.Added => "Create",
+                        EntityState.Deleted => "Delete",
+                        EntityState.Modified => "Update",
+                        _ => auditEntry.Action
+                    };
+                }
 
-        if (AuditLogs.Local.Count > 0)
-            await base.SaveChangesAsync(cancellationToken);
+                foreach (var property in auditEntry.Entry.Properties)
+                {
+                    var propertyName = property.Metadata.Name;
+                    if (propertyName is "Version" or "IsDeleted")
+                        continue;
+
+                    if (property.Metadata.IsPrimaryKey())
+                        continue;
+
+                    switch (auditEntry.Entry.State)
+                    {
+                        case EntityState.Added:
+                            auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            break;
+
+                        case EntityState.Deleted:
+                            auditEntry.OldValues[propertyName] = property.OriginalValue;
+                            break;
+
+                        case EntityState.Modified:
+                            if (property.IsModified)
+                            {
+                                auditEntry.OldValues[propertyName] = property.OriginalValue;
+                                auditEntry.NewValues[propertyName] = property.CurrentValue;
+                            }
+                            break;
+                    }
+                }
+
+                if (auditEntry.Action == "Update" && auditEntry.OldValues.Count == 0)
+                    continue;
+
+                if (string.IsNullOrWhiteSpace(auditEntry.Action))
+                    continue;
+
+                auditEntry.UserId = currentUserId;
+                auditEntry.CompanyId = userCompanyId ?? GetEntityCompanyId(auditEntry.Entry.Entity);
+
+                var auditLog = new AuditLog(auditEntry.Action, auditEntry.CreatedAt)
+                {
+                    EntityType = auditEntry.EntityType,
+                    EntityId = auditEntry.EntityId,
+                    OldValuesJson = auditEntry.OldValues.Count > 0 ? JsonSerializer.Serialize(auditEntry.OldValues, options) : null,
+                    NewValuesJson = auditEntry.NewValues.Count > 0 ? JsonSerializer.Serialize(auditEntry.NewValues, options) : null,
+                    UserId = auditEntry.UserId,
+                    CompanyId = auditEntry.CompanyId
+                };
+
+                AuditLogs.Add(auditLog);
+            }
+
+            if (AuditLogs.Local.Count > 0)
+                await base.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+        }
+    }
+
+    private static Guid? GetEntityCompanyId(object entity)
+    {
+        if (entity is Company company)
+            return company.Id;
+
+        var property = entity.GetType().GetProperty("CompanyId");
+        if (property != null && property.PropertyType == typeof(Guid) && property.GetValue(entity) is Guid companyId)
+            return companyId;
+
+        return null;
     }
 
     private class AuditEntry

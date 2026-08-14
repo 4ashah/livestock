@@ -99,11 +99,14 @@ else
                 ? $"DRAFT-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
                 : (s.Status == SaleStatus.Cancelled
                     ? $"VOID-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
-                    : $"SALE-{s.Id.ToString("N")[..8].ToUpperInvariant()}"));
+                    : (s.Status == SaleStatus.Reversed
+                        ? $"REVERSED-{s.Id.ToString("N")[..8].ToUpperInvariant()}"
+                        : $"SALE-{s.Id.ToString("N")[..8].ToUpperInvariant()}")));
         var badgeClass = s.Status switch
         {
             SaleStatus.Confirmed => "good",
             SaleStatus.Cancelled => "bad",
+            SaleStatus.Reversed => "bad",
             _ => "info"
         };
         <a class="mob-card clickable" href="@Url.Action("Details", "Sales", new { id = s.Id })">

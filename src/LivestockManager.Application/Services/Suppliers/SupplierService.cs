@@ -62,6 +62,8 @@ public class SupplierService : ISupplierService
     public async Task<SupplierDetailDto> CreateAsync(SupplierCreateDto dto, Guid companyId, CancellationToken ct)
     {
         var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+        if (resolvedCompanyId == Guid.Empty)
+            throw new DomainException("CompanyId is required.");
 
         var duplicate = await _db.Suppliers
             .IgnoreQueryFilters()

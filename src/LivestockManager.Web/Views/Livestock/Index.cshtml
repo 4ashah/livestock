@@ -1,13 +1,14 @@
 @using LivestockManager.Domain.Enums
 @using LivestockManager.Domain.Helpers
+@using LivestockManager.Domain.Common
 @using LivestockManager.Web.Models.LivestockViewModels
 @model LivestockIndexViewModel
 @{
     ViewData["Title"] = "Livestock";
     var getStatusBadge = (Func<LivestockStatus, string>)ViewData["GetStatusBadgeClass"]!;
     var getStatusDesc = (Func<LivestockStatus, string>)ViewData["GetStatusDescription"]!;
-    var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
-    var canDataEntry = canEdit || User.IsInRole("DataEntry");
+    var canEdit = User.IsInRole(RoleNames.CompanyAdministrator) || User.IsInRole(RoleNames.SystemAdministrator) || User.IsInRole(RoleNames.FarmManager);
+    var canDataEntry = canEdit || User.IsInRole(RoleNames.DataEntry);
 }
 
 <div class="d-flex justify-content-between flex-wrap align-items-center pb-2 mb-4 border-bottom">

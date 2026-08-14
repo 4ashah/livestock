@@ -89,45 +89,57 @@ public class PurchaseService : IPurchaseService
         var supplier = await _db.Suppliers.FirstOrDefaultAsync(s => s.Id == dto.SupplierId && s.CompanyId == resolvedCompanyId, ct)
             ?? throw new DomainException("Supplier not found.");
 
-        var purchase = new DE.Purchase(resolvedCompanyId, dto.FarmId, dto.SupplierId, dto.PurchaseDate)
+        using var tx = await _db.BeginTransactionAsync(ct);
+        DE.Purchase purchase = null!;
+        try
         {
-            SupplierReference = dto.SupplierReference,
-            Currency = dto.Currency ?? Currency.USD,
-            DiscountPct = dto.DiscountPct ?? 0,
-            TaxRate = dto.TaxRate ?? 0,
-            PaymentStatus = dto.PaymentStatus,
-            Notes = dto.Notes,
-            DocumentId = dto.DocumentId,
-            Status = PurchaseStatus.Draft
-        };
-
-        _db.Purchases.Add(purchase);
-        await _db.SaveChangesAsync(ct);
-
-        var items = new List<DE.PurchaseItem>();
-        foreach (var itemDto in dto.Items)
-        {
-            var lineNo = itemDto.LineNo ?? (items.Count + 1);
-            var item = new DE.PurchaseItem(purchase.Id, lineNo, itemDto.ItemType, itemDto.Quantity, itemDto.UnitCost)
+            purchase = new DE.Purchase(resolvedCompanyId, dto.FarmId, dto.SupplierId, dto.PurchaseDate)
             {
-                Description = itemDto.Description,
-                UnitWeight = itemDto.UnitWeight ?? 0,
-                WeightUnit = itemDto.WeightUnit ?? WeightUnit.Kg,
-                DiscountPct = itemDto.DiscountPct ?? 0,
-                TaxRate = itemDto.TaxRate ?? 0,
-                LivestockId = itemDto.LivestockId
+                SupplierReference = dto.SupplierReference,
+                Currency = dto.Currency ?? Currency.USD,
+                DiscountPct = dto.DiscountPct ?? 0,
+                TaxRate = dto.TaxRate ?? 0,
+                PaymentStatus = dto.PaymentStatus,
+                Notes = dto.Notes,
+                DocumentId = dto.DocumentId,
+                Status = PurchaseStatus.Draft
             };
-            CalculateItemTotals(item);
-            _db.PurchaseItems.Add(item);
-            items.Add(item);
+
+            _db.Purchases.Add(purchase);
+            await _db.SaveChangesAsync(ct);
+
+            var items = new List<DE.PurchaseItem>();
+            foreach (var itemDto in dto.Items)
+            {
+                var lineNo = itemDto.LineNo ?? (items.Count + 1);
+                var item = new DE.PurchaseItem(purchase.Id, lineNo, itemDto.ItemType, itemDto.Quantity, itemDto.UnitCost)
+                {
+                    Description = itemDto.Description,
+                    UnitWeight = itemDto.UnitWeight ?? 0,
+                    WeightUnit = itemDto.WeightUnit ?? WeightUnit.Kg,
+                    DiscountPct = itemDto.DiscountPct ?? 0,
+                    TaxRate = itemDto.TaxRate ?? 0,
+                    LivestockId = itemDto.LivestockId
+                };
+                CalculateItemTotals(item);
+                _db.PurchaseItems.Add(item);
+                items.Add(item);
+            }
+
+            await _db.SaveChangesAsync(ct);
+
+            purchase.Items = items;
+            UpdatePurchaseTotals(purchase);
+            purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
+            await _db.SaveChangesAsync(ct);
+
+            await tx.CommitAsync(ct);
         }
-
-        await _db.SaveChangesAsync(ct);
-
-        purchase.Items = items;
-        UpdatePurchaseTotals(purchase);
-        purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
-        await _db.SaveChangesAsync(ct);
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
 
         return await GetByIdAsync(purchase.Id, resolvedCompanyId, ct);
     }
@@ -140,27 +152,38 @@ public class PurchaseService : IPurchaseService
         if (purchase.Status != PurchaseStatus.Draft)
             throw new DomainException("Only draft purchases can be modified.");
 
-        var existingItems = await _db.PurchaseItems.Where(i => i.PurchaseId == purchaseId).ToListAsync(ct);
-        var nextLineNo = itemDto.LineNo ?? (existingItems.Max(i => (int?)i.LineNo) ?? 0) + 1;
-
-        var item = new DE.PurchaseItem(purchase.Id, nextLineNo, itemDto.ItemType, itemDto.Quantity, itemDto.UnitCost)
+        using var tx = await _db.BeginTransactionAsync(ct);
+        try
         {
-            Description = itemDto.Description,
-            UnitWeight = itemDto.UnitWeight ?? 0,
-            WeightUnit = itemDto.WeightUnit ?? WeightUnit.Kg,
-            DiscountPct = itemDto.DiscountPct ?? 0,
-            TaxRate = itemDto.TaxRate ?? 0,
-            LivestockId = itemDto.LivestockId
-        };
-        CalculateItemTotals(item);
-        _db.PurchaseItems.Add(item);
-        await _db.SaveChangesAsync(ct);
+            var existingItems = await _db.PurchaseItems.Where(i => i.PurchaseId == purchaseId).ToListAsync(ct);
+            var nextLineNo = itemDto.LineNo ?? (existingItems.Max(i => (int?)i.LineNo) ?? 0) + 1;
 
-        existingItems.Add(item);
-        purchase.Items = existingItems;
-        UpdatePurchaseTotals(purchase);
-        purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
-        await _db.SaveChangesAsync(ct);
+            var item = new DE.PurchaseItem(purchase.Id, nextLineNo, itemDto.ItemType, itemDto.Quantity, itemDto.UnitCost)
+            {
+                Description = itemDto.Description,
+                UnitWeight = itemDto.UnitWeight ?? 0,
+                WeightUnit = itemDto.WeightUnit ?? WeightUnit.Kg,
+                DiscountPct = itemDto.DiscountPct ?? 0,
+                TaxRate = itemDto.TaxRate ?? 0,
+                LivestockId = itemDto.LivestockId
+            };
+            CalculateItemTotals(item);
+            _db.PurchaseItems.Add(item);
+            await _db.SaveChangesAsync(ct);
+
+            existingItems.Add(item);
+            purchase.Items = existingItems;
+            UpdatePurchaseTotals(purchase);
+            purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
+            await _db.SaveChangesAsync(ct);
+
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
 
         return await GetByIdAsync(purchaseId, companyId, ct);
     }
@@ -173,17 +196,28 @@ public class PurchaseService : IPurchaseService
         if (purchase.Status != PurchaseStatus.Draft)
             throw new DomainException("Only draft purchases can be modified.");
 
-        var item = await _db.PurchaseItems.FirstOrDefaultAsync(i => i.Id == purchaseItemId && i.PurchaseId == purchaseId, ct)
-            ?? throw new DomainException("Purchase item not found.");
+        using var tx = await _db.BeginTransactionAsync(ct);
+        try
+        {
+            var item = await _db.PurchaseItems.FirstOrDefaultAsync(i => i.Id == purchaseItemId && i.PurchaseId == purchaseId, ct)
+                ?? throw new DomainException("Purchase item not found.");
 
-        _db.PurchaseItems.Remove(item);
-        await _db.SaveChangesAsync(ct);
+            _db.PurchaseItems.Remove(item);
+            await _db.SaveChangesAsync(ct);
 
-        var remainingItems = await _db.PurchaseItems.Where(i => i.PurchaseId == purchaseId).ToListAsync(ct);
-        purchase.Items = remainingItems;
-        UpdatePurchaseTotals(purchase);
-        purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
-        await _db.SaveChangesAsync(ct);
+            var remainingItems = await _db.PurchaseItems.Where(i => i.PurchaseId == purchaseId).ToListAsync(ct);
+            purchase.Items = remainingItems;
+            UpdatePurchaseTotals(purchase);
+            purchase.OutstandingAmount = purchase.GrandTotal - purchase.AmountPaid;
+            await _db.SaveChangesAsync(ct);
+
+            await tx.CommitAsync(ct);
+        }
+        catch
+        {
+            await tx.RollbackAsync(ct);
+            throw;
+        }
 
         return await GetByIdAsync(purchaseId, companyId, ct);
     }

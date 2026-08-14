@@ -135,7 +135,8 @@ public static class TrueTypeFontValidator
         }
         finally
         {
-            try { fontStream.Position = originalPos; } catch { }
+            try { fontStream.Position = originalPos; }
+            catch (Exception ex) { Console.Error.WriteLine("[WARN][FONT] Failed to restore font stream position: " + ex.Message); }
         }
     }
 

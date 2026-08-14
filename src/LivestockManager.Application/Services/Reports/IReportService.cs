@@ -23,5 +23,8 @@ public interface IReportService
     Task<IList<(Guid? FarmId, string? FarmName, int Count, decimal TotalValue)>> DischargesAsync(Guid companyId, DateTimeOffset from, DateTimeOffset to, DischargeCondition? condition, CancellationToken ct);
     Task<IList<(Guid CustomerId, string CustomerName, decimal Balance)>> OutstandingBalancesAsync(Guid companyId, CancellationToken ct);
     Task<byte[]> ExportCsv<T>(IEnumerable<T> rows);
-    Task<ProfitLossReportDto> ProfitLossAsync(Guid companyId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct);
+    Task<ProfitLossReportDto> ProfitLossAsync(Guid companyId, Guid? farmId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct);
+    Task<IList<ActiveLivestockByTypeReportDto>> ActiveLivestockByTypeReportAsync(Guid companyId, Guid? farmId, CancellationToken ct);
+    Task<SalesByPeriodReportDto> SalesByPeriodReportAsync(Guid companyId, DateTimeOffset fromDate, DateTimeOffset toDate, Guid? farmId, Guid? customerId, string? status, CancellationToken ct);
+    Task<IList<LivestockProfitabilityReportRowDto>> LivestockProfitabilityWithDatesAsync(Guid companyId, Guid? farmId, DateTimeOffset? fromDate, DateTimeOffset? toDate, CancellationToken ct);
 }

@@ -3,7 +3,7 @@
 @model FarmDetailsViewModel
 @{
     ViewData["Title"] = "Farm Details";
-    var canEdit = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("FarmManager");
+    var canEdit = User.IsInRole(RoleNames.CompanyAdministrator) || User.IsInRole(RoleNames.SystemAdministrator) || User.IsInRole(RoleNames.FarmManager);
     bool hasAddress = !string.IsNullOrWhiteSpace(Model.Street1) ||
                       !string.IsNullOrWhiteSpace(Model.City) ||
                       !string.IsNullOrWhiteSpace(Model.State) ||

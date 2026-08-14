@@ -1,4 +1,5 @@
 @model LivestockManager.Application.DTOs.Reports.ProfitLossReportDto
+@using LivestockManager.Application.DTOs.Farms
 @{
     Layout = "_MobileLayout";
     ViewData["Title"] = "Profit & Loss";
@@ -8,6 +9,8 @@
 
     var fromStr = ViewData["From"] as string ?? string.Empty;
     var toStr = ViewData["To"] as string ?? string.Empty;
+    var farms = ViewData["Farms"] as IList<FarmSummaryDto> ?? new List<FarmSummaryDto>();
+    var farmId = ViewData["FarmId"] as Guid?;
 }
 
 <div class="mob-card">
@@ -27,6 +30,17 @@
                 </div>
             </div>
         </div>
+        <div class="mob-field">
+            <label>Farm</label>
+            <select name="farmId">
+                <option value="">All Farms</option>
+                @foreach (var f in farms)
+                {
+                    var selected = farmId == f.Id;
+                    <option value="@f.Id" selected="@selected">@f.Name</option>
+                }
+            </select>
+        </div>
         <div class="chip-tabs">
             @{
                 var today = DateTime.Today;
@@ -37,11 +51,12 @@
                 var lastYrEnd = new DateTime(today.Year - 1, 12, 31);
                 var ytdStart = new DateTime(today.Year, 1, 1);
                 var ytdEnd = new DateTime(today.Year, 12, 31);
+                var farmIdStr = farmId.HasValue ? farmId.Value.ToString() : "";
             }
-            <a asp-action="MobileProfitLoss" asp-route-from="@monthStart.ToString("yyyy-MM-dd")" asp-route-to="@today.ToString("yyyy-MM-dd")" class="chip-tab">MTD</a>
-            <a asp-action="MobileProfitLoss" asp-route-from="@lastMoStart.ToString("yyyy-MM-dd")" asp-route-to="@lastMoEnd.ToString("yyyy-MM-dd")" class="chip-tab">Last Mo</a>
-            <a asp-action="MobileProfitLoss" asp-route-from="@lastYrStart.ToString("yyyy-MM-dd")" asp-route-to="@lastYrEnd.ToString("yyyy-MM-dd")" class="chip-tab">Last Yr</a>
-            <a asp-action="MobileProfitLoss" asp-route-from="@ytdStart.ToString("yyyy-MM-dd")" asp-route-to="@ytdEnd.ToString("yyyy-MM-dd")" class="chip-tab">YTD</a>
+            <a asp-action="MobileProfitLoss" asp-route-from="@monthStart.ToString("yyyy-MM-dd")" asp-route-to="@today.ToString("yyyy-MM-dd")" asp-route-farmId="@farmIdStr" class="chip-tab">MTD</a>
+            <a asp-action="MobileProfitLoss" asp-route-from="@lastMoStart.ToString("yyyy-MM-dd")" asp-route-to="@lastMoEnd.ToString("yyyy-MM-dd")" asp-route-farmId="@farmIdStr" class="chip-tab">Last Mo</a>
+            <a asp-action="MobileProfitLoss" asp-route-from="@lastYrStart.ToString("yyyy-MM-dd")" asp-route-to="@lastYrEnd.ToString("yyyy-MM-dd")" asp-route-farmId="@farmIdStr" class="chip-tab">Last Yr</a>
+            <a asp-action="MobileProfitLoss" asp-route-from="@ytdStart.ToString("yyyy-MM-dd")" asp-route-to="@ytdEnd.ToString("yyyy-MM-dd")" asp-route-farmId="@farmIdStr" class="chip-tab">YTD</a>
         </div>
         <div class="f-row">
             <a asp-action="MobileProfitLoss" class="mob-btn ghost">Reset</a>

@@ -1,0 +1,89 @@
+@using LivestockManager.Application.DTOs.Farms
+@using LivestockManager.Application.DTOs.Reports
+@using LivestockManager.Domain.Helpers
+@model IList<ActiveLivestockByTypeReportDto>
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Active Livestock";
+    ViewData["PageIcon"] = "🐑";
+    ViewData["PageSubtitle"] = "Active head by livestock type";
+    ViewData["DockKey"] = "active";
+
+    var farms = ViewData["Farms"] as IList<FarmSummaryDto> ?? new List<FarmSummaryDto>();
+    var farmId = ViewData["FarmId"] as Guid?;
+    var total = Model.Sum(r => r.Count);
+}
+
+<div class="chip-tabs">
+    <a asp-action="MobileActiveLivestock"
+       asp-route-format="csv"
+       asp-route-farmId="@(farmId.HasValue ? farmId.ToString() : "")"
+       class="chip-tab">⬇ Export CSV</a>
+</div>
+
+<div class="mob-card">
+    <div class="mob-card-title">🔍 Filters</div>
+    <form method="get" asp-action="MobileActiveLivestock">
+        <div class="mob-field">
+            <label>Farm</label>
+            <select name="farmId">
+                <option value="">All Farms</option>
+                @foreach (var f in farms)
+                {
+                    var selected = farmId == f.Id;
+                    var label = string.IsNullOrWhiteSpace(f.Code) ? f.Name : $"{f.Name} ({f.Code})";
+                    <option value="@f.Id" selected="@selected">@label</option>
+                }
+            </select>
+        </div>
+        <div class="f-row">
+            <a asp-action="MobileActiveLivestock" class="mob-btn ghost">Reset</a>
+            <button type="submit" class="mob-btn primary">🔍 Apply</button>
+        </div>
+    </form>
+</div>
+
+<div class="mob-totals-card">
+    <div class="label">Total Number Active</div>
+    <div class="total">@total.ToString("N0")</div>
+    @if (farmId.HasValue)
+    {
+        <div class="breakdown">
+            <div><div class="k">Filter</div><div class="v">by farm</div></div>
+        </div>
+    }
+</div>
+
+@if (Model.Count == 0)
+{
+    <div class="mob-card">
+        <div class="mob-card-title">📋 Livestock by Type</div>
+        <div style="text-align:center;padding:2rem 1rem;color:#6b7280;font-size:0.9rem;">
+            No active livestock found for these filters.
+        </div>
+    </div>
+}
+else
+{
+    @foreach (var r in Model)
+    {
+        <div class="mob-card">
+            <div class="mob-card-title">@LivestockTypeDisplay.GetDisplayName(r.LivestockType)</div>
+            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                    <div style="font-size:0.85rem;color:#6b7280;">Count</div>
+                    <div style="font-size:1.6rem;font-weight:700;">@r.Count.ToString("N0")</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:0.35rem;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.85rem;">
+                        <span style="color:#6b7280;">% of Total</span>
+                        <span style="font-weight:600;">@PercentageDisplay.Format(r.PercentageOfTotal / 100m)</span>
+                    </div>
+                    <div style="width:100%;height:8px;background:#e5e7eb;border-radius:4px;overflow:hidden;">
+                        <div style="height:100%;width:@r.PercentageOfTotal%;background:#00a896;border-radius:4px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+}

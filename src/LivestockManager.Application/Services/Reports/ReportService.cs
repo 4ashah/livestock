@@ -7,6 +7,7 @@ using LivestockManager.Application.Services.Expenses;
 using LivestockManager.Domain.Abstractions;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Enums;
+using LivestockManager.Domain.Helpers;
 using Microsoft.EntityFrameworkCore;
 
 namespace LivestockManager.Application.Services.Reports;
@@ -187,6 +188,11 @@ public class ReportService : IReportService
 
         var soldLivestock = await query
             .Where(l => l.Status == LivestockStatus.DischargedSold)
+            .Include(l => l.Farm)
+            .Include(l => l.SaleItem!)
+                .ThenInclude(si => si.Sale!)
+                .ThenInclude(s => s.Farm!)
+            .AsNoTracking()
             .ToListAsync(ct);
 
         var soldLivestockIds = soldLivestock.Select(l => l.Id).ToList();
@@ -258,7 +264,19 @@ public class ReportService : IReportService
             var directExpenses = directExpensesByLivestock.TryGetValue(l.Id, out var de) ? de : 0m;
             var saleAmount = l.SoldAmount ?? 0m;
             var basicProfit = saleAmount - l.PurchaseAmount;
-            var completeProfit = basicProfit - directExpenses;
+
+            var additionalAcquisitionCosts = l.AllocatedCommission + l.AllocatedTax + l.AllocatedTransportation + l.AllocatedOtherCost;
+            var sale = l.SaleItem?.Sale;
+            var saleFarm = sale?.Farm ?? l.Farm;
+            var saleFarmId = sale?.FarmId ?? l.FarmId;
+            var saleFarmName = saleFarm?.Name;
+            var saleDate = sale?.Date ?? l.DischargeDate;
+            var additionalSaleCosts = sale?.TotalAdditionalSaleCosts ?? 0m;
+            var netSaleProceeds = l.SaleItem != null ? l.SaleItem.NetSaleProceeds : (sale?.NetSaleProceeds ?? saleAmount);
+            var totalAcquisitionCost = l.TotalAcquisitionCost != 0m
+                ? l.TotalAcquisitionCost
+                : l.PurchaseAmount + additionalAcquisitionCosts;
+            var completeProfit = netSaleProceeds - totalAcquisitionCost - directExpenses;
 
             result.Add(new LivestockProfitabilityReportRowDto
             {
@@ -271,7 +289,14 @@ public class ReportService : IReportService
                 DirectExpenses = directExpenses,
                 BasicProfitLoss = basicProfit,
                 CompleteProfitLoss = completeProfit,
-                Status = l.Status
+                Status = l.Status,
+                SaleFarmId = saleFarmId,
+                SaleFarmName = saleFarmName,
+                SaleDate = saleDate,
+                AdditionalAcquisitionCosts = additionalAcquisitionCosts,
+                TotalAcquisitionCosts = totalAcquisitionCost,
+                AdditionalSaleCosts = additionalSaleCosts,
+                NetSaleProceeds = netSaleProceeds
             });
         }
 
@@ -438,31 +463,7 @@ public class ReportService : IReportService
 
     public async Task<IList<LivestockProfitabilityReportRowDto>> LivestockProfitabilityAsync(Guid companyId, Guid? farmId, CancellationToken ct)
     {
-        var query = _db.Livestock.Where(l => l.CompanyId == companyId);
-        if (farmId.HasValue)
-            query = query.Where(l => l.FarmId == farmId.Value);
-
-        var livestockList = await query.ToListAsync(ct);
-        var result = new List<LivestockProfitabilityReportRowDto>();
-
-        foreach (var l in livestockList)
-        {
-            result.Add(new LivestockProfitabilityReportRowDto
-            {
-                LivestockId = l.Id,
-                LivestockDisplayId = l.LivestockId,
-                Type = l.LivestockTypeId,
-                AcquisitionDate = l.AcquisitionDate,
-                PurchaseAmount = l.PurchaseAmount,
-                SoldAmount = l.SoldAmount,
-                DirectExpenses = 0,
-                BasicProfitLoss = l.BasicProfitLoss,
-                CompleteProfitLoss = l.BasicProfitLoss,
-                Status = l.Status
-            });
-        }
-
-        return result;
+        return await CompleteLivestockProfitabilityAsync(companyId, farmId, null, null, ct);
     }
 
     public async Task<IList<FarmProfitabilityReportRowDto>> FarmProfitabilityAsync(Guid companyId, CancellationToken ct)
@@ -688,7 +689,7 @@ public class ReportService : IReportService
         return Task.FromResult(Encoding.UTF8.GetBytes(sb.ToString()));
     }
 
-    public async Task<ProfitLossReportDto> ProfitLossAsync(Guid companyId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
+    public async Task<ProfitLossReportDto> ProfitLossAsync(Guid companyId, Guid? farmId, DateTimeOffset from, DateTimeOffset to, CancellationToken ct)
     {
         var result = new ProfitLossReportDto
         {
@@ -696,12 +697,27 @@ public class ReportService : IReportService
             ToDate = to
         };
 
+        var authorizedFarmIds = await _db.Farms
+            .Where(f => f.CompanyId == companyId)
+            .Select(f => f.Id)
+            .ToListAsync(ct);
+
+        if (farmId.HasValue && !authorizedFarmIds.Contains(farmId.Value))
+        {
+            return result;
+        }
+
         SaleStatus[] validSaleStatuses = [SaleStatus.Confirmed, SaleStatus.Completed];
-        var salesWithinPeriod = await _db.Sales
+        var salesQuery = _db.Sales
             .Where(s => s.CompanyId == companyId
                 && s.Date >= from
                 && s.Date <= to
-                && validSaleStatuses.Contains(s.Status))
+                && validSaleStatuses.Contains(s.Status));
+
+        if (farmId.HasValue)
+            salesQuery = salesQuery.Where(s => s.FarmId == farmId.Value);
+
+        var salesWithinPeriod = await salesQuery
             .Select(s => new { s.Id, s.Date, s.GrandTotal })
             .ToListAsync(ct);
 
@@ -716,30 +732,40 @@ public class ReportService : IReportService
                 .CountAsync(ct);
         }
 
-        var purchasesWithinPeriod = await _db.Purchases
+        var purchasesQuery = _db.Purchases
             .Where(p => p.CompanyId == companyId
                 && p.PurchaseDate >= from
                 && p.PurchaseDate <= to
-                && p.Status == PurchaseStatus.Posted)
+                && p.Status == PurchaseStatus.Posted);
+
+        if (farmId.HasValue)
+            purchasesQuery = purchasesQuery.Where(p => p.FarmId == farmId.Value);
+
+        var purchasesWithinPeriod = await purchasesQuery
             .Select(p => new { p.Id, p.GrandTotal })
             .ToListAsync(ct);
 
         result.TotalPurchases = purchasesWithinPeriod.Sum(p => p.GrandTotal);
         result.PurchaseCount = purchasesWithinPeriod.Count;
 
-        var lossesWithinPeriod = await _db.LivestockLosses
+        var lossesQuery = _db.LivestockLosses
             .Where(l => l.CompanyId == companyId
                 && l.LossDate >= from
                 && l.LossDate <= to
-                && !l.IsReversed)
+                && !l.IsReversed);
+
+        if (farmId.HasValue)
+            lossesQuery = lossesQuery.Where(l => l.FarmId == farmId.Value);
+
+        var lossesWithinPeriod = await lossesQuery
             .Select(l => new { l.Id, l.LossAmount })
             .ToListAsync(ct);
 
         result.TotalLosses = lossesWithinPeriod.Sum(l => l.LossAmount);
         result.LossCount = lossesWithinPeriod.Count;
 
-        var dischargedLostLivestock = await _db.Livestock
-            .CountAsync(l =>
+        var dischargedLostQuery = _db.Livestock
+            .Where(l =>
                 l.CompanyId == companyId
                 && (l.Status == LivestockStatus.DischargedLost
                     || l.Status == LivestockStatus.DischargedStolen
@@ -747,15 +773,25 @@ public class ReportService : IReportService
                     || l.Status == LivestockStatus.DischargedOther)
                 && l.DischargeDate.HasValue
                 && l.DischargeDate.Value >= from
-                && l.DischargeDate.Value <= to, ct);
+                && l.DischargeDate.Value <= to);
+
+        if (farmId.HasValue)
+            dischargedLostQuery = dischargedLostQuery.Where(l => l.FarmId == farmId.Value);
+
+        var dischargedLostLivestock = await dischargedLostQuery.CountAsync(ct);
 
         result.LostHead = Math.Max(result.LossCount, dischargedLostLivestock);
 
-        var expensesWithinPeriod = await _db.Expenses
+        var expensesQuery = _db.Expenses
             .Where(e => e.CompanyId == companyId
                 && !e.IsDeleted
                 && e.ExpenseDate >= from
-                && e.ExpenseDate <= to)
+                && e.ExpenseDate <= to);
+
+        if (farmId.HasValue)
+            expensesQuery = expensesQuery.Where(e => e.FarmId == farmId.Value);
+
+        var expensesWithinPeriod = await expensesQuery
             .Select(e => new { e.Id, e.Total })
             .ToListAsync(ct);
 
@@ -767,6 +803,172 @@ public class ReportService : IReportService
         result.NetProfit = result.OperatingProfit - result.TotalLosses;
 
         return result;
+    }
+
+    public async Task<IList<ActiveLivestockByTypeReportDto>> ActiveLivestockByTypeReportAsync(
+        Guid companyId,
+        Guid? farmId,
+        CancellationToken ct)
+    {
+        var authorizedFarmIds = await _db.Farms
+            .Where(f => f.CompanyId == companyId)
+            .Select(f => f.Id)
+            .ToListAsync(ct);
+
+        if (farmId.HasValue && !authorizedFarmIds.Contains(farmId.Value))
+        {
+            return new List<ActiveLivestockByTypeReportDto>();
+        }
+
+        var query = _db.Livestock.Where(l => l.CompanyId == companyId && l.Status == LivestockStatus.Active);
+        if (farmId.HasValue)
+            query = query.Where(l => l.FarmId == farmId.Value);
+
+        var rows = await query
+            .AsNoTracking()
+            .GroupBy(l => l.LivestockTypeId)
+            .Select(g => new { Type = g.Key, Count = g.Count() })
+            .ToListAsync(ct);
+
+        var totalCount = rows.Sum(r => r.Count);
+
+        var result = new List<ActiveLivestockByTypeReportDto>();
+        foreach (var row in rows)
+        {
+            result.Add(new ActiveLivestockByTypeReportDto
+            {
+                LivestockType = row.Type,
+                TypeCode = row.Type.GetCode(),
+                TypeLabel = row.Type.GetDisplayName(),
+                Count = row.Count,
+                PercentageOfTotal = totalCount > 0 ? Math.Round((decimal)row.Count / totalCount * 100, 2) : 0,
+                CountFilteredTotalContext = totalCount
+            });
+        }
+
+        return result;
+    }
+
+    public async Task<SalesByPeriodReportDto> SalesByPeriodReportAsync(
+        Guid companyId,
+        DateTimeOffset fromDate,
+        DateTimeOffset toDate,
+        Guid? farmId,
+        Guid? customerId,
+        string? status,
+        CancellationToken ct)
+    {
+        var authorizedFarmIds = await _db.Farms
+            .Where(f => f.CompanyId == companyId)
+            .Select(f => f.Id)
+            .ToListAsync(ct);
+
+        if (farmId.HasValue && !authorizedFarmIds.Contains(farmId.Value))
+        {
+            return new SalesByPeriodReportDto
+            {
+                FromDate = fromDate,
+                ToDate = toDate
+            };
+        }
+
+        SaleStatus[] validSaleStatuses = [SaleStatus.Confirmed, SaleStatus.Completed];
+
+        var salesQuery = _db.Sales
+            .Where(s => s.CompanyId == companyId
+                && s.Date >= fromDate
+                && s.Date <= toDate
+                && validSaleStatuses.Contains(s.Status));
+
+        if (farmId.HasValue)
+            salesQuery = salesQuery.Where(s => s.FarmId == farmId.Value);
+
+        if (customerId.HasValue)
+            salesQuery = salesQuery.Where(s => s.CustomerId == customerId.Value);
+
+        if (!string.IsNullOrWhiteSpace(status)
+            && Enum.TryParse<SaleStatus>(status, true, out var requestedStatus)
+            && (requestedStatus == SaleStatus.Confirmed || requestedStatus == SaleStatus.Completed))
+        {
+            salesQuery = salesQuery.Where(s => s.Status == requestedStatus);
+        }
+
+        var sales = await salesQuery
+            .Include(s => s.Farm)
+            .Include(s => s.Customer)
+            .Include(s => s.Items)
+            .AsNoTracking()
+            .ToListAsync(ct);
+
+        var saleIds = sales.Select(s => s.Id).ToList();
+
+        var livestockCountBySale = new Dictionary<Guid, int>();
+        if (saleIds.Count > 0)
+        {
+            livestockCountBySale = await _db.SaleItems
+                .Where(si => saleIds.Contains(si.SaleId) && si.LivestockId.HasValue)
+                .GroupBy(si => si.SaleId)
+                .Select(g => new { SaleId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(g => g.SaleId, g => g.Count, ct);
+        }
+
+        var farmGroups = sales
+            .GroupBy(s => new { s.FarmId, FarmName = s.Farm != null ? s.Farm.Name : "(Unassigned)" })
+            .Select(g => new
+            {
+                g.Key.FarmId,
+                g.Key.FarmName,
+                NumberSold = g.Sum(s => livestockCountBySale.TryGetValue(s.Id, out var cnt) ? cnt : 0),
+                GrossSalesAmount = g.Sum(s => s.GrandTotal),
+                AdditionalSaleCosts = g.Sum(s => s.TotalAdditionalSaleCosts),
+                NetSaleProceeds = g.Sum(s => s.NetSaleProceeds)
+            })
+            .ToList();
+
+        var farmSummaries = farmGroups.Select(fg => new SalesByPeriodFarmSummaryDto
+        {
+            FarmId = fg.FarmId,
+            FarmName = fg.FarmName,
+            NumberSold = fg.NumberSold,
+            GrossSalesAmount = fg.GrossSalesAmount,
+            AdditionalSaleCosts = fg.AdditionalSaleCosts,
+            NetSaleProceeds = fg.NetSaleProceeds
+        }).ToList();
+
+        var saleDetails = sales.Select(s => new SalesByPeriodSaleDetailDto
+        {
+            SaleDate = s.Date,
+            SaleNumber = s.SaleNumber ?? s.Id.ToString(),
+            FarmId = s.FarmId,
+            FarmName = s.Farm != null ? s.Farm.Name : "(Unassigned)",
+            CustomerName = s.Customer != null ? s.Customer.Name : "(Unknown)",
+            NumberSold = livestockCountBySale.TryGetValue(s.Id, out var cnt) ? cnt : 0,
+            GrossSaleAmount = s.GrandTotal,
+            Status = s.Status,
+            SaleId = s.Id
+        }).ToList();
+
+        return new SalesByPeriodReportDto
+        {
+            FromDate = fromDate,
+            ToDate = toDate,
+            TotalNumberSold = farmSummaries.Sum(f => f.NumberSold),
+            TotalGrossSalesAmount = sales.Sum(s => s.GrandTotal),
+            TotalAdditionalSaleCosts = sales.Sum(s => s.TotalAdditionalSaleCosts),
+            TotalNetSaleProceeds = sales.Sum(s => s.NetSaleProceeds),
+            FarmSummaries = farmSummaries,
+            SaleDetails = saleDetails
+        };
+    }
+
+    public async Task<IList<LivestockProfitabilityReportRowDto>> LivestockProfitabilityWithDatesAsync(
+        Guid companyId,
+        Guid? farmId,
+        DateTimeOffset? fromDate,
+        DateTimeOffset? toDate,
+        CancellationToken ct)
+    {
+        return await CompleteLivestockProfitabilityAsync(companyId, farmId, fromDate, toDate, ct);
     }
 }
 

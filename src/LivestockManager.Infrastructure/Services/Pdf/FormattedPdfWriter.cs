@@ -134,9 +134,19 @@ public class FormattedPdfWriter : IPdfGenerator
                     _fontsAvailable = false;
                 }
             }
-            catch
+            catch (Exception ex)
             {
                 _fontsAvailable = false;
+                try
+                {
+                    Console.Error.WriteLine(
+                        "[WARN][PDF] Failed to load embedded TrueType font assets: " + ex + " " +
+                        "Unicode PDF rendering disabled; using safe basic WinAnsi Helvetica fallback."
+                    );
+                }
+                catch
+                {
+                }
             }
         }
     }

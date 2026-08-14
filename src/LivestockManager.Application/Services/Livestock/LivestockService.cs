@@ -41,10 +41,7 @@ public class LivestockService : ILivestockService
 
         var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
         if (resolvedCompanyId == Guid.Empty)
-        {
-            var defaultCompany = await _db.Companies.FirstAsync(ct);
-            resolvedCompanyId = defaultCompany.Id;
-        }
+            throw new DomainException("Invalid company scope.");
 
         var livestockId = await _sequenceGenerator.GenerateLivestockIdAsync(resolvedCompanyId, dto.LivestockType);
 

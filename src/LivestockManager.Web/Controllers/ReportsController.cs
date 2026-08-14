@@ -2,8 +2,12 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using LivestockManager.Application.Common;
+using LivestockManager.Application.DTOs.Farms;
+using LivestockManager.Application.DTOs.Reports;
+using LivestockManager.Application.Services.Customers;
 using LivestockManager.Application.Services.Farms;
 using LivestockManager.Application.Services.Reports;
+using LivestockManager.Domain.Helpers;
 using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
@@ -13,15 +17,18 @@ public class ReportsController : Controller
 {
     private readonly IReportService _reportService;
     private readonly IFarmService _farmService;
+    private readonly ICustomerService _customerService;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public ReportsController(
         IReportService reportService,
         IFarmService farmService,
+        ICustomerService customerService,
         UserManager<ApplicationUser> userManager)
     {
         _reportService = reportService;
         _farmService = farmService;
+        _customerService = customerService;
         _userManager = userManager;
     }
 
@@ -43,19 +50,19 @@ public class ReportsController : Controller
     public async Task<IActionResult> ActiveLivestock(Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
-        var byType = await _reportService.ActiveLivestockByTypeAsync(companyId, farmId, ct);
+        var rows = await _reportService.ActiveLivestockByTypeReportAsync(companyId, farmId, ct);
         ViewData["FarmId"] = farmId;
         ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
 
-        var rows = byType.Select(t => new
-        {
-            Type = t.Type.ToString(),
-            Count = t.Count
-        }).ToList();
-
         if (format?.Equals("csv", StringComparison.OrdinalIgnoreCase) == true)
         {
-            var bytes = CsvExporter.Write(rows, new[] { "Livestock Type", "Active Count" });
+            var csvRows = rows.Select(r => new
+            {
+                LivestockType = r.TypeLabel,
+                ActiveCount = r.Count,
+                PercentageOfTotal = r.PercentageOfTotal
+            }).ToList();
+            var bytes = CsvExporter.Write(csvRows, new[] { "Livestock Type", "Active Count", "% of Total" });
             return File(bytes, "text/csv", "ActiveLivestockByType.csv");
         }
 
@@ -64,7 +71,7 @@ public class ReportsController : Controller
 
     [HttpGet]
     [Authorize(Policy = "CanViewFinancialData")]
-    public async Task<IActionResult> SalesByPeriod(DateTime? from, DateTime? to, string? format, CancellationToken ct)
+    public async Task<IActionResult> SalesByPeriod(DateTime? from, DateTime? to, Guid? farmId, Guid? customerId, string? status, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
         var fromDate = from.HasValue
@@ -74,55 +81,72 @@ public class ReportsController : Controller
             ? to.Value.AsUtcDayEnd()
             : DateTimeOffset.UtcNow;
 
-        var discharges = await _reportService.DischargesAsync(companyId, fromDate, toDate,
-            Domain.Enums.DischargeCondition.Sold, ct);
-
-        var rows = discharges.Select(d => new
-        {
-            FarmId = d.FarmId?.ToString() ?? string.Empty,
-            FarmName = d.FarmName ?? "(All)",
-            SoldCount = d.Count,
-            TotalValue = d.TotalValue.ToString("F2")
-        }).ToList();
-
+        var report = await _reportService.SalesByPeriodReportAsync(companyId, fromDate, toDate, farmId, customerId, status, ct);
         ViewData["From"] = from?.ToString("yyyy-MM-dd") ?? fromDate.ToString("yyyy-MM-dd");
         ViewData["To"] = to?.ToString("yyyy-MM-dd") ?? toDate.ToString("yyyy-MM-dd");
+        ViewData["FarmId"] = farmId;
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+        ViewData["CustomerId"] = customerId;
+        ViewData["Status"] = status;
+        ViewData["Customers"] = await _customerService.ListAsync(companyId, ct);
 
         if (format?.Equals("csv", StringComparison.OrdinalIgnoreCase) == true)
         {
-            var bytes = CsvExporter.Write(rows, new[] { "FarmId", "FarmName", "SoldCount", "TotalValue" });
+            var csvRows = report.SaleDetails.Select(s => new
+            {
+                SaleDate = s.SaleDate.ToString("yyyy-MM-dd"),
+                s.SaleNumber,
+                FarmName = s.FarmName,
+                s.CustomerName,
+                NumberSold = s.NumberSold,
+                GrossSaleAmount = s.GrossSaleAmount.ToString("F2"),
+                Status = s.Status.ToString()
+            }).ToList();
+            var bytes = CsvExporter.Write(csvRows, new[] { "Sale Date", "Sale Number", "Farm", "Customer", "Number Sold", "Gross Sale Amount", "Status" });
             return File(bytes, "text/csv", "SalesByPeriod.csv");
         }
 
-        return View(rows);
+        return View(report);
     }
 
     [HttpGet]
     [Authorize(Policy = "CanViewFinancialData")]
-    public async Task<IActionResult> LivestockProfitability(Guid? farmId, string? format, CancellationToken ct)
+    public async Task<IActionResult> LivestockProfitability(DateTime? from, DateTime? to, Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
-        var data = await _reportService.LivestockProfitabilityAsync(companyId, farmId, ct);
+        var fromDate = from.HasValue ? from.Value.AsUtcDayStart() : (DateTimeOffset?)null;
+        var toDate = to.HasValue ? to.Value.AsUtcDayEnd() : (DateTimeOffset?)null;
+        var rows = await _reportService.LivestockProfitabilityWithDatesAsync(companyId, farmId, fromDate, toDate, ct);
+        ViewData["From"] = from?.ToString("yyyy-MM-dd");
+        ViewData["To"] = to?.ToString("yyyy-MM-dd");
         ViewData["FarmId"] = farmId;
         ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
 
-        var rows = data.Select(d => new
-        {
-            d.LivestockDisplayId,
-            Type = d.Type.ToString(),
-            AcquisitionDate = d.AcquisitionDate.ToString("yyyy-MM-dd"),
-            PurchaseAmount = d.PurchaseAmount.ToString("F2"),
-            SoldAmount = d.SoldAmount?.ToString("F2") ?? "0.00",
-            BasicProfitLoss = d.BasicProfitLoss?.ToString("F2") ?? "0.00",
-            Status = d.Status.ToString()
-        }).ToList();
-
         if (format?.Equals("csv", StringComparison.OrdinalIgnoreCase) == true)
         {
-            var bytes = CsvExporter.Write(rows, new[]
+            var csvRows = rows.Select(r => new
             {
-                "Livestock ID", "Type", "Acquisition Date", "Purchase Amount",
-                "Sold Amount", "Basic Profit/Loss", "Status"
+                LivestockID = r.LivestockDisplayId,
+                Type = r.Type.GetDisplayName(),
+                SaleFarm = r.SaleFarmName ?? "",
+                PurchaseBirthDate = r.AcquisitionDate.ToString("yyyy-MM-dd"),
+                SaleDate = r.SaleDate.HasValue ? r.SaleDate.Value.ToString("yyyy-MM-dd") : "",
+                GrossSaleAmount = r.SoldAmount?.ToString("F2") ?? "0.00",
+                PurchasePrice = r.PurchaseAmount.ToString("F2"),
+                AdditionalAcquisitionCosts = r.AdditionalAcquisitionCosts.ToString("F2"),
+                TotalAcquisitionCost = r.TotalAcquisitionCosts.ToString("F2"),
+                OperatingExpenses = r.DirectExpenses.ToString("F2"),
+                AdditionalSaleCosts = r.AdditionalSaleCosts.ToString("F2"),
+                NetSaleProceeds = r.NetSaleProceeds.ToString("F2"),
+                BasicProfit = r.BasicProfitLoss?.ToString("F2") ?? "0.00",
+                CompleteProfit = r.CompleteProfitLoss?.ToString("F2") ?? "0.00"
+            }).ToList();
+            var bytes = CsvExporter.Write(csvRows, new[]
+            {
+                "Livestock ID", "Type", "Sale Farm", "Purchase/Birth Date", "Sale Date",
+                "Gross Sale Amount", "Purchase Price", "Additional Acquisition Costs",
+                "Total Acquisition Cost", "Operating Expenses", "Additional Sale Costs",
+                "Net Sale Proceeds", "Basic Profit", "Complete Profit"
             });
             return File(bytes, "text/csv", "LivestockProfitability.csv");
         }
@@ -132,7 +156,7 @@ public class ReportsController : Controller
 
     [HttpGet]
     [Authorize(Policy = "CanViewFinancialData")]
-    public async Task<IActionResult> ProfitLoss(DateTime? from, DateTime? to, string? format, CancellationToken ct)
+    public async Task<IActionResult> ProfitLoss(DateTime? from, DateTime? to, Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
         var today = DateTime.Today;
@@ -145,10 +169,12 @@ public class ReportsController : Controller
             ? to.Value.AsUtcDayEnd()
             : DateTimeOffset.UtcNow;
 
-        var report = await _reportService.ProfitLossAsync(companyId, fromDate, toDate, ct);
+        var report = await _reportService.ProfitLossAsync(companyId, farmId, fromDate, toDate, ct);
 
         ViewData["From"] = from?.ToString("yyyy-MM-dd") ?? fromDate.ToString("yyyy-MM-dd");
         ViewData["To"] = to?.ToString("yyyy-MM-dd") ?? toDate.ToString("yyyy-MM-dd");
+        ViewData["FarmId"] = farmId;
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
 
         if (format?.Equals("csv", StringComparison.OrdinalIgnoreCase) == true)
         {
@@ -173,7 +199,7 @@ public class ReportsController : Controller
 
     [HttpGet]
     [Authorize(Policy = "CanViewFinancialData")]
-    public async Task<IActionResult> MobileProfitLoss(DateTime? from, DateTime? to, CancellationToken ct)
+    public async Task<IActionResult> MobileProfitLoss(DateTime? from, DateTime? to, Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
         var today = DateTime.Today;
@@ -186,10 +212,61 @@ public class ReportsController : Controller
             ? to.Value.AsUtcDayEnd()
             : DateTimeOffset.UtcNow;
 
-        var report = await _reportService.ProfitLossAsync(companyId, fromDate, toDate, ct);
+        var report = await _reportService.ProfitLossAsync(companyId, farmId, fromDate, toDate, ct);
 
         ViewData["From"] = from?.ToString("yyyy-MM-dd") ?? fromDate.ToString("yyyy-MM-dd");
         ViewData["To"] = to?.ToString("yyyy-MM-dd") ?? toDate.ToString("yyyy-MM-dd");
+        ViewData["FarmId"] = farmId;
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
         return View("MobileProfitLoss", report);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanViewOperationalData")]
+    public async Task<IActionResult> MobileActiveLivestock(Guid? farmId, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var rows = await _reportService.ActiveLivestockByTypeReportAsync(companyId, farmId, ct);
+        ViewData["FarmId"] = farmId;
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+        return View("MobileActiveLivestock", rows);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
+    public async Task<IActionResult> MobileSalesByPeriod(DateTime? from, DateTime? to, Guid? farmId, Guid? customerId, string? status, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var fromDate = from.HasValue
+            ? from.Value.AsUtcDayStart()
+            : DateTime.Today.AddDays(-30).AsUtcDayStart();
+        var toDate = to.HasValue
+            ? to.Value.AsUtcDayEnd()
+            : DateTimeOffset.UtcNow;
+
+        var report = await _reportService.SalesByPeriodReportAsync(companyId, fromDate, toDate, farmId, customerId, status, ct);
+        ViewData["From"] = from?.ToString("yyyy-MM-dd") ?? fromDate.ToString("yyyy-MM-dd");
+        ViewData["To"] = to?.ToString("yyyy-MM-dd") ?? toDate.ToString("yyyy-MM-dd");
+        ViewData["FarmId"] = farmId;
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+        ViewData["CustomerId"] = customerId;
+        ViewData["Status"] = status;
+        ViewData["Customers"] = await _customerService.ListAsync(companyId, ct);
+        return View("MobileSalesByPeriod", report);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = "CanViewFinancialData")]
+    public async Task<IActionResult> MobileLivestockProfitability(DateTime? from, DateTime? to, Guid? farmId, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        var fromDate = from.HasValue ? from.Value.AsUtcDayStart() : (DateTimeOffset?)null;
+        var toDate = to.HasValue ? to.Value.AsUtcDayEnd() : (DateTimeOffset?)null;
+        var rows = await _reportService.LivestockProfitabilityWithDatesAsync(companyId, farmId, fromDate, toDate, ct);
+        ViewData["From"] = from?.ToString("yyyy-MM-dd");
+        ViewData["To"] = to?.ToString("yyyy-MM-dd");
+        ViewData["FarmId"] = farmId;
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+        return View("MobileLivestockProfitability", rows);
     }
 }

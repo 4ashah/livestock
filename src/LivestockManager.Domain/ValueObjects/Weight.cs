@@ -1,13 +1,11 @@
 using System.ComponentModel.DataAnnotations.Schema;
 using LivestockManager.Domain.Enums;
-using Microsoft.EntityFrameworkCore;
 
 namespace LivestockManager.Domain.ValueObjects;
 
-[Owned]
 public class Weight : IEquatable<Weight>
 {
-    [Precision(18, 4)]
+    [Column(TypeName = "decimal(18,4)")]
     public decimal Value { get; set; }
 
     public WeightUnit Unit { get; set; }

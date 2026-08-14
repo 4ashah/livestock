@@ -80,7 +80,7 @@ public class PaymentService : IPaymentService
         }
     }
 
-    public async Task ReverseAsync(Guid paymentId, string reason, Guid companyId, CancellationToken ct)
+    public async Task ReverseAsync(Guid paymentId, string reason, Guid reversedByUserId, Guid companyId, CancellationToken ct)
     {
         using var tx = await _db.BeginTransactionAsync(ct);
         try
@@ -98,7 +98,6 @@ public class PaymentService : IPaymentService
                 invoiceGrandTotal = invoiceForGrandTotal?.GrandTotal ?? 0m;
             }
 
-            var reversedByUserId = Guid.Empty;
             payment.ReversePayment(invoiceGrandTotal, reason, reversedByUserId);
             payment.ModifiedAt = _dateTime.Now;
 
@@ -116,6 +115,7 @@ public class PaymentService : IPaymentService
 
             var auditLog = new AuditLog("Payment.Reverse", _dateTime.Now)
             {
+                UserId = reversedByUserId,
                 CompanyId = payment.CompanyId,
                 EntityType = "Payment",
                 EntityId = paymentId.ToString(),
@@ -160,6 +160,8 @@ public class PaymentService : IPaymentService
             ?? throw new DomainException("Payment not found.");
 
         var customer = await _db.Customers.FirstOrDefaultAsync(c => c.Id == payment.CustomerId, ct);
+        if (customer != null && customer.CompanyId != companyId)
+            throw new DomainException("Customer does not belong to this company.");
 
         var allocations = new List<PaymentAllocationDto>();
         if (payment.InvoiceId.HasValue)

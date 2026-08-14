@@ -1,61 +1,143 @@
-@model IEnumerable<dynamic>
+@using LivestockManager.Application.DTOs.Farms
+@using LivestockManager.Application.DTOs.Reports
+@using LivestockManager.Domain.Helpers
+@model IList<LivestockProfitabilityReportRowDto>
 @{
     ViewData["Title"] = "Livestock Profitability";
-    var farms = ViewData["Farms"] as List<dynamic> ?? new List<dynamic>();
+    var from = ViewData["From"] as string;
+    var to = ViewData["To"] as string;
+    var farms = ViewData["Farms"] as IList<FarmSummaryDto> ?? new List<FarmSummaryDto>();
     var farmId = ViewData["FarmId"] as Guid?;
-    var rowList = Model?.ToList() ?? new List<dynamic>();
-    var totalPurchase = 0m;
-    var totalSold = 0m;
-    var totalPnL = 0m;
-    foreach (var r in rowList)
-    {
-        decimal pa;
-        if (decimal.TryParse(Convert.ToString(r.PurchaseAmount), out pa)) totalPurchase += pa;
-        decimal sa;
-        if (decimal.TryParse(Convert.ToString(r.SoldAmount), out sa)) totalSold += sa;
-        decimal pl;
-        if (decimal.TryParse(Convert.ToString(r.BasicProfitLoss), out pl)) totalPnL += pl;
-    }
+
+    var numberSold = Model.Count(r => r.SoldAmount.HasValue);
+    var grossSaleRevenue = Model.Sum(r => r.SoldAmount ?? 0);
+    var totalAcquisitionCost = Model.Sum(r => r.TotalAcquisitionCosts);
+    var operatingExpenses = Model.Sum(r => r.DirectExpenses);
+    var additionalSaleCosts = Model.Sum(r => r.AdditionalSaleCosts);
+    var completeProfit = Model.Sum(r => r.CompleteProfitLoss ?? 0);
 }
 
-<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+<div class="d-flex justify-content-between flex-wrap align-items-center pb-2 mb-4 border-bottom">
     <div>
         <h1 class="h3 mb-1">📊 Livestock Profitability</h1>
         <div class="text-muted small">
-            Purchases <strong>$@totalPurchase.ToString("F2")</strong> ·
-            Sales <strong>$@totalSold.ToString("F2")</strong> ·
-            P/L <strong class="@(totalPnL >= 0 ? "text-success" : "text-danger")">@(totalPnL >= 0 ? "+" : "-")$@Math.Abs(totalPnL).ToString("F2")</strong>
+            <span class="badge bg-info text-dark me-2">Date Basis: Sale Date (Realized Profitability)</span>
+            @if (!string.IsNullOrEmpty(from) || !string.IsNullOrEmpty(to))
+            {
+                <span>
+                    Period: <strong>@(from ?? "(All)") → @(to ?? "(All)")</strong>
+                </span>
+            }
+            else
+            {
+                <span>All records</span>
+            }
         </div>
     </div>
-    <div class="d-flex gap-2">
+    <div class="d-flex gap-2 mt-2 mt-md-0">
         <a asp-action="Index" class="btn btn-outline-secondary">← Reports</a>
-        <a asp-action="LivestockProfitability" asp-route-format="csv" asp-route-farmId="@(farmId.HasValue ? farmId.ToString() : "")" class="btn btn-outline-success">⬇ Export CSV</a>
+        <a asp-action="LivestockProfitability"
+           asp-route-format="csv"
+           asp-route-from="@from"
+           asp-route-to="@to"
+           asp-route-farmId="@(farmId.HasValue ? farmId.ToString() : "")"
+           class="btn btn-outline-success">⬇ Export CSV</a>
     </div>
 </div>
 
 <div class="card shadow-sm border-0 mb-4">
     <div class="card-body p-3">
         <form asp-action="LivestockProfitability" method="get" class="row g-2 align-items-end">
-            <div class="col-md-4">
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold mb-1">From Date</label>
+                <input type="date" name="from" class="form-control" value="@from" />
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label small fw-semibold mb-1">To Date</label>
+                <input type="date" name="to" class="form-control" value="@to" />
+            </div>
+            <div class="col-12 col-md-4">
                 <label class="form-label small fw-semibold mb-1">Farm</label>
                 <select name="farmId" class="form-select">
                     <option value="">All Farms</option>
                     @foreach (var f in farms)
                     {
-                        Guid fid = f.Id;
-                        var selected = farmId == fid;
+                        var selected = farmId == f.Id;
                         <option value="@f.Id" selected="@selected">@f.Name</option>
                     }
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-6 col-md-1">
                 <button class="btn btn-outline-secondary w-100" type="submit">🔍 Apply</button>
+            </div>
+            <div class="col-6 col-md-1">
+                <a asp-action="LivestockProfitability" class="btn btn-outline-danger w-100">✕ Clear</a>
             </div>
         </form>
     </div>
 </div>
 
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold mb-1">Number of Livestock Sold</div>
+                <div class="fs-3 fw-bold">@numberSold.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold mb-1">Gross Sale Revenue</div>
+                <div class="fs-3 fw-bold text-success">$@grossSaleRevenue.ToString("F2")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold mb-1">Total Acquisition Cost</div>
+                <div class="fs-3 fw-bold text-danger">$@totalAcquisitionCost.ToString("F2")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold mb-1">Direct Operating Expenses</div>
+                <div class="fs-3 fw-bold text-warning">$@operatingExpenses.ToString("F2")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card shadow-sm border-0 h-100 @(additionalSaleCosts > 0 ? "" : "opacity-75")">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold mb-1">
+                    Additional Sale Costs
+                    @if (additionalSaleCosts <= 0)
+                    { <span class="badge bg-light text-dark border ms-1">None</span> }
+                </div>
+                <div class="fs-3 fw-bold text-warning">$@additionalSaleCosts.ToString("F2")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-4">
+        <div class="card shadow-sm border-0 border-start border-4 @(completeProfit >= 0 ? "border-success" : "border-danger") h-100">
+            <div class="card-body">
+                <div class="text-muted small fw-semibold mb-1">Complete Profit</div>
+                <div class="fs-3 fw-bold @(completeProfit >= 0 ? "text-success" : "text-danger")">
+                    @(completeProfit >= 0 ? "+" : "")$@completeProfit.ToString("F2")
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="card shadow-sm border-0">
+    <div class="card-header bg-white py-2">
+        <h6 class="mb-0 fw-semibold">Profitability Details</h6>
+    </div>
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle table-sm">
@@ -63,44 +145,72 @@
                     <tr>
                         <th>Livestock ID</th>
                         <th>Type</th>
-                        <th>Acquired</th>
-                        <th>Status</th>
-                        <th class="text-end">Purchase</th>
-                        <th class="text-end">Sold</th>
-                        <th class="text-end">Profit/Loss</th>
+                        <th>Sale Farm</th>
+                        <th>Purchase/Birth Date</th>
+                        <th>Sale Date</th>
+                        <th class="text-end">Gross Sale Amount</th>
+                        <th class="text-end">Purchase Price</th>
+                        <th class="text-end">Additional Acquisition Costs</th>
+                        <th class="text-end">Total Acquisition Cost</th>
+                        <th class="text-end">Direct Operating Expenses</th>
+                        <th class="text-end">Additional Sale Costs</th>
+                        <th class="text-end">Net Sale Proceeds</th>
+                        <th class="text-end">Basic Profit</th>
+                        <th class="text-end">Complete Profit</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var r in rowList)
+                    @foreach (var r in Model)
                     {
-                        decimal plVal = 0m;
-                        decimal plParse;
-                        if (decimal.TryParse(Convert.ToString(r.BasicProfitLoss), out plParse)) plVal = plParse;
-                        var statusStr = Convert.ToString(r.Status) ?? "";
+                        var basicProfit = r.BasicProfitLoss ?? 0;
+                        var completeProfitVal = r.CompleteProfitLoss ?? 0;
                         <tr>
                             <td><code>@r.LivestockDisplayId</code></td>
-                            <td>@r.Type</td>
-                            <td>@r.AcquisitionDate</td>
-                            <td>
-                                @if (statusStr == "Active")
-                                { <span class="badge bg-success">Active</span> }
-                                else if (statusStr == "DischargedSold")
-                                { <span class="badge bg-primary">Sold</span> }
-                                else
-                                { <span class="badge bg-secondary">@statusStr</span> }
+                            <td>@LivestockTypeDisplay.GetDisplayName(r.Type)</td>
+                            <td>@(r.SaleFarmName ?? (r.SaleFarmId.HasValue ? "(Unknown)" : "—"))</td>
+                            <td>@r.AcquisitionDate.ToString("yyyy-MM-dd")</td>
+                            <td>@(r.SaleDate.HasValue ? r.SaleDate.Value.ToString("yyyy-MM-dd") : "—")</td>
+                            <td class="text-end fw-semibold text-success">$@(r.SoldAmount ?? 0).ToString("F2")</td>
+                            <td class="text-end">$@r.PurchaseAmount.ToString("F2")</td>
+                            <td class="text-end">$@r.AdditionalAcquisitionCosts.ToString("F2")</td>
+                            <td class="text-end fw-semibold">$@r.TotalAcquisitionCosts.ToString("F2")</td>
+                            <td class="text-end">$@r.DirectExpenses.ToString("F2")</td>
+                            <td class="text-end">$@r.AdditionalSaleCosts.ToString("F2")</td>
+                            <td class="text-end fw-semibold">$@r.NetSaleProceeds.ToString("F2")</td>
+                            <td class="text-end fw-semibold @(basicProfit >= 0 ? "text-success" : "text-danger")">
+                                @(basicProfit >= 0 ? "+" : "")$@basicProfit.ToString("F2")
                             </td>
-                            <td class="text-end">$@r.PurchaseAmount</td>
-                            <td class="text-end">$@r.SoldAmount</td>
-                            <td class="text-end fw-semibold @(plVal >= 0 ? "text-success" : "text-danger")">
-                                @(plVal >= 0 ? "+" : "-")$@Math.Abs(plVal).ToString("F2")
+                            <td class="text-end fw-bold @(completeProfitVal >= 0 ? "text-success" : "text-danger")">
+                                @(completeProfitVal >= 0 ? "+" : "")$@completeProfitVal.ToString("F2")
                             </td>
                         </tr>
                     }
-                    @if (rowList.Count == 0)
+                    @if (Model.Count == 0)
                     {
-                        <tr><td colspan="7" class="text-center py-5 text-muted small">No livestock data for these filters.</td></tr>
+                        <tr><td colspan="14" class="text-center py-5 text-muted small">No livestock profitability data for these filters.</td></tr>
                     }
                 </tbody>
+                @if (Model.Count > 0)
+                {
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="5">TOTAL</td>
+                            <td class="text-end text-success">$@grossSaleRevenue.ToString("F2")</td>
+                            <td class="text-end">$@Model.Sum(r => r.PurchaseAmount).ToString("F2")</td>
+                            <td class="text-end">$@Model.Sum(r => r.AdditionalAcquisitionCosts).ToString("F2")</td>
+                            <td class="text-end">$@totalAcquisitionCost.ToString("F2")</td>
+                            <td class="text-end">$@operatingExpenses.ToString("F2")</td>
+                            <td class="text-end">$@additionalSaleCosts.ToString("F2")</td>
+                            <td class="text-end">$@Model.Sum(r => r.NetSaleProceeds).ToString("F2")</td>
+                            <td class="text-end @(Model.Sum(r => r.BasicProfitLoss ?? 0) >= 0 ? "text-success" : "text-danger")">
+                                @((Model.Sum(r => r.BasicProfitLoss ?? 0) >= 0 ? "+" : ""))$@Model.Sum(r => r.BasicProfitLoss ?? 0).ToString("F2")
+                            </td>
+                            <td class="text-end @(completeProfit >= 0 ? "text-success" : "text-danger")">
+                                @(completeProfit >= 0 ? "+" : "")$@completeProfit.ToString("F2")
+                            </td>
+                        </tr>
+                    </tfoot>
+                }
             </table>
         </div>
     </div>

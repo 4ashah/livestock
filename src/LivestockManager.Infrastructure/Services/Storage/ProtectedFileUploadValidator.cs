@@ -261,6 +261,7 @@ public static class ProtectedFileUploadValidator
                     int trailerRead = await stream.ReadAsync(trailer, 0, 2, ct);
                     if (trailerRead < 2 || trailer[0] != 0xFF || trailer[1] != 0xD9)
                     {
+                        return (false, "JPEG/JPG file missing valid end-of-image (FF D9) marker.");
                     }
                     stream.Position = 0;
                 }

@@ -1,3 +1,4 @@
+@using LivestockManager.Domain.Common
 @{
     ViewData["Title"] = "Documents - Livestock Manager";
 }
@@ -7,7 +8,7 @@
         <h1 class="h3 mb-1">📁 Documents</h1>
         <div class="text-muted small">Upload and manage documents</div>
     </div>
-    @{ var canUpload = User.IsInRole("CompanyAdministrator") || User.IsInRole("SystemAdministrator") || User.IsInRole("Accounts") || User.IsInRole("FarmManager") || User.IsInRole("DataEntry"); }
+    @{ var canUpload = User.IsInRole(RoleNames.CompanyAdministrator) || User.IsInRole(RoleNames.SystemAdministrator) || User.IsInRole(RoleNames.Accounts) || User.IsInRole(RoleNames.FarmManager) || User.IsInRole(RoleNames.DataEntry); }
     @if (canUpload)
     {
         <a asp-action="Upload" asp-controller="Documents" class="btn btn-primary"><span class="me-1">+</span> Upload Documents</a>

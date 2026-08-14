@@ -20,9 +20,12 @@ public class CompanyService : ICompanyService
         _dateTime = dateTime;
     }
 
-    public async Task<CompanyDetailDto> GetDefaultAsync(CancellationToken ct)
+    public async Task<CompanyDetailDto> GetDefaultAsync(Guid companyId, CancellationToken ct)
     {
-        var entity = await _db.Companies.FirstOrDefaultAsync(ct)
+        if (companyId == Guid.Empty)
+            throw new DomainException("Invalid company scope.");
+
+        var entity = await _db.Companies.FirstOrDefaultAsync(c => c.Id == companyId, ct)
             ?? throw new DomainException("No default company found.");
         return MapToDetail(entity);
     }
@@ -34,9 +37,14 @@ public class CompanyService : ICompanyService
         return MapToDetail(entity);
     }
 
-    public async Task<IList<CompanySummaryDto>> ListAsync(CancellationToken ct)
+    public async Task<IList<CompanySummaryDto>> ListAsync(Guid companyId, CancellationToken ct)
     {
-        return await _db.Companies.AsQueryable().Select(MapToSummary).AsQueryable().ToListAsync(ct);
+        if (companyId == Guid.Empty)
+            throw new DomainException("Invalid company scope.");
+
+        return await _db.Companies
+            .Where(c => c.Id == companyId)
+            .AsQueryable().Select(MapToSummary).AsQueryable().ToListAsync(ct);
     }
 
     public async Task<CompanyDetailDto> UpdateAsync(Guid id, CompanyUpdateDto dto, Guid companyId, CancellationToken ct)

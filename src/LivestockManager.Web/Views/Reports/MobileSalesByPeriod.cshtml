@@ -1,0 +1,258 @@
+@using LivestockManager.Application.DTOs.Customers
+@using LivestockManager.Application.DTOs.Farms
+@using LivestockManager.Application.DTOs.Reports
+@using LivestockManager.Domain.Enums
+@model SalesByPeriodReportDto
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Sales by Period";
+    ViewData["PageIcon"] = "💸";
+    ViewData["PageSubtitle"] = "Sales performance, costs and net proceeds";
+    ViewData["DockKey"] = "sales";
+
+    var from = ViewData["From"] as string ?? string.Empty;
+    var to = ViewData["To"] as string ?? string.Empty;
+    var farms = ViewData["Farms"] as IList<FarmSummaryDto> ?? new List<FarmSummaryDto>();
+    var farmId = ViewData["FarmId"] as Guid?;
+    var customers = ViewData["Customers"] as IList<CustomerSummaryDto> ?? new List<CustomerSummaryDto>();
+    var customerId = ViewData["CustomerId"] as Guid?;
+    var status = ViewData["Status"] as string ?? string.Empty;
+    var useDetailsForFarms = Model.FarmSummaries.Count > 6;
+}
+
+<div class="chip-tabs">
+    <a asp-action="MobileSalesByPeriod"
+       asp-route-format="csv"
+       asp-route-from="@from"
+       asp-route-to="@to"
+       asp-route-farmId="@(farmId.HasValue ? farmId.ToString() : "")"
+       asp-route-customerId="@(customerId.HasValue ? customerId.ToString() : "")"
+       asp-route-status="@status"
+       class="chip-tab">⬇ Export CSV</a>
+</div>
+
+<div style="background:#dbeafe;color:#1e40af;padding:0.65rem 0.85rem;border-radius:8px;font-size:0.85rem;font-weight:600;margin-bottom:0.85rem;">
+    📅 Date Basis: Sale Date
+</div>
+
+<div class="mob-card">
+    <div class="mob-card-title">🔍 Filters</div>
+    <form method="get" asp-action="MobileSalesByPeriod">
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>From</label>
+                    <input type="date" name="from" value="@from" />
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>To</label>
+                    <input type="date" name="to" value="@to" />
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label>Farm</label>
+            <select name="farmId">
+                <option value="">All Farms</option>
+                @foreach (var f in farms)
+                {
+                    var selected = farmId == f.Id;
+                    <option value="@f.Id" selected="@selected">@f.Name</option>
+                }
+            </select>
+        </div>
+        <div class="mob-field">
+            <label>Customer</label>
+            <select name="customerId">
+                <option value="">All Customers</option>
+                @foreach (var c in customers)
+                {
+                    var selected = customerId == c.Id;
+                    <option value="@c.Id" selected="@selected">@c.Name</option>
+                }
+            </select>
+        </div>
+        <div class="mob-field">
+            <label>Status</label>
+            <select name="status">
+                <option value="">All</option>
+                <option value="Confirmed" selected="@(status == "Confirmed")">Confirmed</option>
+                <option value="Completed" selected="@(status == "Completed")">Completed</option>
+            </select>
+        </div>
+        <div class="f-row">
+            <a asp-action="MobileSalesByPeriod" class="mob-btn ghost">Reset</a>
+            <button type="submit" class="mob-btn primary">🔍 Apply</button>
+        </div>
+    </form>
+</div>
+
+<div class="mob-totals-card">
+    <div class="label">Total Net Sale Proceeds</div>
+    <div class="total">$@Model.TotalNetSaleProceeds.ToString("N2")</div>
+    <div class="breakdown">
+        <div><div class="k">Period</div><div class="v">@from → @to</div></div>
+    </div>
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#3a6ea5;">
+        <div class="k-label">Total Number Sold</div>
+        <div class="k-value">@Model.TotalNumberSold.ToString("N0")</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#00a896;">
+        <div class="k-label">Total Gross</div>
+        <div class="k-value">$@Model.TotalGrossSalesAmount.ToString("N0")</div>
+    </div>
+</div>
+
+<div class="mob-kpi-row">
+    <div class="mob-kpi" style="--kpi-color:#d97706;">
+        <div class="k-label">Additional Sale Costs</div>
+        <div class="k-value">$@Model.TotalAdditionalSaleCosts.ToString("N0")</div>
+    </div>
+    <div class="mob-kpi" style="--kpi-color:#3a6ea5;">
+        <div class="k-label">Net</div>
+        <div class="k-value">$@Model.TotalNetSaleProceeds.ToString("N0")</div>
+    </div>
+</div>
+
+<div class="mob-card">
+    <div class="mob-card-title">🏘️ Farm Summaries</div>
+    @if (Model.FarmSummaries.Count == 0)
+    {
+        <div style="text-align:center;padding:2rem 1rem;color:#6b7280;font-size:0.9rem;">
+            No farm summary data for this period.
+        </div>
+    }
+    else
+    {
+        @for (var i = 0; i < Model.FarmSummaries.Count; i++)
+        {
+            var fs = Model.FarmSummaries[i];
+            var addCosts = fs.AdditionalSaleCosts ?? 0;
+            var net = fs.NetSaleProceeds ?? 0;
+
+            if (useDetailsForFarms)
+            {
+                <details style="border-top:1px solid #e5e7eb;padding:0.5rem 0;">
+                    <summary style="cursor:pointer;font-weight:600;padding:0.4rem 0;list-style:none;display:flex;justify-content:space-between;align-items:center;">
+                        <span>@fs.FarmName</span>
+                        <span style="font-size:0.8rem;color:#6b7280;">@fs.NumberSold sold</span>
+                    </summary>
+            }
+
+            <div style="display:flex;flex-direction:column;gap:0.5rem;padding:@(useDetailsForFarms ? "0.5rem 0 0.25rem" : (i > 0 ? "0.75rem 0 0.25rem" : "0.1rem 0 0.25rem"));border-top:@(!useDetailsForFarms && i > 0 ? "1px solid #e5e7eb" : "none");">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                    <span style="font-size:0.85rem;color:#6b7280;">Farm Name</span>
+                    <span style="font-weight:600;">@fs.FarmName</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                    <span style="font-size:0.85rem;color:#6b7280;">Number Sold</span>
+                    <span style="font-weight:600;">@fs.NumberSold.ToString("N0")</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                    <span style="font-size:0.85rem;color:#6b7280;">Gross Sales Amount</span>
+                    <span style="font-weight:600;color:#00a896;">$@fs.GrossSalesAmount.ToString("F2")</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                    <span style="font-size:0.85rem;color:#6b7280;">Additional Sale Costs</span>
+                    <span style="font-weight:600;color:#d97706;">$@addCosts.ToString("F2")</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                    <span style="font-size:0.85rem;color:#6b7280;">Net Sale Proceeds</span>
+                    <span style="font-weight:700;color:#3a6ea5;">$@net.ToString("F2")</span>
+                </div>
+            </div>
+
+            if (useDetailsForFarms)
+            {
+                </details>
+            }
+        }
+    }
+</div>
+
+<div class="mob-card">
+    <div class="mob-card-title">🧾 Sale Details</div>
+    @if (Model.SaleDetails.Count == 0)
+    {
+        <div style="text-align:center;padding:2rem 1rem;color:#6b7280;font-size:0.9rem;">
+            No sales data for this period.
+        </div>
+    }
+    else
+    {
+        @foreach (var s in Model.SaleDetails)
+        {
+            var displaySaleNumber = !string.IsNullOrWhiteSpace(s.SaleNumber)
+                ? s.SaleNumber
+                : $"SALE-{s.SaleId.ToString("N")[..8].ToUpperInvariant()}";
+            if (s.Status == SaleStatus.Reversed)
+            {
+                displaySaleNumber = "↶ REVERSED · " + displaySaleNumber;
+            }
+
+            <details style="border-top:1px solid #e5e7eb;margin-top:0.5rem;">
+                <summary style="cursor:pointer;list-style:none;padding:0.55rem 0;display:flex;justify-content:space-between;align-items:center;gap:0.5rem;">
+                    <div style="display:flex;flex-direction:column;gap:0.15rem;flex:1;min-width:0;">
+                        <div style="font-size:0.75rem;color:#6b7280;">@s.SaleDate.ToString("yyyy-MM-dd")</div>
+                        <div style="font-weight:600;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">@displaySaleNumber</div>
+                    </div>
+                    <div style="text-align:right;flex-shrink:0;">
+                        <div style="font-size:0.75rem;color:#6b7280;">Gross</div>
+                        <div style="font-weight:700;color:#00a896;">$@s.GrossSaleAmount.ToString("N0")</div>
+                    </div>
+                </summary>
+                <div style="display:flex;flex-direction:column;gap:0.5rem;padding:0.5rem 0 0.25rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Sale Date</span>
+                        <span style="font-weight:600;">@s.SaleDate.ToString("yyyy-MM-dd")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Sale Number</span>
+                        <span style="font-weight:600;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:0.85rem;">@displaySaleNumber</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Sale Farm</span>
+                        <span style="font-weight:600;">@s.FarmName</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Customer</span>
+                        <span style="font-weight:600;">@s.CustomerName</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Number Sold</span>
+                        <span style="font-weight:600;">@s.NumberSold.ToString("N0")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Gross Sale Amount</span>
+                        <span style="font-weight:700;color:#00a896;">$@s.GrossSaleAmount.ToString("F2")</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-size:0.85rem;color:#6b7280;">Status</span>
+                        <span>
+                            @if (s.Status == SaleStatus.Draft)
+                            { <span style="display:inline-block;padding:0.18rem 0.55rem;border-radius:999px;font-size:0.75rem;font-weight:600;background:#f3f4f6;color:#1f2937;border:1px solid #e5e7eb;">Draft</span> }
+                            else if (s.Status == SaleStatus.Confirmed)
+                            { <span style="display:inline-block;padding:0.18rem 0.55rem;border-radius:999px;font-size:0.75rem;font-weight:600;background:#00a896;color:#fff;">Confirmed</span> }
+                            else if (s.Status == SaleStatus.Completed)
+                            { <span style="display:inline-block;padding:0.18rem 0.55rem;border-radius:999px;font-size:0.75rem;font-weight:600;background:#3a6ea5;color:#fff;">Completed</span> }
+                            else if (s.Status == SaleStatus.Cancelled)
+                            { <span style="display:inline-block;padding:0.18rem 0.55rem;border-radius:999px;font-size:0.75rem;font-weight:600;background:#6b7280;color:#fff;">Cancelled</span> }
+                            else if (s.Status == SaleStatus.Reversed)
+                            { <span style="display:inline-block;padding:0.18rem 0.55rem;border-radius:999px;font-size:0.75rem;font-weight:600;background:#d97706;color:#fff;">↶ Reversed</span> }
+                            else
+                            { <span style="display:inline-block;padding:0.18rem 0.55rem;border-radius:999px;font-size:0.75rem;font-weight:600;background:#6b7280;color:#fff;">@s.Status</span> }
+                        </span>
+                    </div>
+                    <div style="padding-top:0.3rem;">
+                        <a asp-controller="Sales" asp-action="Details" asp-route-id="@s.SaleId" class="mob-btn primary" style="text-align:center;width:100%;font-size:0.85rem;padding:0.5rem;">View Sale</a>
+                    </div>
+                </div>
+            </details>
+        }
+    }
+</div>

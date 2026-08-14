@@ -52,6 +52,8 @@ public class CustomerService : ICustomerService
     public async Task<CustomerDetailDto> CreateAsync(CustomerCreateDto dto, Guid companyId, CancellationToken ct)
     {
         var resolvedCompanyId = companyId == Guid.Empty ? dto.CompanyId : companyId;
+        if (resolvedCompanyId == Guid.Empty)
+            throw new DomainException("CompanyId is required.");
 
         var customer = new Customer(resolvedCompanyId, dto.CustomerCode, dto.Name)
         {
