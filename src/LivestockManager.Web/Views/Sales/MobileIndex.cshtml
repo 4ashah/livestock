@@ -5,7 +5,7 @@
     ViewData["Title"] = "Sales";
     ViewData["PageIcon"] = "💼";
     ViewData["PageSubtitle"] = "Orders & livestock sales";
-    ViewData["DockKey"] = "expense";
+    ViewData["DockKey"] = "sales";
     ViewData["ActionLabel"] = "New";
     ViewData["ActionIcon"] = "＋";
     ViewData["ActionUrl"] = Url.Action("MobileCreate", "Sales");
@@ -109,7 +109,7 @@ else
             SaleStatus.Reversed => "bad",
             _ => "info"
         };
-        <a class="mob-card clickable" href="@Url.Action("Details", "Sales", new { id = s.Id })">
+        <a class="mob-card clickable" href="@Url.Action("MobileDetails", "Sales", new { id = s.Id })">
             <div class="d-flex justify-content-between align-items-start mb-2">
                 <div class="mob-ellipsis">
                     <code style="font-size:14px;color:#065f46;">@displaySaleNumber</code>

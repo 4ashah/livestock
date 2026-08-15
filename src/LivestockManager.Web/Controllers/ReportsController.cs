@@ -7,12 +7,13 @@ using LivestockManager.Application.DTOs.Reports;
 using LivestockManager.Application.Services.Customers;
 using LivestockManager.Application.Services.Farms;
 using LivestockManager.Application.Services.Reports;
+using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Helpers;
 using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewOperationalData")]
+[Authorize(Policy = PolicyNames.CanViewOperationalReports)]
 public class ReportsController : Controller
 {
     private readonly IReportService _reportService;
@@ -39,14 +40,14 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewOperationalReports)]
     public IActionResult Index()
     {
         return View();
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewOperationalReports)]
     public async Task<IActionResult> ActiveLivestock(Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -70,7 +71,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
     public async Task<IActionResult> SalesByPeriod(DateTime? from, DateTime? to, Guid? farmId, Guid? customerId, string? status, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -110,7 +111,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
     public async Task<IActionResult> LivestockProfitability(DateTime? from, DateTime? to, Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -155,7 +156,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
     public async Task<IActionResult> ProfitLoss(DateTime? from, DateTime? to, Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -198,7 +199,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
     public async Task<IActionResult> MobileProfitLoss(DateTime? from, DateTime? to, Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -222,7 +223,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewOperationalReports)]
     public async Task<IActionResult> MobileActiveLivestock(Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -233,7 +234,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
     public async Task<IActionResult> MobileSalesByPeriod(DateTime? from, DateTime? to, Guid? farmId, Guid? customerId, string? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -256,7 +257,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
     public async Task<IActionResult> MobileLivestockProfitability(DateTime? from, DateTime? to, Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();

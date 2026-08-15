@@ -189,8 +189,8 @@ public class ProductionSeedHardeningTests
         Assert.Contains("admin@livestock.dev", DemoDataSeeder.KnownDevEmails);
         Assert.Contains("accounts@livestock.dev", DemoDataSeeder.KnownDevEmails);
         Assert.Contains("farmmanager@livestock.dev", DemoDataSeeder.KnownDevEmails);
+        Assert.Contains("operationsmanager@livestock.dev", DemoDataSeeder.KnownDevEmails);
         Assert.Contains("dataentry@livestock.dev", DemoDataSeeder.KnownDevEmails);
-        Assert.Contains("viewer@livestock.dev", DemoDataSeeder.KnownDevEmails);
         Assert.Contains("sysadmin@livestock.dev", DemoDataSeeder.KnownDevEmails);
     }
 

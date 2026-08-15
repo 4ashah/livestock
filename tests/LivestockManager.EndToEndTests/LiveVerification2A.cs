@@ -25,9 +25,9 @@ public class LiveVerification2A : E2ETestCollectionBase
         new object[] { "sysadmin@livestock.dev", "Dev@123456", "SysAdmin" },
         new object[] { "admin@livestock.dev", "Dev@123456", "Admin" },
         new object[] { "farmmanager@livestock.dev", "Dev@123456", "FarmManager" },
+        new object[] { "operationsmanager@livestock.dev", "Dev@123456", "OperationsManager" },
         new object[] { "accounts@livestock.dev", "Dev@123456", "Accounts" },
         new object[] { "dataentry@livestock.dev", "Dev@123456", "DataEntry" },
-        new object[] { "viewer@livestock.dev", "Dev@123456", "Viewer" }
     };
 
     public static IEnumerable<object[]> MobileViewports => new List<object[]>
@@ -600,7 +600,7 @@ public class LiveVerification2A : E2ETestCollectionBase
             }
             catch { }
 
-            var emailInput = page.Locator("input[id='Email'], input[type='email'], input[name='Email'], input[name='Input.Email']").First;
+            var emailInput = page.Locator("input[id='UserNameInput'], input[id='UserName'], input[name='UserName'], input[autocomplete='username'], input[id='Email'], input[type='email'], input[name='Email'], input[name='Input.Email']").First;
             var pwdInput = page.Locator("input[id='Password'], input[type='password'], input[name='Password'], input[name='Input.Password']").First;
             var submit = page.Locator("button[type='submit'], input[type='submit']").First;
             if (await emailInput.CountAsync() < 1 || await pwdInput.CountAsync() < 1 || await submit.CountAsync() < 1)

@@ -573,3 +573,14 @@ Full independent auditor write-up with root cause analysis, semantic date rules,
 Profit & Left completely left untouched (zero source code modifications to ProfitLoss view, MobileProfitLoss view, ProfitLossAsync service method, ProfitLoss CSV rows). Per spec Section 1, Section 15, Section 22 completion #25.
 
 Overall release status continues to be **PENDING INDEPENDENT AUDIT** (see Phase 15 gate table).
+
+## Phase 19 — Remove Viewer And Finalize Six Roles (2026-08-15)
+
+- Introduced the final six-role runtime model: `DataEntry`, `FarmManager`, `Accounts`, `OperationsManager`, `CompanyAdministrator`, `SystemAdministrator`.
+- Removed Viewer from active role constants, active policy definitions, demo/dev seeding, login demo accounts, user-role selectors, and desktop/mobile navigation.
+- Added controlled `ViewerRoleRetirementService` startup remediation for existing databases: Viewer-only users migrate to disabled `DataEntry`; Viewer-plus-valid-role users retain valid role(s); retired role deleted once assignments reach zero.
+- Normalized active controllers onto centralized `PolicyNames` constants and tightened the operational/financial rights split, including `StockAdditionController` purchase/newborn authorization.
+- Verified development-database retirement: initial Viewer assignment count `1`, final count `0`; `viewer@livestock.dev` now disabled `DataEntry`.
+- Fixed stale Playwright login selectors that still expected an email-only login field; updated E2E coverage to target the current `UserName`-based login form.
+- Verification in this pass: Release build `0W/0E`, Unit `324/324`, Integration `15/15`, Architecture `60/60`, Playwright/E2E `39/39`.
+- Final status for this phase is **SIX-ROLE RIGHTS MODEL READY FOR USER REVIEW**. This phase does **not** mark the full application as production-approved.

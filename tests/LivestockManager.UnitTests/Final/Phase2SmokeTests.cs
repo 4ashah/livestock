@@ -62,10 +62,10 @@ public class Phase2SmokeTests
     {
         var expected = new[]
         {
-            RoleNames.Viewer,
             RoleNames.DataEntry,
             RoleNames.FarmManager,
             RoleNames.Accounts,
+            RoleNames.OperationsManager,
             RoleNames.CompanyAdministrator,
             RoleNames.SystemAdministrator
         };

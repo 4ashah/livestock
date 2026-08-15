@@ -232,21 +232,23 @@
         <div class="py-2">
             @if (SignInManager.IsSignedIn(User))
             {
-                var isViewer = User.IsInRole(RoleNames.Viewer);
                 var isDataEntry = User.IsInRole(RoleNames.DataEntry);
                 var isFarmManager = User.IsInRole(RoleNames.FarmManager);
                 var isAccounts = User.IsInRole(RoleNames.Accounts);
+                var isOperationsManager = User.IsInRole(RoleNames.OperationsManager);
                 var isCompanyAdmin = User.IsInRole(RoleNames.CompanyAdministrator);
                 var isSystemAdmin = User.IsInRole(RoleNames.SystemAdministrator);
-                var canViewOperational = isViewer || isDataEntry || isFarmManager || isAccounts || isCompanyAdmin || isSystemAdmin;
-                var canManageLivestock = isDataEntry || isFarmManager || isCompanyAdmin || isSystemAdmin;
-                var canManageSales = isFarmManager || isAccounts || isCompanyAdmin || isSystemAdmin;
-                var canManagePurchases = canManageSales;
-                var canManageLosses = canManageSales;
-                var canManageAccounting = isAccounts || isCompanyAdmin || isSystemAdmin;
-                var canManageExpenses = canManageSales;
+                var canViewOperational = isDataEntry || isFarmManager || isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
+                var canManageLivestock = isDataEntry || isFarmManager || isOperationsManager || isCompanyAdmin || isSystemAdmin;
+                var canManageSales = isFarmManager || isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
+                var canManagePurchases = isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
+                var canManageLosses = isFarmManager || isOperationsManager || isCompanyAdmin || isSystemAdmin;
+                var canManageAccounting = isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
+                var canManageExpenses = isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
                 var canManageCompany = isCompanyAdmin || isSystemAdmin;
-                var canViewFinancial = isAccounts || isFarmManager || isCompanyAdmin || isSystemAdmin;
+                var canViewFinancial = isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
+                var canManageCustomers = isFarmManager || isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
+                var canManageSuppliers = canManageCustomers;
                 var canWrite = canManageLivestock || canManageAccounting || canManageCompany;
 
                 var currentController = (ViewContext.RouteData.Values["controller"] as string ?? string.Empty).ToLowerInvariant();
@@ -282,7 +284,7 @@
                     <span class="float-end section-chevron" aria-hidden="true">▾</span>
                 </div>
                 <ul class="nav flex-column nav-section-body" data-section="ops">
-                    @if (canManageCompany)
+                    @if (canViewOperational)
                     {
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Farms")" asp-area="" asp-controller="Farms" asp-action="Index">
@@ -306,7 +308,7 @@
                             </a>
                         </li>
                     }
-                    @if (!isViewer)
+                    @if (canManageCustomers)
                     {
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Customers")" asp-area="" asp-controller="Customers" asp-action="Index">
@@ -314,7 +316,7 @@
                             </a>
                         </li>
                     }
-                    @if (canManageAccounting)
+                    @if (canManageSuppliers)
                     {
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Suppliers")" asp-area="" asp-controller="Suppliers" asp-action="Index">
@@ -464,12 +466,11 @@
         </footer>
     </div>
 
-    <environment include="Development">
-        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.js"></script>
-    </environment>
-    <environment exclude="Development">
-        <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    </environment>
+    <script src="~/lib/jquery/dist/jquery.min.js" asp-append-version="true"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
+    <noscript>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    </noscript>
     <script>
         (function () {
             var sidebar = document.getElementById('sidebarNav');
@@ -542,8 +543,120 @@
             });
         })();
     </script>
-    <script src="~/lib/jquery/dist/jquery.min.js" asp-append-version="true"></script>
-    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js" asp-append-version="true"></script>
+    <script>
+        (function () {
+            function findAncestor(el, sel) {
+                var cur = el;
+                while (cur && cur !== document.body) {
+                    try { if (cur.matches(sel)) return cur; } catch (_) { /* ignore */ }
+                    cur = cur.parentElement;
+                }
+                return null;
+            }
+            function manualToggleDropdown(toggleEl, openNow) {
+                if (!toggleEl) return false;
+                var wrap = findAncestor(toggleEl, '.dropdown, .dropup, .dropstart, .dropend');
+                if (!wrap) wrap = toggleEl.parentElement;
+                if (!wrap) return false;
+                var menu = wrap.querySelector('.dropdown-menu');
+                if (!menu) return false;
+                var isOpen = menu.classList.contains('show');
+                var desiredOpen = typeof openNow === 'boolean' ? openNow : !isOpen;
+                if (desiredOpen) {
+                    document.querySelectorAll('.dropdown-menu.show').forEach(function (m) {
+                        if (m !== menu) {
+                            m.classList.remove('show');
+                            var t = m.parentElement && m.parentElement.querySelector('[data-bs-toggle="dropdown"], [data-toggle="dropdown"], .dropdown-toggle');
+                            if (t) {
+                                t.classList.remove('show');
+                                t.setAttribute('aria-expanded', 'false');
+                            }
+                        }
+                    });
+                    menu.classList.add('show');
+                    toggleEl.classList.add('show');
+                    toggleEl.setAttribute('aria-expanded', 'true');
+                } else {
+                    menu.classList.remove('show');
+                    toggleEl.classList.remove('show');
+                    toggleEl.setAttribute('aria-expanded', 'false');
+                }
+                return true;
+            }
+            function dropdownClick(e) {
+                var toggle = null;
+                try { toggle = e.target.closest('[data-bs-toggle="dropdown"], [data-toggle="dropdown"], .dropdown-toggle'); } catch (_) { toggle = null; }
+                if (!toggle) {
+                    try { toggle = findAncestor(e.target, '.dropdown-toggle, [data-bs-toggle="dropdown"], [data-toggle="dropdown"]'); } catch (_) { toggle = null; }
+                }
+                if (!toggle) return;
+                e.preventDefault();
+                e.stopPropagation();
+                try {
+                    if (window.bootstrap && window.bootstrap.Dropdown) {
+                        var inst = window.bootstrap.Dropdown.getOrCreateInstance(toggle);
+                        inst.toggle();
+                    } else if (window.jQuery && typeof window.jQuery.fn.dropdown === 'function') {
+                        window.jQuery(toggle).dropdown('toggle');
+                    }
+                } catch (_) { /* ignore */ }
+                manualToggleDropdown(toggle);
+            }
+            document.addEventListener('click', function (e) {
+                try {
+                    var tgt = e.target;
+                    var inside = false;
+                    if (tgt && tgt.closest) inside = !!tgt.closest('.dropdown, .dropup, .dropstart, .dropend, [data-bs-toggle="dropdown"], [data-toggle="dropdown"], .dropdown-toggle');
+                    if (!inside) {
+                        document.querySelectorAll('.dropdown-menu.show').forEach(function (m) {
+                            m.classList.remove('show');
+                            var t = (m.parentElement || document.body).querySelector('[data-bs-toggle="dropdown"], [data-toggle="dropdown"], .dropdown-toggle');
+                            if (t) {
+                                t.classList.remove('show');
+                                t.setAttribute('aria-expanded', 'false');
+                            }
+                        });
+                    }
+                } catch (_) { /* ignore */ }
+            }, false);
+            document.addEventListener('click', function (e) {
+                try { dropdownClick(e); } catch (_) { /* ignore */ }
+            }, true);
+            document.addEventListener('keydown', function (e) {
+                var t = e.target;
+                var keyOk = e.key === 'Enter' || e.key === ' ';
+                var toggleOk = t && t.classList && (
+                    t.classList.contains('dropdown-toggle') ||
+                    t.hasAttribute('data-bs-toggle') ||
+                    t.hasAttribute('data-toggle')
+                );
+                if (keyOk && toggleOk) {
+                    e.preventDefault();
+                    try { dropdownClick(e); } catch (_) { /* ignore */ }
+                }
+                if (e.key === 'Escape') {
+                    document.querySelectorAll('.dropdown-menu.show').forEach(function (m) {
+                        m.classList.remove('show');
+                        var t2 = (m.parentElement || document.body).querySelector('[data-bs-toggle="dropdown"], [data-toggle="dropdown"], .dropdown-toggle');
+                        if (t2) {
+                            t2.classList.remove('show');
+                            t2.setAttribute('aria-expanded', 'false');
+                        }
+                    });
+                }
+            }, true);
+            document.addEventListener('DOMContentLoaded', function () {
+                try {
+                    if (window.bootstrap && window.bootstrap.Dropdown) {
+                        document.querySelectorAll('[data-bs-toggle="dropdown"], [data-toggle="dropdown"], .dropdown-toggle').forEach(function (el) {
+                            try { window.bootstrap.Dropdown.getOrCreateInstance(el); } catch (_) { /* ignore */ }
+                        });
+                    }
+                    window.lmDropdownReady = true;
+                } catch (_) { /* ignore */ }
+            }, false);
+        })();
+    </script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     @await RenderSectionAsync("Scripts", required: false)
 </body>

@@ -138,38 +138,96 @@ builder.Services.Configure<RouteOptions>(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("CanViewOperationalData", policy =>
-        policy.RequireRole(RoleNames.Viewer, RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+    options.AddPolicy(PolicyNames.CanViewOperationalData, policy =>
+        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 
-    options.AddPolicy("CanManageLivestock", policy =>
-        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+    options.AddPolicy(PolicyNames.CanViewFarms, policy =>
+        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 
-    options.AddPolicy("CanManageSales", policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+    options.AddPolicy(PolicyNames.CanManageFarms, policy =>
+        policy.RequireRole(RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 
-    options.AddPolicy("CanManagePurchases", policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts,
-                            RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+    options.AddPolicy(PolicyNames.CanViewLivestock, policy =>
+        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 
-    options.AddPolicy("CanManageLosses", policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts,
-                            RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+    options.AddPolicy(PolicyNames.CanRegisterLivestock, policy =>
+        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 
-    options.AddPolicy("CanManageExpenses", policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts,
-                            RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+    options.AddPolicy(PolicyNames.CanManageLivestock, policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 
-    options.AddPolicy("CanManageAccounting", policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+    options.AddPolicy(PolicyNames.CanRecordWeight, policy =>
+        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 
-    options.AddPolicy("CanManageCompany", policy =>
+    options.AddPolicy(PolicyNames.CanDischargeLivestock, policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanRecordStockPurchase, policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanRecordNewborn, policy =>
+        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanManageCustomers, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanManageSuppliers, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanViewDocuments, policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanUploadDocuments, policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanCreateSales, policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanReverseSales, policy =>
         policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 
-    options.AddPolicy("CanManageSystem", policy =>
+    options.AddPolicy(PolicyNames.CanManagePurchaseInvoices, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanViewInvoices, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanManageInvoices, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanRecordPayments, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanReversePayments, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanGenerateReceipts, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanManageExpenses, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanRecordLosses, policy =>
+        policy.RequireRole(RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanViewOperationalReports, policy =>
+        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanViewFinancialReports, policy =>
+        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanManageCompany, policy =>
+        policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanViewAuditLogs, policy =>
+        policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanManageUsers, policy =>
+        policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+
+    options.AddPolicy(PolicyNames.CanManageSystem, policy =>
         policy.RequireRole(RoleNames.SystemAdministrator));
 
-    options.AddPolicy("CanViewFinancialData", policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.FarmManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
 });
 
 var app = builder.Build();
@@ -255,9 +313,12 @@ using (IServiceScope scope = app.Services.CreateScope())
     var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
     var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<ApplicationRole>>();
     var config = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var roleRetirementLogger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("ViewerRoleRetirement");
 
     try
     {
+        await ViewerRoleRetirementService.RunAsync(db, userManager, roleManager, roleRetirementLogger);
         await DemoDataSeeder.SeedAsync(db, userManager, roleManager, app.Environment, config);
     }
     catch (Exception ex)
@@ -333,10 +394,10 @@ if (hasFirstAdminSwitch)
         {
             new { Name = RoleNames.SystemAdministrator, Desc = "Cross-company system-level access" },
             new { Name = RoleNames.CompanyAdministrator, Desc = "Full company-level access" },
+            new { Name = RoleNames.OperationsManager, Desc = "Company-wide manager access" },
             new { Name = RoleNames.Accounts, Desc = "Finance and accounts management" },
             new { Name = RoleNames.FarmManager, Desc = "Farm and operational management" },
-            new { Name = RoleNames.DataEntry, Desc = "Can create and edit records" },
-            new { Name = RoleNames.Viewer, Desc = "Read-only access" }
+            new { Name = RoleNames.DataEntry, Desc = "Employee operational access" }
         };
         foreach (var r in roleNames)
         {

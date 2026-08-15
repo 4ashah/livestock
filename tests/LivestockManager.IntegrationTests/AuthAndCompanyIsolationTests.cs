@@ -14,17 +14,17 @@ public class AuthAndCompanyIsolationTests : IClassFixture<LivestockManagerWebFac
     }
 
     [Fact]
-    public async Task ViewerCanGet_Home()
+    public async Task DataEntryCanGet_Home()
     {
         var companyA = Guid.Parse(LivestockManagerWebFactory.StagingCompanyIdA);
-        var client = _factory.CreateAuthenticatedClient(RoleNames.Viewer, companyA);
+        var client = _factory.CreateAuthenticatedClient(RoleNames.DataEntry, companyA);
         var response = await client.GetAsync("/");
         Assert.True(
             ((int)response.StatusCode >= 200 && (int)response.StatusCode < 300) ||
             response.StatusCode == HttpStatusCode.Forbidden ||
             (int)response.StatusCode == 403 ||
             (int)response.StatusCode == 500,
-            $"Viewer authenticated request to GET / should not redirect to login. Got {(int)response.StatusCode} {response.StatusCode}");
+            $"DataEntry authenticated request to GET / should not redirect to login. Got {(int)response.StatusCode} {response.StatusCode}");
     }
 
     [Fact]
@@ -115,13 +115,13 @@ public class AuthAndCompanyIsolationTests : IClassFixture<LivestockManagerWebFac
     public async Task Audit_Requires_SystemOrCompanyAdministrator()
     {
         var companyA = Guid.Parse(LivestockManagerWebFactory.StagingCompanyIdA);
-        var client = _factory.CreateAuthenticatedClient(RoleNames.Viewer, companyA);
+        var client = _factory.CreateAuthenticatedClient(RoleNames.DataEntry, companyA);
         var response = await client.GetAsync("/Audit");
         Assert.True(
             response.StatusCode == HttpStatusCode.Forbidden ||
             (int)response.StatusCode == 403 ||
             (int)response.StatusCode == 302,
-            $"Viewer should not access Audit page. Got {(int)response.StatusCode}");
+            $"DataEntry should not access Audit page. Got {(int)response.StatusCode}");
     }
 
     [Fact]

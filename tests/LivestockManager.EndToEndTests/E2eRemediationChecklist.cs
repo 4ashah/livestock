@@ -75,10 +75,10 @@ public class E2eRemediationChecklist : E2ETestCollectionBase
             await page.GotoAsync($"{BaseUrl}/Account/Login");
             await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
 
-            var emailInput = page.Locator("input[id='Email'], input[type='email'], input[name='Email'], input[name='Input.Email']").First;
+            var emailInput = page.Locator("input[id='UserNameInput'], input[id='UserName'], input[name='UserName'], input[autocomplete='username'], input[id='Email'], input[type='email'], input[name='Email'], input[name='Input.Email']").First;
             var passwordInput = page.Locator("input[id='Password'], input[type='password'], input[name='Password'], input[name='Input.Password']").First;
             var submitBtn = page.Locator("button[type='submit'], input[type='submit']").First;
-            Assert.True(await emailInput.CountAsync() >= 1, "Email input missing.");
+            Assert.True(await emailInput.CountAsync() >= 1, "Login identifier input missing.");
             Assert.True(await passwordInput.CountAsync() >= 1, "Password input missing.");
 
             for (int i = 0; i < 3; i++)
@@ -88,7 +88,7 @@ public class E2eRemediationChecklist : E2ETestCollectionBase
                 try { await submitBtn.ClickAsync(new() { Timeout = 10_000 }); } catch { }
                 try { await page.WaitForLoadStateAsync(LoadState.DOMContentLoaded, new() { Timeout = 15_000 }); } catch { }
                 // re-acquire locators after navigation (if form re-rendered)
-                emailInput = page.Locator("input[id='Email'], input[type='email'], input[name='Email'], input[name='Input.Email']").First;
+                emailInput = page.Locator("input[id='UserNameInput'], input[id='UserName'], input[name='UserName'], input[autocomplete='username'], input[id='Email'], input[type='email'], input[name='Email'], input[name='Input.Email']").First;
                 passwordInput = page.Locator("input[id='Password'], input[type='password'], input[name='Password'], input[name='Input.Password']").First;
                 submitBtn = page.Locator("button[type='submit'], input[type='submit']").First;
             }
@@ -485,7 +485,7 @@ public class E2eRemediationChecklist : E2ETestCollectionBase
         {
             await page.GotoAsync($"{BaseUrl}/Account/Login", new() { Timeout = 90_000 });
             await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
-            var emailInput = page.Locator("input[id='Email'], input[type='email'], input[name='Email'], input[name='Input.Email']").First;
+            var emailInput = page.Locator("input[id='UserNameInput'], input[id='UserName'], input[name='UserName'], input[autocomplete='username'], input[id='Email'], input[type='email'], input[name='Email'], input[name='Input.Email']").First;
             var pwdInput = page.Locator("input[id='Password'], input[type='password'], input[name='Password'], input[name='Input.Password']").First;
             var submit = page.Locator("button[type='submit'], input[type='submit']").First;
             if (await emailInput.CountAsync() < 1 || await pwdInput.CountAsync() < 1 || await submit.CountAsync() < 1)

@@ -14,7 +14,7 @@ using LivestockManager.Web.Models.DocumentViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewOperationalData")]
+[Authorize(Policy = PolicyNames.CanViewDocuments)]
 public class DocumentsController : Controller
 {
     private readonly IProtectedDocumentStorage _storage;
@@ -60,7 +60,7 @@ public class DocumentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanUploadDocuments)]
     public IActionResult Upload(string entityType, Guid? entityId)
     {
         var vm = new UploadDocumentViewModel
@@ -72,7 +72,7 @@ public class DocumentsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanUploadDocuments)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(UploadDocumentViewModel vm, CancellationToken ct)
     {
@@ -145,7 +145,7 @@ public class DocumentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewDocuments)]
     public async Task<IActionResult> List(string entityType, Guid? entityId, CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();
@@ -186,6 +186,7 @@ public class DocumentsController : Controller
         var canUpload = User.IsInRole(RoleNames.CompanyAdministrator)
                         || User.IsInRole(RoleNames.Accounts)
                         || User.IsInRole(RoleNames.FarmManager)
+                        || User.IsInRole(RoleNames.OperationsManager)
                         || User.IsInRole(RoleNames.SystemAdministrator);
 
         var canDelete = User.IsInRole(RoleNames.CompanyAdministrator)
@@ -204,11 +205,11 @@ public class DocumentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewDocuments)]
     public IActionResult Index() => RedirectToAction(nameof(List));
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewDocuments)]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();
@@ -238,7 +239,7 @@ public class DocumentsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = "CanManageCompany")]
+    [Authorize(Policy = PolicyNames.CanManageCompany)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken ct)
     {
@@ -258,6 +259,13 @@ public class DocumentsController : Controller
         if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
             return Redirect(returnUrl);
 
+        return RedirectToAction(nameof(List));
+    }
+
+    [HttpGet]
+    public IActionResult MobileIndex()
+    {
+        ViewData["DockKey"] = "docs";
         return RedirectToAction(nameof(List));
     }
 }

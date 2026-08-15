@@ -14,6 +14,289 @@
     --info: #17a2b8;
 }
 
+/* =========================================================
+   GLOBAL CONTRAST FIX: Green backgrounds must ALWAYS have
+   white / near-white text (minimum 4.5:1 WCAG AA).
+   This blanket rule overrides any accidental text-muted /
+   text-dark / text-success / near-black default inheritance
+   that becomes illegible on dark olive (#2d5016) or success
+   green (#28a745) backgrounds.
+   ========================================================= */
+.btn-primary,
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-primary.active,
+.show > .btn-primary.dropdown-toggle,
+.btn-success,
+.btn-success:hover,
+.btn-success:focus,
+.btn-success:active,
+.btn-success.active,
+.show > .btn-success.dropdown-toggle,
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active,
+.btn-outline-success:hover,
+.btn-outline-success:focus,
+.btn-outline-success:active,
+.bg-primary,
+.bg-success,
+.bg-primary.bg-opacity-10,
+.bg-success.bg-opacity-5,
+.bg-primary-subtle,
+.bg-success-subtle,
+.alert-success,
+.alert-primary,
+.badge.bg-primary,
+.badge.bg-success,
+.border-start.border-primary,
+.border-start.border-success,
+.table-primary,
+.table-success,
+.list-group-item-primary,
+.list-group-item-success,
+.navbar-dark,
+.navbar-dark .navbar-brand,
+.navbar-dark .navbar-toggler-icon,
+.navbar-nav > li > .nav-link.dropdown-toggle,
+.progress .progress-bar.bg-primary,
+.progress .progress-bar.bg-success {
+    color: #ffffff !important;
+}
+.btn-primary *,
+.btn-success *,
+.bg-primary *,
+.bg-success *,
+.alert-success *,
+.alert-primary *,
+.badge.bg-primary *,
+.badge.bg-success *,
+.navbar-dark > *:not(.dropdown-menu),
+.navbar-dark .navbar-nav > li.nav-item > *,
+.card-header.bg-primary *,
+.card-header.bg-success *,
+.list-group-item-primary *,
+.list-group-item-success *,
+.table-primary th *,
+.table-primary td *,
+.table-success th *,
+.table-success td *,
+.progress .progress-bar.bg-primary *,
+.progress .progress-bar.bg-success * {
+    color: inherit !important;
+}
+/* Critical: when a dropdown pops out of a dark navbar, the .dropdown-menu is a white
+   overlay and must NOT inherit forced-white text from the navbar ancestor (that would
+   paint everything "white on white" = invisible). Reset EVERYTHING inside any .dropdown-menu
+   that is a descendant of a dark/green navbar to readable dark text + correct hover states.
+   Also CRITICAL: the menu must be POSITION-ABSOLUTE so it floats over the page and does NOT
+   push the green navbar bar height downward when it opens (stretch bug in the red box). */
+.navbar-dark .dropdown,
+.navbar .dropdown,
+.navbar-dark .dropup,
+.navbar .dropup,
+.navbar-dark .dropstart,
+.navbar .dropstart,
+.navbar-dark .dropend,
+.navbar .dropend,
+.navbar-dark li.nav-item.dropdown,
+.navbar li.nav-item.dropdown {
+    position: relative !important;
+}
+.navbar-dark .dropdown-menu,
+.navbar .dropdown-menu,
+.bg-primary .dropdown-menu,
+.bg-success .dropdown-menu {
+    position: absolute !important;
+    top: calc(100% + 0.35rem) !important;
+    left: auto !important;
+    right: 0 !important;
+    bottom: auto !important;
+    z-index: 1055 !important;
+    min-width: 14rem !important;
+    max-width: min(92vw, 22rem) !important;
+    transform: none !important;
+    color: #1f2328 !important;
+    background-color: #ffffff !important;
+    border: 1px solid #e5e7eb !important;
+    border-radius: 0.6rem !important;
+    box-shadow: 0 10px 24px rgba(15, 23, 8, 0.14) !important;
+    margin: 0 !important;
+}
+.navbar-dark .dropdown-menu.show,
+.navbar .dropdown-menu.show,
+.bg-primary .dropdown-menu.show,
+.bg-success .dropdown-menu.show {
+    display: block !important;
+}
+.navbar-dark .dropdown-menu.dropdown-menu-start,
+.navbar .dropdown-menu.dropdown-menu-start {
+    left: 0 !important;
+    right: auto !important;
+}
+.navbar-dark .dropdown-menu.dropdown-menu-end,
+.navbar .dropdown-menu.dropdown-menu-end {
+    right: 0 !important;
+    left: auto !important;
+}
+.navbar-dark .dropdown-menu *,
+.navbar .dropdown-menu *,
+.bg-primary .dropdown-menu *,
+.bg-success .dropdown-menu * {
+    color: #1f2328 !important;
+}
+.navbar-dark .dropdown-menu .dropdown-item,
+.navbar .dropdown-menu .dropdown-item,
+.bg-primary .dropdown-menu .dropdown-item,
+.bg-success .dropdown-menu .dropdown-item {
+    color: #1f2328 !important;
+    background-color: transparent !important;
+}
+.navbar-dark .dropdown-menu .dropdown-item:hover,
+.navbar-dark .dropdown-menu .dropdown-item:focus,
+.navbar .dropdown-menu .dropdown-item:hover,
+.navbar .dropdown-menu .dropdown-item:focus,
+.bg-primary .dropdown-menu .dropdown-item:hover,
+.bg-success .dropdown-menu .dropdown-item:hover {
+    color: #0f1708 !important;
+    background-color: #f2f5ef !important;
+}
+.navbar-dark .dropdown-menu .dropdown-item.active,
+.navbar .dropdown-menu .dropdown-item.active {
+    color: #ffffff !important;
+    background-color: #2d5016 !important;
+}
+.navbar-dark .dropdown-menu .dropdown-item-text,
+.navbar .dropdown-menu .dropdown-item-text {
+    color: #1f2328 !important;
+}
+.navbar-dark .dropdown-menu .dropdown-header,
+.navbar .dropdown-menu .dropdown-header {
+    color: #0f1708 !important;
+}
+.navbar-dark .dropdown-menu .text-muted,
+.navbar .dropdown-menu .text-muted,
+.navbar-dark .dropdown-menu .dropdown-item-text.text-muted,
+.navbar .dropdown-menu .dropdown-item-text.text-muted {
+    color: #57606a !important;
+}
+.navbar-dark .dropdown-menu .dropdown-divider,
+.navbar .dropdown-menu .dropdown-divider {
+    border-top-color: #e5e7eb !important;
+    background-color: transparent !important;
+    opacity: 1 !important;
+}
+.navbar-dark .dropdown-menu hr,
+.navbar .dropdown-menu hr,
+.bg-primary .dropdown-menu hr,
+.bg-success .dropdown-menu hr {
+    border-top: 1px solid #e5e7eb !important;
+    color: inherit !important;
+    background-color: transparent !important;
+    opacity: 1 !important;
+    margin-top: 4px !important;
+    margin-bottom: 4px !important;
+}
+/* Force any accidental dark/green-tinged utility text inside green containers to white */
+.bg-primary .text-muted,
+.bg-primary .text-secondary,
+.bg-primary .text-success,
+.bg-primary .text-dark,
+.bg-primary .text-body,
+.bg-primary .text-black,
+.bg-primary .text-body-secondary,
+.bg-primary .text-light-emphasis,
+.bg-success .text-muted,
+.bg-success .text-secondary,
+.bg-success .text-success,
+.bg-success .text-dark,
+.bg-success .text-body,
+.bg-success .text-black,
+.bg-success .text-body-secondary,
+.alert-success .text-muted,
+.alert-success .text-secondary,
+.alert-success .text-success,
+.alert-success .text-dark,
+.alert-success .text-body,
+.alert-primary .text-muted,
+.alert-primary .text-secondary,
+.alert-primary .text-dark,
+.alert-primary .text-body,
+.btn-primary .text-muted,
+.btn-primary .text-secondary,
+.btn-primary .text-success,
+.btn-primary .text-dark,
+.btn-primary .text-body,
+.btn-success .text-muted,
+.btn-success .text-secondary,
+.btn-success .text-success,
+.btn-success .text-dark,
+.btn-success .text-body,
+.navbar-dark .text-muted,
+.navbar-dark .text-secondary,
+.navbar-dark .text-dark,
+.navbar-dark .text-body,
+.badge.bg-primary .text-muted,
+.badge.bg-primary .text-dark,
+.badge.bg-success .text-muted,
+.badge.bg-success .text-dark {
+    color: #ffffff !important;
+}
+/* Primary / Success button state colors: ensure white text at every state */
+.btn-primary:disabled,
+.btn-primary.disabled,
+.btn-success:disabled,
+.btn-success.disabled {
+    color: rgba(255, 255, 255, 0.75) !important;
+    background-color: rgba(45, 80, 22, 0.6) !important;
+    border-color: rgba(31, 58, 15, 0.6) !important;
+}
+/* Alert dismiss close (×) button inside green alerts — visible white */
+.alert-success .btn-close,
+.alert-primary .btn-close {
+    filter: invert(1) grayscale(100%) brightness(2);
+}
+/* Success/subtle card backgrounds (green-tinted pale bg) keep dark text since it's
+   actually a pale green not a dark one — handled case-by-case below */
+.bg-success-subtle,
+.bg-primary-subtle,
+.bg-success.bg-opacity-10,
+.bg-primary.bg-opacity-10,
+.bg-success.bg-opacity-5,
+.bg-primary.bg-opacity-5 {
+    color: var(--text) !important;
+}
+.bg-success-subtle .text-success,
+.bg-primary-subtle .text-primary {
+    /* Inside pale subtle bg, do NOT use themed foreground (it blends!) — force dark readable text */
+    color: var(--text) !important;
+}
+/* Even on pale green (bg-opacity 5/10/15), a text-success class still makes green-on-green.
+   Any bg-success + text-success combo (regardless of opacity) must NOT be same-color text. */
+[class*="bg-success"] .text-success,
+[class*="bg-success"].text-success,
+[class*="bg-primary"] .text-primary,
+[class*="bg-primary"].text-primary,
+[class*="bg-success"] [class*="text-success"],
+[class*="bg-primary"] [class*="text-primary"] {
+    color: #0f1708 !important;
+}
+/* Same for muted/secondary/light on pale green — boost to dark readable */
+[class*="bg-success"] .text-muted,
+[class*="bg-success"] .text-secondary,
+[class*="bg-success"] .text-body-secondary,
+[class*="bg-primary"] .text-muted,
+[class*="bg-primary"] .text-secondary,
+[class*="bg-primary"] .text-body-secondary {
+    color: #252b1d !important;
+}
+/* Border-only colored cards do not get white text override — inherit normal */
+.border-primary:not(.bg-primary):not(.bg-success),
+.border-success:not(.bg-primary):not(.bg-success) {
+    color: inherit;
+}
+
 html {
     font-size: 14px;
     position: relative;

@@ -13,7 +13,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewFinancialData")]
+[Authorize(Policy = PolicyNames.CanViewInvoices)]
 public class InvoicesController : Controller
 {
     private readonly IInvoiceService _invoiceService;
@@ -40,11 +40,12 @@ public class InvoicesController : Controller
     }
 
     private bool CanEdit => User.IsInRole(RoleNames.Accounts)
+        || User.IsInRole(RoleNames.OperationsManager)
         || User.IsInRole(RoleNames.CompanyAdministrator)
         || User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewInvoices)]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, InvoiceStatus? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -75,7 +76,7 @@ public class InvoicesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewInvoices)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -110,7 +111,7 @@ public class InvoicesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanManageInvoices)]
     public async Task<IActionResult> Confirm(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -128,7 +129,7 @@ public class InvoicesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanViewInvoices)]
     public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -143,5 +144,12 @@ public class InvoicesController : Controller
             return NotFound();
         }
         return File(bytes, "application/pdf", $"Invoice_{id:N}.pdf");
+    }
+
+    [HttpGet]
+    public IActionResult MobileIndex()
+    {
+        ViewData["DockKey"] = "invoices";
+        return RedirectToAction(nameof(Index));
     }
 }

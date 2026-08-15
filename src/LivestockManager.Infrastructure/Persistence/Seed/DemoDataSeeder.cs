@@ -26,8 +26,8 @@ public static class DemoDataSeeder
         "admin@livestock.dev",
         "accounts@livestock.dev",
         "farmmanager@livestock.dev",
+        "operationsmanager@livestock.dev",
         "dataentry@livestock.dev",
-        "viewer@livestock.dev",
         "sysadmin@livestock.dev"
     };
 
@@ -185,10 +185,10 @@ public static class DemoDataSeeder
         {
             new { Name = RoleNames.SystemAdministrator, Desc = "Cross-company system-level access" },
             new { Name = RoleNames.CompanyAdministrator, Desc = "Full company-level access" },
-            new { Name = RoleNames.Accounts, Desc = "Finance and accounts management" },
+            new { Name = RoleNames.OperationsManager, Desc = "Company-wide manager access" },
+            new { Name = RoleNames.Accounts, Desc = "Finance and accounting access" },
             new { Name = RoleNames.FarmManager, Desc = "Farm and operational management" },
-            new { Name = RoleNames.DataEntry, Desc = "Can create and edit records" },
-            new { Name = RoleNames.Viewer, Desc = "Read-only access" }
+            new { Name = RoleNames.DataEntry, Desc = "Employee operational access" }
         };
 
         foreach (var r in roles)
@@ -280,8 +280,8 @@ public static class DemoDataSeeder
         {
             new { UserName = "accounts",    Email = "accounts@livestock.dev",    Name = "Accounts User",         Role = RoleNames.Accounts },
             new { UserName = "farmmanager", Email = "farmmanager@livestock.dev", Name = "Farm Manager",          Role = RoleNames.FarmManager },
-            new { UserName = "dataentry",   Email = "dataentry@livestock.dev",   Name = "Data Entry Clerk",      Role = RoleNames.DataEntry },
-            new { UserName = "viewer",      Email = "viewer@livestock.dev",      Name = "View-only Viewer",      Role = RoleNames.Viewer },
+            new { UserName = "operationsmanager", Email = "operationsmanager@livestock.dev", Name = "Operations Manager", Role = RoleNames.OperationsManager },
+            new { UserName = "dataentry",   Email = "dataentry@livestock.dev",         Name = "Employee",              Role = RoleNames.DataEntry },
             new { UserName = "sysadmin",    Email = "sysadmin@livestock.dev",    Name = "System Administrator",  Role = RoleNames.SystemAdministrator }
         };
 

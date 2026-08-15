@@ -8,13 +8,14 @@ using LivestockManager.Application.Services.Farms;
 using LivestockManager.Application.Services.Livestock;
 using LivestockManager.Application.Services.StockAddition;
 using LivestockManager.Application.Services.Suppliers;
+using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models.StockAdditionViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanManageLivestock")]
+[Authorize(Policy = PolicyNames.CanViewLivestock)]
 public class StockAdditionController : Controller
 {
     private readonly IStockAdditionService _stockAdditionService;
@@ -80,6 +81,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanViewLivestock)]
     public IActionResult Index()
     {
         ViewData["Title"] = "Stock Addition";
@@ -88,6 +90,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanRecordStockPurchase)]
     public async Task<IActionResult> Purchase(CancellationToken ct)
     {
         var vm = new StockAdditionPurchaseViewModel
@@ -102,6 +105,7 @@ public class StockAdditionController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = PolicyNames.CanRecordStockPurchase)]
     public async Task<IActionResult> Purchase(StockAdditionPurchaseViewModel vm, CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -154,6 +158,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
     public async Task<IActionResult> Newborn(CancellationToken ct)
     {
         var vm = new StockAdditionNewbornViewModel
@@ -167,6 +172,7 @@ public class StockAdditionController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
     public async Task<IActionResult> Newborn(StockAdditionNewbornViewModel vm, CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -210,6 +216,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
     public async Task<JsonResult> SearchEligibleEwes(string keyword, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -218,6 +225,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
     public async Task<JsonResult> SearchEligibleRams(string keyword, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -226,6 +234,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanViewLivestock)]
     public async Task<IActionResult> Success(Guid livestockId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -243,6 +252,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanViewLivestock)]
     public IActionResult MobileIndex()
     {
         ViewData["DockKey"] = "stock";
@@ -250,6 +260,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanRecordStockPurchase)]
     public async Task<IActionResult> MobilePurchase(CancellationToken ct)
     {
         var vm = new StockAdditionPurchaseViewModel
@@ -264,6 +275,7 @@ public class StockAdditionController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = PolicyNames.CanRecordStockPurchase)]
     public async Task<IActionResult> MobilePurchase(StockAdditionPurchaseViewModel vm, CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -316,6 +328,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
     public async Task<IActionResult> MobileNewborn(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -337,6 +350,7 @@ public class StockAdditionController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
     public async Task<IActionResult> MobileNewborn(StockAdditionNewbornViewModel vm, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -389,6 +403,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PolicyNames.CanViewLivestock)]
     public async Task<IActionResult> MobileSuccess(Guid livestockId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);

@@ -15,7 +15,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewFinancialData")]
+[Authorize(Policy = PolicyNames.CanRecordPayments)]
 public class PaymentsController : Controller
 {
     private readonly IPaymentService _paymentService;
@@ -55,7 +55,7 @@ public class PaymentsController : Controller
         || User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanRecordPayments)]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, PaymentMethod? method, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -85,7 +85,7 @@ public class PaymentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanRecordPayments)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -103,7 +103,7 @@ public class PaymentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanRecordPayments)]
     public async Task<IActionResult> Create(Guid? invoiceId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -144,7 +144,7 @@ public class PaymentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanRecordPayments)]
     public async Task<IActionResult> Create(PaymentCreateDto dto, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -190,7 +190,7 @@ public class PaymentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanReversePayments)]
     public async Task<IActionResult> Reverse(Guid id, string? reason, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -216,5 +216,12 @@ public class PaymentsController : Controller
             TempData["Error"] = ex.Message;
             return RedirectToAction(nameof(Details), new { id });
         }
+    }
+
+    [HttpGet]
+    public IActionResult MobileIndex()
+    {
+        ViewData["DockKey"] = "payments";
+        return RedirectToAction(nameof(Index));
     }
 }

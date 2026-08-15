@@ -15,7 +15,7 @@ using LivestockManager.Web.Models;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewOperationalData")]
+[Authorize(Policy = PolicyNames.CanViewOperationalData)]
 public class HomeController : Controller
 {
     private readonly ILogger<HomeController> _logger;
@@ -43,7 +43,7 @@ public class HomeController : Controller
 
     private bool UserCanViewFinancials() =>
         User.IsInRole(RoleNames.Accounts) ||
-        User.IsInRole(RoleNames.FarmManager) ||
+        User.IsInRole(RoleNames.OperationsManager) ||
         User.IsInRole(RoleNames.CompanyAdministrator) ||
         User.IsInRole(RoleNames.SystemAdministrator);
 
@@ -59,7 +59,7 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewOperationalData)]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -119,7 +119,7 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewOperationalData)]
     public async Task<IActionResult> MobileDashboard(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -177,7 +177,7 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewOperationalData)]
     public IActionResult Privacy()
     {
         return View();

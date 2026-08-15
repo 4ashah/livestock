@@ -9,48 +9,64 @@ namespace LivestockManager.UnitTests;
 
 public class RoleAuthorizationMatrixTests
 {
-    public const string Administrator = "Administrator";
-    public const string Manager = "Manager";
     public const string DataEntry = "DataEntry";
-    public const string Viewer = "Viewer";
-
     public const string FarmManager = "FarmManager";
     public const string Accounts = "Accounts";
+    public const string OperationsManager = "OperationsManager";
     public const string CompanyAdministrator = "CompanyAdministrator";
     public const string SystemAdministrator = "SystemAdministrator";
 
     private static readonly HashSet<string> AllowedRoles = new()
     {
-        Administrator,
-        Manager,
         DataEntry,
-        Viewer,
         FarmManager,
         Accounts,
+        OperationsManager,
         CompanyAdministrator,
         SystemAdministrator
     };
 
     private static readonly string[] ExpectedPolicyNames = new[]
     {
-        "CanViewOperationalData",
-        "CanManageLivestock",
-        "CanManageSales",
-        "CanManageAccounting",
-        "CanManageCompany",
-        "CanManageSystem",
-        "CanViewFinancialData"
+        PolicyNames.CanViewOperationalData,
+        PolicyNames.CanViewFarms,
+        PolicyNames.CanManageFarms,
+        PolicyNames.CanViewLivestock,
+        PolicyNames.CanRegisterLivestock,
+        PolicyNames.CanManageLivestock,
+        PolicyNames.CanRecordWeight,
+        PolicyNames.CanDischargeLivestock,
+        PolicyNames.CanRecordStockPurchase,
+        PolicyNames.CanRecordNewborn,
+        PolicyNames.CanManageCustomers,
+        PolicyNames.CanManageSuppliers,
+        PolicyNames.CanViewDocuments,
+        PolicyNames.CanUploadDocuments,
+        PolicyNames.CanCreateSales,
+        PolicyNames.CanReverseSales,
+        PolicyNames.CanManagePurchaseInvoices,
+        PolicyNames.CanViewInvoices,
+        PolicyNames.CanManageInvoices,
+        PolicyNames.CanRecordPayments,
+        PolicyNames.CanReversePayments,
+        PolicyNames.CanGenerateReceipts,
+        PolicyNames.CanManageExpenses,
+        PolicyNames.CanRecordLosses,
+        PolicyNames.CanViewOperationalReports,
+        PolicyNames.CanViewFinancialReports,
+        PolicyNames.CanManageCompany,
+        PolicyNames.CanViewAuditLogs,
+        PolicyNames.CanManageUsers,
+        PolicyNames.CanManageSystem
     };
 
     [Fact]
     public void RoleConstants_AreExactlyAsSpecified()
     {
-        Assert.Equal("Administrator", Administrator);
-        Assert.Equal("Manager", Manager);
         Assert.Equal("DataEntry", DataEntry);
-        Assert.Equal("Viewer", Viewer);
         Assert.Equal("FarmManager", FarmManager);
         Assert.Equal("Accounts", Accounts);
+        Assert.Equal("OperationsManager", OperationsManager);
         Assert.Equal("CompanyAdministrator", CompanyAdministrator);
         Assert.Equal("SystemAdministrator", SystemAdministrator);
     }
@@ -58,13 +74,11 @@ public class RoleAuthorizationMatrixTests
     [Fact]
     public void AllowedRoles_HasExpandedPhase2Entries()
     {
-        Assert.Equal(8, AllowedRoles.Count);
-        Assert.Contains(Administrator, AllowedRoles);
-        Assert.Contains(Manager, AllowedRoles);
+        Assert.Equal(6, AllowedRoles.Count);
         Assert.Contains(DataEntry, AllowedRoles);
-        Assert.Contains(Viewer, AllowedRoles);
         Assert.Contains(FarmManager, AllowedRoles);
         Assert.Contains(Accounts, AllowedRoles);
+        Assert.Contains(OperationsManager, AllowedRoles);
         Assert.Contains(CompanyAdministrator, AllowedRoles);
         Assert.Contains(SystemAdministrator, AllowedRoles);
     }
@@ -72,8 +86,8 @@ public class RoleAuthorizationMatrixTests
     [Fact]
     public void RoleConstants_AreDistinct()
     {
-        var roles = new[] { Administrator, Manager, DataEntry, Viewer, FarmManager, Accounts, CompanyAdministrator, SystemAdministrator };
-        Assert.Equal(8, roles.Distinct().Count());
+        var roles = new[] { DataEntry, FarmManager, Accounts, OperationsManager, CompanyAdministrator, SystemAdministrator };
+        Assert.Equal(6, roles.Distinct().Count());
     }
 
     [Fact]
@@ -93,10 +107,12 @@ public class RoleAuthorizationMatrixTests
             var expected = new HashSet<string>(AllowedRoles);
             var standardUsages = new[]
             {
-                "Administrator",
-                "Manager",
                 "DataEntry",
-                "Viewer"
+                "FarmManager",
+                "Accounts",
+                "OperationsManager",
+                "CompanyAdministrator",
+                "SystemAdministrator"
             };
             Assert.Subset(expected, standardUsages.ToHashSet());
             return;
@@ -137,32 +153,72 @@ public class RoleAuthorizationMatrixTests
 
         services.AddAuthorization(options =>
         {
-            options.AddPolicy("CanViewOperationalData", policy =>
-                policy.RequireRole(RoleNames.Viewer, RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-            options.AddPolicy("CanManageLivestock", policy =>
-                policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-            options.AddPolicy("CanManageSales", policy =>
-                policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-            options.AddPolicy("CanManageAccounting", policy =>
-                policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-            options.AddPolicy("CanManageCompany", policy =>
+            options.AddPolicy(PolicyNames.CanViewOperationalData, policy =>
+                policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanViewFarms, policy =>
+                policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanManageFarms, policy =>
+                policy.RequireRole(RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanViewLivestock, policy =>
+                policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanRegisterLivestock, policy =>
+                policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanManageLivestock, policy =>
+                policy.RequireRole(RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanRecordWeight, policy =>
+                policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanDischargeLivestock, policy =>
+                policy.RequireRole(RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanRecordStockPurchase, policy =>
+                policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanRecordNewborn, policy =>
+                policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanManageCustomers, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanManageSuppliers, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanViewDocuments, policy =>
+                policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanUploadDocuments, policy =>
+                policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanCreateSales, policy =>
+                policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanReverseSales, policy =>
                 policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-            options.AddPolicy("CanManageSystem", policy =>
+            options.AddPolicy(PolicyNames.CanManagePurchaseInvoices, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanViewInvoices, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanManageInvoices, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanRecordPayments, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanReversePayments, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanGenerateReceipts, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanManageExpenses, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanRecordLosses, policy =>
+                policy.RequireRole(RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanViewOperationalReports, policy =>
+                policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanViewFinancialReports, policy =>
+                policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanManageCompany, policy =>
+                policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanViewAuditLogs, policy =>
+                policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanManageUsers, policy =>
+                policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
+            options.AddPolicy(PolicyNames.CanManageSystem, policy =>
                 policy.RequireRole(RoleNames.SystemAdministrator));
-
-            options.AddPolicy("CanViewFinancialData", policy =>
-                policy.RequireRole(RoleNames.Accounts, RoleNames.FarmManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
         });
 
         var serviceProvider = services.BuildServiceProvider();
         var policyProvider = serviceProvider.GetRequiredService<IAuthorizationPolicyProvider>();
 
-        Assert.Equal(7, ExpectedPolicyNames.Length);
+        Assert.Equal(30, ExpectedPolicyNames.Length);
 
         foreach (var policyName in ExpectedPolicyNames)
         {

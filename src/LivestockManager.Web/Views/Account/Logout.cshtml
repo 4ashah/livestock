@@ -1,0 +1,61 @@
+@{
+    ViewData["Title"] = "Sign out";
+    Layout = null;
+    var returnUrl = ViewData["ReturnUrl"] as string;
+    var postUrl = Url.Action("Logout", "Account");
+    var antiForgery = @Html.AntiForgeryToken();
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Sign out · Livestock Manager</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" asp-append-version="true">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true">
+</head>
+<body class="bg-light min-vh-100 d-flex align-items-center justify-content-center p-4">
+    <div class="card shadow border-0" style="max-width: 420px; width: 100%;">
+        <div class="card-body p-5 text-center">
+            <div class="mb-4">
+                <div class="mx-auto bg-success bg-opacity-10 rounded-circle d-flex align-items-center justify-content-center" style="width:72px;height:72px;">
+                    <span aria-hidden="true" style="font-size:36px;">⏻</span>
+                </div>
+            </div>
+            <h4 class="card-title fw-bold mb-2">Sign out of Livestock Manager?</h4>
+            <p class="card-text text-muted mb-4">You will need to sign in again to access your farm data.</p>
+            <form id="logoutConfirmForm" action="@postUrl" method="post" class="d-grid gap-2">
+                @antiForgery
+                @if (!string.IsNullOrWhiteSpace(returnUrl))
+                {
+                    <input type="hidden" name="returnUrl" value="@returnUrl">
+                }
+                <button type="submit" class="btn btn-success btn-lg py-2 fw-semibold">
+                    <span class="me-2" aria-hidden="true">✓</span>Yes, sign me out
+                </button>
+                <a class="btn btn-outline-secondary py-2 fw-semibold" href="@(string.IsNullOrWhiteSpace(returnUrl) ? Url.Action("Index", "Home") : returnUrl)">
+                    Cancel, stay signed in
+                </a>
+            </form>
+            <p id="autoSignOutHint" class="small text-muted mt-3 mb-0 d-none">
+                Auto-signing out in a moment…
+            </p>
+        </div>
+    </div>
+    <script>
+        (function () {
+            try {
+                var hint = document.getElementById('autoSignOutHint');
+                if (hint) hint.classList.remove('d-none');
+                var form = document.getElementById('logoutConfirmForm');
+                if (form) {
+                    setTimeout(function () { form.submit(); }, 400);
+                }
+            } catch (err) {
+                /* no-op; user can click manually */
+            }
+        })();
+    </script>
+</body>
+</html>

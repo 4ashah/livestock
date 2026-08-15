@@ -11,7 +11,7 @@ using LivestockManager.Web.Models.AuditViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanManageCompany")]
+[Authorize(Policy = PolicyNames.CanViewAuditLogs)]
 public class AuditController : Controller
 {
     private readonly IAppDbContext _db;
@@ -32,7 +32,7 @@ public class AuditController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageCompany")]
+    [Authorize(Policy = PolicyNames.CanViewAuditLogs)]
     public async Task<IActionResult> Index(
         string? entityType,
         string? entityId,
@@ -134,7 +134,7 @@ public class AuditController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageCompany")]
+    [Authorize(Policy = PolicyNames.CanViewAuditLogs)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct = default)
     {
         if (id == Guid.Empty) return NotFound();

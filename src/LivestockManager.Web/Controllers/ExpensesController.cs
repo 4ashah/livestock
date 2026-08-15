@@ -16,7 +16,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewFinancialData")]
+[Authorize(Policy = PolicyNames.CanManageExpenses)]
 public class ExpensesController : Controller
 {
     private readonly IExpenseService _expenseService;
@@ -49,8 +49,8 @@ public class ExpensesController : Controller
     }
 
     private bool CanEdit =>
-        User.IsInRole(RoleNames.FarmManager) ||
         User.IsInRole(RoleNames.Accounts) ||
+        User.IsInRole(RoleNames.OperationsManager) ||
         User.IsInRole(RoleNames.CompanyAdministrator) ||
         User.IsInRole(RoleNames.SystemAdministrator);
 

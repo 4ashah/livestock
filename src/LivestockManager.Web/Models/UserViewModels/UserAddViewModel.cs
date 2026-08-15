@@ -19,7 +19,7 @@ public class UserAddViewModel
 
     [Required]
     [Display(Name = "Role")]
-    public string SelectedRole { get; set; } = "Viewer";
+    public string SelectedRole { get; set; } = "DataEntry";
 
     public IList<SelectListItem> RoleOptions { get; set; } = new List<SelectListItem>();
 

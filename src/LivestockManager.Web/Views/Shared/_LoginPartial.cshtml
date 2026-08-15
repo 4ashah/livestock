@@ -5,23 +5,66 @@
 <ul class="navbar-nav ms-auto user-dropdown">
 @if (SignInManager.IsSignedIn(User))
 {
-    var email = User.Identity?.Name ?? string.Empty;
-    var initials = string.IsNullOrWhiteSpace(email) ? "?" : email[0].ToString().ToUpperInvariant();
+    var user = await UserManager.GetUserAsync(User);
+    var displayName = !string.IsNullOrWhiteSpace(user?.FullName) ? user.FullName : (User.Identity?.Name ?? string.Empty);
+    var initials = (!string.IsNullOrWhiteSpace(user?.FullName)
+        ? string.Concat(user.FullName.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).Take(2).Select(s => s[0]))
+        : string.Empty).Trim();
+    if (string.IsNullOrWhiteSpace(initials) && !string.IsNullOrWhiteSpace(displayName))
+    {
+        initials = displayName[0].ToString();
+    }
+    initials = initials.ToUpperInvariant();
     <li class="nav-item dropdown">
-        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <a class="nav-link dropdown-toggle" href="javascript:void(0);" id="userDropdown" role="button"
+           data-bs-toggle="dropdown" data-toggle="dropdown"
+           aria-haspopup="true" aria-expanded="false">
             <span class="user-avatar">@initials</span>
-            <span class="d-none d-sm-inline">@email</span>
+            <span class="d-none d-sm-inline">@displayName</span>
         </a>
-        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-            <li><span class="dropdown-item-text text-muted small">Signed in</span></li>
-            <li><hr class="dropdown-divider"></li>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" aria-labelledby="userDropdown">
+            <li><span class="dropdown-item-text small text-muted px-3">Signed in as</span></li>
+            <li><h6 class="dropdown-header fw-bold pt-0">@displayName</h6></li>
+            <li><hr class="dropdown-divider mx-3 my-1"></li>
             <li>
-                <form class="d-inline" asp-area="" asp-controller="Account" asp-action="Logout" asp-route-returnUrl="@Url.Action("Index", "Home", new { area = "" })">
-                    <button type="submit" class="dropdown-item">Logout</button>
+                <a class="dropdown-item d-flex align-items-center gap-2" asp-area="" asp-controller="Settings" asp-action="Index">
+                    <span aria-hidden="true">&#9881;</span><span>Settings</span>
+                </a>
+            </li>
+            <li>
+                <form id="desktopLogoutForm" class="d-inline m-0" action="@Url.Action("Logout", "Account")" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="returnUrl" value="@Url.Action("Index", "Home", new { area = "" })">
+                    <button type="submit" formmethod="post" formaction="@Url.Action("Logout", "Account")" class="dropdown-item d-flex align-items-center gap-2 w-100 text-start">
+                        <span aria-hidden="true">⏻</span><span>Logout</span>
+                    </button>
                 </form>
             </li>
         </ul>
     </li>
+    <script>
+        (function () {
+            var el = document.getElementById('userDropdown');
+            if (!el) return;
+            el.addEventListener('click', function (e) {
+                e.preventDefault();
+                try {
+                    if (window.bootstrap && window.bootstrap.Dropdown) {
+                        var inst = window.bootstrap.Dropdown.getOrCreateInstance(el);
+                        inst.toggle();
+                    } else if (window.jQuery && window.jQuery.fn && typeof window.jQuery.fn.dropdown === 'function') {
+                        window.jQuery(el).dropdown('toggle');
+                    }
+                } catch (err) { /* no-op */ }
+            }, false);
+            el.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    el.click();
+                }
+            }, false);
+        })();
+    </script>
 }
 else
 {

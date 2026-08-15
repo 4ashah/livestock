@@ -10,7 +10,7 @@ using LivestockManager.Web.Models.ReceiptViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewFinancialData")]
+[Authorize(Policy = PolicyNames.CanGenerateReceipts)]
 public class ReceiptsController : Controller
 {
     private readonly IReceiptService _receiptService;
@@ -52,7 +52,7 @@ public class ReceiptsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanGenerateReceipts)]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();
@@ -62,7 +62,7 @@ public class ReceiptsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanGenerateReceipts)]
     public async Task<IActionResult> GenerateForPayment(Guid paymentId, string? notes, CancellationToken ct)
     {
         if (paymentId == Guid.Empty) return NotFound();
@@ -79,7 +79,7 @@ public class ReceiptsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanGenerateReceipts)]
     public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -94,5 +94,12 @@ public class ReceiptsController : Controller
             return NotFound();
         }
         return File(bytes, "application/pdf", $"Receipt_{id:N}.pdf");
+    }
+
+    [HttpGet]
+    public IActionResult MobileIndex()
+    {
+        ViewData["DockKey"] = "receipts";
+        return RedirectToAction(nameof(Index));
     }
 }

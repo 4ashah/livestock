@@ -7,10 +7,10 @@ public class RoleNamesTests
     [Fact]
     public void RoleConstants_Spelling_IsCorrect()
     {
-        Assert.Equal("Viewer", RoleNames.Viewer);
         Assert.Equal("DataEntry", RoleNames.DataEntry);
         Assert.Equal("FarmManager", RoleNames.FarmManager);
         Assert.Equal("Accounts", RoleNames.Accounts);
+        Assert.Equal("OperationsManager", RoleNames.OperationsManager);
         Assert.Equal("CompanyAdministrator", RoleNames.CompanyAdministrator);
         Assert.Equal("SystemAdministrator", RoleNames.SystemAdministrator);
     }
@@ -27,10 +27,10 @@ public class RoleNamesTests
     {
         var ordered = new[]
         {
-            RoleNames.Viewer,
             RoleNames.DataEntry,
             RoleNames.FarmManager,
             RoleNames.Accounts,
+            RoleNames.OperationsManager,
             RoleNames.CompanyAdministrator,
             RoleNames.SystemAdministrator
         };
@@ -43,10 +43,10 @@ public class RoleNamesTests
     {
         var primary = new[]
         {
-            RoleNames.Viewer,
             RoleNames.DataEntry,
             RoleNames.FarmManager,
             RoleNames.Accounts,
+            RoleNames.OperationsManager,
             RoleNames.CompanyAdministrator,
             RoleNames.SystemAdministrator
         };

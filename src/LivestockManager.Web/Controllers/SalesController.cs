@@ -17,7 +17,7 @@ using LivestockManager.Domain.Helpers;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewFinancialData")]
+[Authorize(Policy = PolicyNames.CanCreateSales)]
 public class SalesController : Controller
 {
     private readonly ISaleService _saleService;
@@ -68,11 +68,12 @@ public class SalesController : Controller
 
     private bool CanEdit => User.IsInRole(RoleNames.Accounts)
         || User.IsInRole(RoleNames.FarmManager)
+        || User.IsInRole(RoleNames.OperationsManager)
         || User.IsInRole(RoleNames.CompanyAdministrator)
         || User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, SaleStatus? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -103,7 +104,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -128,7 +129,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> Create(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -154,7 +155,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> Create(SaleCreateDto dto,
         Guid[] livestockIds, decimal[] livestockPrices,
         string[] lineDesc, decimal[] lineQty, decimal[] linePrice,
@@ -249,7 +250,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> Confirm(Guid id, SaleConfirmDto dto, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -277,7 +278,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> Cancel(Guid id, string reason, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -294,7 +295,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> ListEligibleLivestockBulkAdd(Guid? farmId, string? keyword, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -336,7 +337,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> BulkAdd(Guid saleId, [FromForm] Guid[] selectedLivestockIds, CancellationToken ct)
     {
         if (saleId == Guid.Empty) return NotFound();
@@ -367,7 +368,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanReverseSales)]
     public async Task<IActionResult> Reverse(SaleReversalDto dto, CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -378,16 +379,6 @@ public class SalesController : Controller
         var companyId = await GetCompanyIdAsync();
         var actingUserId = await GetUserIdAsync();
         var actingUserRole = await GetUserRoleAsync();
-
-        var allowed = User.IsInRole(RoleNames.FarmManager)
-                      || User.IsInRole(RoleNames.Accounts)
-                      || User.IsInRole(RoleNames.CompanyAdministrator)
-                      || User.IsInRole(RoleNames.SystemAdministrator);
-
-        if (!allowed)
-        {
-            return Forbid();
-        }
 
         if (actingUserId == Guid.Empty)
         {
@@ -410,7 +401,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<JsonResult> SearchLivestock(string? keyword, Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -445,7 +436,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<JsonResult> ResolveLivestock(string id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -473,7 +464,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<JsonResult> SearchCustomers(string? keyword, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -494,7 +485,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> MobileIndex(DateTime? from, DateTime? to, Guid? customerId, SaleStatus? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -523,7 +514,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> MobileCreate(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -535,7 +526,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageSales")]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
     public async Task<IActionResult> MobileCreate(SaleCreateDto dto,
         Guid[] livestockIds, decimal[] livestockPrices,
         string[] lineDesc, decimal[] lineQty, decimal[] linePrice,
@@ -609,5 +600,30 @@ public class SalesController : Controller
             ViewData["CanEdit"] = CanEdit;
             return View();
         }
+    }
+
+    [HttpGet]
+    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    public async Task<IActionResult> MobileDetails(Guid id, CancellationToken ct)
+    {
+        if (id == Guid.Empty) return NotFound();
+        var companyId = await GetCompanyIdAsync();
+        SaleDetailDto sale;
+        try
+        {
+            sale = await _saleService.GetByIdAsync(id, companyId, ct);
+        }
+        catch (DomainException)
+        {
+            return NotFound();
+        }
+        ViewData["CanEdit"] = CanEdit;
+        var invoiceId = await _db.Invoices
+            .Where(i => i.SaleId == id)
+            .Select(i => (Guid?)i.Id)
+            .FirstOrDefaultAsync(ct);
+        ViewData["InvoiceId"] = invoiceId;
+        ViewData["DockKey"] = "sales";
+        return View(sale);
     }
 }

@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,7 @@ using LivestockManager.Web.Models.UserViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanManageCompany")]
+[Authorize(Policy = PolicyNames.CanManageUsers)]
 public class UserManagementController : Controller
 {
     private readonly UserManager<ApplicationUser> _userManager;
@@ -48,7 +49,7 @@ public class UserManagementController : Controller
                 IsEnabled = u.IsEnabled,
                 LastLoginAt = u.LastLoginAt,
                 CreatedAt = u.CreatedAt,
-                Roles = roles.OrderBy(x => x).ToList()
+                Roles = roles.OrderBy(x => x).Select(RoleNames.GetDisplayName).ToList()
             });
         }
         return View(new UserManagementListViewModel
@@ -111,7 +112,7 @@ public class UserManagementController : Controller
     public IActionResult AddUser()
     {
         var vm = new UserAddViewModel();
-        PopulateRoleOptions(vm);
+        PopulateRoleOptions(vm, User);
         return View(vm);
     }
 
@@ -121,17 +122,18 @@ public class UserManagementController : Controller
     {
         if (!ModelState.IsValid)
         {
-            PopulateRoleOptions(vm);
+            PopulateRoleOptions(vm, User);
             return View(vm);
         }
 
         var current = await _userManager.GetUserAsync(User);
+        var isSys = User.IsInRole(RoleNames.SystemAdministrator);
 
-        var validRoles = new[] { RoleNames.Viewer, RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator };
+        var validRoles = isSys ? RoleNames.All : RoleNames.CompanySafeAssignable;
         if (!validRoles.Contains(vm.SelectedRole))
         {
             ModelState.AddModelError(string.Empty, "Invalid role selected.");
-            PopulateRoleOptions(vm);
+            PopulateRoleOptions(vm, User);
             return View(vm);
         }
 
@@ -155,7 +157,7 @@ public class UserManagementController : Controller
             {
                 foreach (var err in createRes.Errors)
                     ModelState.AddModelError(string.Empty, err.Description);
-                PopulateRoleOptions(vm);
+                PopulateRoleOptions(vm, User);
                 return View(vm);
             }
 
@@ -165,7 +167,7 @@ public class UserManagementController : Controller
                 await tx.RollbackAsync(ct);
                 foreach (var err in addRoleRes.Errors)
                     ModelState.AddModelError(string.Empty, err.Description);
-                PopulateRoleOptions(vm);
+                PopulateRoleOptions(vm, User);
                 return View(vm);
             }
 
@@ -182,17 +184,17 @@ public class UserManagementController : Controller
         return View("Index", indexVm);
     }
 
-    private static void PopulateRoleOptions(UserAddViewModel vm)
+    private static void PopulateRoleOptions(UserAddViewModel vm, ClaimsPrincipal user)
     {
-        vm.RoleOptions = new List<SelectListItem>
-        {
-            new() { Text = RoleNames.Viewer, Value = RoleNames.Viewer },
-            new() { Text = RoleNames.DataEntry, Value = RoleNames.DataEntry },
-            new() { Text = RoleNames.FarmManager, Value = RoleNames.FarmManager },
-            new() { Text = RoleNames.Accounts, Value = RoleNames.Accounts },
-            new() { Text = RoleNames.CompanyAdministrator, Value = RoleNames.CompanyAdministrator },
-            new() { Text = RoleNames.SystemAdministrator, Value = RoleNames.SystemAdministrator }
-        };
+        var isSys = user.IsInRole(RoleNames.SystemAdministrator);
+        var allowedRoles = isSys ? RoleNames.All : RoleNames.CompanySafeAssignable;
+        vm.RoleOptions = allowedRoles
+            .Select(role => new SelectListItem
+            {
+                Text = RoleNames.GetDisplayName(role),
+                Value = role
+            })
+            .ToList();
     }
 
     private async Task<UserManagementListViewModel> BuildVm(CancellationToken ct)
@@ -217,7 +219,7 @@ public class UserManagementController : Controller
                 IsEnabled = u.IsEnabled,
                 LastLoginAt = u.LastLoginAt,
                 CreatedAt = u.CreatedAt,
-                Roles = roles.OrderBy(x => x).ToList()
+                Roles = roles.OrderBy(x => x).Select(RoleNames.GetDisplayName).ToList()
             });
         }
         return new UserManagementListViewModel
@@ -226,5 +228,12 @@ public class UserManagementController : Controller
             CurrentUserCanResetPasswords = true,
             CurrentUserIsSystemAdmin = isSys
         };
+    }
+
+    [HttpGet]
+    public IActionResult MobileIndex()
+    {
+        ViewData["DockKey"] = "users";
+        return RedirectToAction(nameof(Index));
     }
 }

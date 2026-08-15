@@ -4,11 +4,11 @@
     ViewData["Title"] = "Login";
     var demoUsers = new (string Label, string User, string Badge)[]
     {
-        ("Admin",         "admin@livestock.dev",       "System"),
-        ("Accounts",      "accounts@livestock.dev",    "Finance"),
+        ("Admin",         "admin@livestock.dev",       "Admin"),
+        ("Accounting",    "accounts@livestock.dev",    "Finance"),
         ("Farm Manager",  "farmmanager@livestock.dev", "Ops"),
-        ("Data Entry",    "dataentry@livestock.dev",   "Clerk"),
-        ("Viewer",        "viewer@livestock.dev",      "Read"),
+        ("Manager",       "operationsmanager@livestock.dev", "Mgmt"),
+        ("Employee",      "dataentry@livestock.dev",   "Employee"),
         ("System Admin",  "sysadmin@livestock.dev",    "Root"),
     };
     bool hasErrors = ViewContext.ModelState != null &&
@@ -49,9 +49,10 @@
             margin: 0;
             font-family: "Segoe UI", "Inter", system-ui, -apple-system, sans-serif;
             background:
-                radial-gradient(circle at 15% 20%, rgba(116,198,157,0.30) 0%, transparent 45%),
-                radial-gradient(circle at 85% 80%, rgba(216,243,220,0.18) 0%, transparent 40%),
-                linear-gradient(135deg, #081c15 0%, #1b4332 45%, #2d6a4f 100%);
+                radial-gradient(circle at 8% 0%, rgba(116,198,157,0.34) 0%, transparent 40%),
+                radial-gradient(circle at 92% 12%, rgba(82,183,136,0.22) 0%, transparent 38%),
+                radial-gradient(circle at 15% 88%, rgba(216,243,220,0.18) 0%, transparent 40%),
+                linear-gradient(155deg, #04110a 0%, #0f2f1e 26%, #1b4332 52%, #2d6a4f 80%, #40916c 100%);
             min-height: 100vh;
             -webkit-font-smoothing: antialiased;
             overflow-x: hidden;
@@ -64,18 +65,37 @@
             content: "";
             position: fixed;
             inset: 0;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.04'%3E%3Cpath d='M20 90 L40 70 L60 80 L80 55 L100 75' stroke-width='2' stroke-linecap='round'/%3E%3Ccircle cx='95' cy='30' r='10' stroke-width='2'/%3E%3Ccircle cx='95' cy='30' r='4' fill='%23ffffff' fill-opacity='0.05'/%3E%3C/g%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180' viewBox='0 0 180 180'%3E%3Cg fill='none' stroke='%23ffffff' stroke-opacity='0.05'%3E%3Cpath d='M16 140 L42 114 L68 128 L100 88 L132 118' stroke-width='2.2' stroke-linecap='round'/%3E%3Ccircle cx='150' cy='34' r='14' stroke-width='2'/%3E%3Ccircle cx='150' cy='34' r='6' fill='%23ffffff' fill-opacity='0.06'/%3E%3Cpath d='M34 40 L50 56' stroke-width='1.5' stroke-linecap='round'/%3E%3C/g%3E%3C/svg%3E");
             pointer-events: none;
             z-index: 0;
+        }
+        body::after {
+            content: "";
+            position: fixed;
+            bottom: -180px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 620px;
+            height: 620px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(116,198,157,0.20) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(10px);
         }
         .login-wrap {
             position: relative;
             z-index: 1;
             min-height: calc(100vh - var(--sat) - var(--sab));
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
-            padding: clamp(0.75rem, 3vw, 1.5rem);
+            padding: clamp(0.9rem, 3.6vw, 1.6rem) clamp(0.75rem, 3vw, 1.25rem);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        @@media (min-height: 760px) {
+            .login-wrap { align-items: center; }
         }
         .login-shell {
             width: 100%;
@@ -89,14 +109,203 @@
                 0 0 60px rgba(116,198,157,0.10);
             display: grid;
             grid-template-columns: 1fr;
+            position: relative;
         }
         @@media (min-width: 992px) {
             .login-shell { grid-template-columns: 0.95fr 1.05fr; min-height: 620px; }
         }
+        .login-shell::after {
+            content: "";
+            position: absolute;
+            left: 50%;
+            bottom: -38px;
+            transform: translateX(-50%);
+            width: 72%;
+            height: 24px;
+            border-radius: 50%;
+            background: radial-gradient(ellipse at center, rgba(0,0,0,0.28) 0%, transparent 70%);
+            filter: blur(6px);
+            z-index: 0;
+            pointer-events: none;
+        }
+        .login-shell > * { position: relative; z-index: 1; }
+        .m-hero {
+            display: none;
+            position: relative;
+            padding: calc(1.1rem + var(--sat, 0px)) 1.15rem 0.95rem;
+            background:
+                radial-gradient(circle at 20% 0%, rgba(149,213,178,0.30) 0%, transparent 55%),
+                radial-gradient(circle at 90% 20%, rgba(116,198,157,0.24) 0%, transparent 50%),
+                linear-gradient(160deg, #1b4332 0%, #2d6a4f 48%, #40916c 100%);
+            color: #fff;
+            overflow: hidden;
+            border-bottom-left-radius: 1.75rem;
+            border-bottom-right-radius: 1.75rem;
+            box-shadow: 0 14px 30px rgba(27,67,50,0.30);
+        }
+        .m-hero::after {
+            content: "";
+            position: absolute;
+            right: -30px;
+            top: -40px;
+            width: 180px;
+            height: 180px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(216,243,220,0.20) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        .m-hero::before {
+            content: "";
+            position: absolute;
+            left: -20px;
+            bottom: -50px;
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(82,183,136,0.30) 0%, transparent 65%);
+            pointer-events: none;
+        }
+        @@media (max-width: 768px) {
+            .login-shell { border-radius: 1.35rem; overflow: visible; }
+            .login-shell::after { display: none; }
+            .m-hero { display: block; }
+        }
+        @@media (max-width: 420px) {
+            .m-hero { padding: 1.15rem 1rem 0.75rem; }
+        }
+        .m-hero-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            position: relative;
+            z-index: 2;
+            margin-bottom: 1rem;
+        }
+        .m-hero-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .m-hero-logo {
+            width: 54px;
+            height: 54px;
+            border-radius: 1rem;
+            background: linear-gradient(135deg, rgba(255,255,255,0.26), rgba(255,255,255,0.08));
+            backdrop-filter: blur(8px);
+            box-shadow: 0 10px 26px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.22);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.7rem;
+            flex-shrink: 0;
+        }
+        .m-hero-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.01em;
+            margin: 0;
+            line-height: 1.1;
+        }
+        .m-hero-subtitle {
+            font-size: 0.78rem;
+            color: rgba(216,243,220,0.82);
+            margin: 0.12rem 0 0;
+        }
+        .m-hero-date {
+            background: rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.14);
+            border-radius: 999px;
+            padding: 0.3rem 0.65rem;
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: rgba(216,243,220,0.92);
+            white-space: nowrap;
+            backdrop-filter: blur(8px);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+        .m-hero-emoji {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0.35rem;
+            position: relative;
+            z-index: 2;
+            margin: 0.1rem 0 0.85rem;
+        }
+        .m-hero-emoji > span {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 42px;
+            width: 100%;
+            border-radius: 0.9rem;
+            background: rgba(255,255,255,0.07);
+            border: 1px solid rgba(255,255,255,0.10);
+            font-size: 1.35rem;
+            backdrop-filter: blur(4px);
+            animation: float 4.2s ease-in-out infinite;
+        }
+        .m-hero-emoji > span:nth-child(2n) { animation-delay: 0.6s; }
+        .m-hero-emoji > span:nth-child(3n) { animation-delay: 1.2s; }
+        .m-hero-emoji > span:nth-child(5n) { animation-delay: 1.8s; }
+        @@keyframes float {
+            0%,100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        @@media (max-width: 420px) {
+            .m-hero-emoji { grid-template-columns: repeat(6, 1fr); }
+            .m-hero-emoji > span:nth-child(n+19) { display: none; }
+        }
+        .m-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            position: relative;
+            z-index: 2;
+        }
+        .m-stat {
+            background: rgba(255,255,255,0.10);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 0.9rem;
+            padding: 0.55rem 0.6rem;
+            backdrop-filter: blur(8px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.10);
+        }
+        .m-stat-k {
+            display: block;
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            font-weight: 600;
+            color: rgba(216,243,220,0.76);
+        }
+        .m-stat-v {
+            display: block;
+            font-size: 1.22rem;
+            font-weight: 700;
+            color: #fff;
+            margin-top: 0.12rem;
+            letter-spacing: -0.01em;
+        }
+        .m-stat-c {
+            display: block;
+            font-size: 0.68rem;
+            color: rgba(216,243,220,0.66);
+            margin-top: 0.08rem;
+        }
+        @@media (max-width: 420px) {
+            .m-stat { padding: 0.5rem 0.5rem; border-radius: 0.8rem; }
+            .m-stat-v { font-size: 1.05rem; }
+        }
+        @@media (min-width: 421px) and (max-width: 768px) {
+            .m-stat-v { font-size: 1.32rem; }
+        }
         @@media (max-width: 480px) {
-            .login-shell { border-radius: 1.1rem; }
-            .form-side { padding: 2rem 1.25rem !important; }
-            .form-head h2 { font-size: 1.45rem; }
+            .form-side { padding: 1.5rem 1.15rem 1.25rem !important; }
+            .form-head { margin-bottom: 1.35rem; }
+            .form-head h2 { font-size: 1.35rem; line-height: 1.2; }
         }
         .brand-side {
             position: relative;
@@ -188,9 +397,11 @@
             display: flex;
             align-items: center;
             gap: 0.85rem;
-            margin-bottom: 2rem;
+            margin-bottom: 1.75rem;
         }
-        @@media (min-width: 992px) { .mobile-brand { display: none; } }
+        @@media (max-width: 768px) { .mobile-brand { display: none; } }
+        @@media (min-width: 993px) { .mobile-brand { display: none; } }
+        @@media (min-width: 769px) and (max-width: 992px) { .mobile-brand { display: flex; } }
         .mobile-brand .badge-logo {
             width: 48px;
             height: 48px;
@@ -341,34 +552,80 @@
         .form-check-label { color: #6c757d; font-size: 0.9rem; }
 
         .btn-login {
+            position: relative;
+            overflow: hidden;
             width: 100%;
-            height: 54px;
-            border-radius: 0.85rem;
+            height: 56px;
+            border-radius: 0.95rem;
             border: 0;
-            background: linear-gradient(135deg, var(--lg-mid) 0%, var(--lg-primary) 100%);
+            background: linear-gradient(135deg, var(--lg-mid) 0%, var(--lg-primary) 55%, #40916c 100%);
             color: #fff;
             font-size: 1.02rem;
-            font-weight: 600;
+            font-weight: 700;
             letter-spacing: 0.01em;
-            box-shadow: 0 12px 24px rgba(27,67,50,0.30), inset 0 1px 0 rgba(255,255,255,0.15);
+            box-shadow: 0 14px 28px rgba(27,67,50,0.32), inset 0 1px 0 rgba(255,255,255,0.18);
             transition: transform 0.12s ease, box-shadow 0.2s, filter 0.2s;
+        }
+        .btn-login::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 20% 0%, rgba(255,255,255,0.25) 0%, transparent 55%);
+            pointer-events: none;
         }
         .btn-login:hover {
             filter: brightness(1.08);
             transform: translateY(-1px);
-            box-shadow: 0 16px 30px rgba(27,67,50,0.35);
+            box-shadow: 0 18px 34px rgba(27,67,50,0.38);
         }
         .btn-login:active { transform: translateY(0); }
         .btn-login[data-loading="true"] {
             opacity: 0.8;
             pointer-events: none;
         }
+        .btn-login .arrow {
+            display: inline-block;
+            margin-left: 0.35rem;
+            transition: transform 0.2s ease;
+        }
+        .btn-login:hover .arrow { transform: translateX(3px); }
 
-        .divider {
+        .forgot-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.32rem 0.7rem;
+            border-radius: 999px;
+            background: #eaf5ef;
+            color: #1b4332 !important;
+            text-decoration: none !important;
+            font-weight: 600;
+            font-size: 0.78rem;
+            transition: background 0.18s, transform 0.12s;
+        }
+        .forgot-pill:hover { background: #d8f3dc; transform: translateY(-1px); }
+        .remember-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.28rem 0.75rem 0.28rem 0.35rem;
+            background: #f8faf9;
+            border: 1px solid #e9ecef;
+            border-radius: 999px;
+        }
+        .remember-wrap .form-check { margin: 0; }
+        .row-options {
             display: flex;
             align-items: center;
-            gap: 0.75rem;
-            margin: 1.75rem 0 1rem;
+            justify-content: space-between;
+            margin: 0.4rem 0 1.4rem;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+        .form-check input { accent-color: var(--lg-primary); }
+        .form-check-label { color: #344050; font-size: 0.85rem; font-weight: 500; }
+
+        .divider {
             color: #adb5bd;
             font-size: 0.75rem;
             text-transform: uppercase;
@@ -383,18 +640,27 @@
         }
 
         .demo-chip-row {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
             gap: 0.5rem;
         }
+        @@media (max-width: 640px) {
+            .demo-chip-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        @@media (max-width: 420px) {
+            .demo-chip-row {
+                grid-template-columns: 1fr;
+                gap: 0.45rem;
+            }
+        }
         .demo-chip {
-            flex: 1 1 44%;
-            min-width: 130px;
-            min-height: 56px;
+            flex: 1 1 auto;
+            min-width: 0;
+            min-height: 62px;
             border: 1.5px solid #e9ecef;
             background: #fff;
-            border-radius: 0.85rem;
-            padding: 0.55rem 0.7rem;
+            border-radius: 0.95rem;
+            padding: 0.6rem 0.7rem;
             cursor: pointer;
             text-align: left;
             transition: border-color 0.2s, background 0.2s, transform 0.15s, box-shadow 0.2s;
@@ -402,20 +668,75 @@
             align-items: center;
             gap: 0.6rem;
             touch-action: manipulation;
+            position: relative;
+            overflow: hidden;
+        }
+        .demo-chip::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.6), transparent 60%);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
         }
         .demo-chip:hover {
-            border-color: var(--lg-accent);
-            background: #f1faee;
             transform: translateY(-2px);
-            box-shadow: 0 8px 18px rgba(64,145,108,0.14);
+            box-shadow: 0 10px 22px rgba(27,67,50,0.12);
         }
-        @@media (max-width: 480px) {
-            .demo-chip { flex: 1 1 100%; }
+        .demo-chip:hover::after { opacity: 1; }
+        .demo-chip.sys {
+            border-color: rgba(126,61,226,0.28);
+            background: linear-gradient(135deg, rgba(126,61,226,0.06), rgba(76,29,149,0.02));
+        }
+        .demo-chip.sys:hover {
+            border-color: rgba(126,61,226,0.45);
+            box-shadow: 0 10px 22px rgba(126,61,226,0.18);
+        }
+        .demo-chip.fin {
+            border-color: rgba(20,184,166,0.28);
+            background: linear-gradient(135deg, rgba(20,184,166,0.06), rgba(13,148,136,0.02));
+        }
+        .demo-chip.fin:hover {
+            border-color: rgba(20,184,166,0.45);
+            box-shadow: 0 10px 22px rgba(20,184,166,0.18);
+        }
+        .demo-chip.ops {
+            border-color: rgba(217,119,6,0.28);
+            background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(217,119,6,0.02));
+        }
+        .demo-chip.ops:hover {
+            border-color: rgba(217,119,6,0.45);
+            box-shadow: 0 10px 22px rgba(217,119,6,0.18);
+        }
+        .demo-chip.clerk {
+            border-color: rgba(59,130,246,0.28);
+            background: linear-gradient(135deg, rgba(59,130,246,0.07), rgba(37,99,235,0.02));
+        }
+        .demo-chip.clerk:hover {
+            border-color: rgba(59,130,246,0.45);
+            box-shadow: 0 10px 22px rgba(59,130,246,0.18);
+        }
+        .demo-chip.mgr {
+            border-color: rgba(219,39,119,0.28);
+            background: linear-gradient(135deg, rgba(244,114,182,0.08), rgba(190,24,93,0.02));
+        }
+        .demo-chip.mgr:hover {
+            border-color: rgba(219,39,119,0.45);
+            box-shadow: 0 10px 22px rgba(190,24,93,0.18);
+        }
+        .demo-chip.admin {
+            border-color: rgba(64,145,108,0.32);
+            background: linear-gradient(135deg, rgba(82,183,136,0.08), rgba(45,106,79,0.03));
+        }
+        .demo-chip.admin:hover {
+            border-color: rgba(45,106,79,0.5);
+            box-shadow: 0 10px 22px rgba(45,106,79,0.20);
         }
         .chip-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 0.6rem;
+            width: 40px;
+            height: 40px;
+            border-radius: 0.85rem;
             background: linear-gradient(135deg, #40916c, #2d6a4f);
             color: #fff;
             display: inline-flex;
@@ -424,11 +745,18 @@
             font-weight: 700;
             font-size: 0.82rem;
             flex-shrink: 0;
+            box-shadow: 0 4px 10px rgba(27,67,50,0.18);
         }
-        .chip-body { min-width: 0; }
+        .demo-chip.sys .chip-avatar { background: linear-gradient(135deg, #8b5cf6, #5b21b6); }
+        .demo-chip.fin .chip-avatar { background: linear-gradient(135deg, #14b8a6, #0f766e); }
+        .demo-chip.ops .chip-avatar { background: linear-gradient(135deg, #f59e0b, #b45309); }
+        .demo-chip.clerk .chip-avatar { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .demo-chip.mgr .chip-avatar { background: linear-gradient(135deg, #ec4899, #be185d); }
+        .demo-chip.admin .chip-avatar { background: linear-gradient(135deg, #40916c, #1b4332); }
+        .chip-body { min-width: 0; flex: 1 1 auto; }
         .chip-label {
-            font-size: 0.88rem;
-            font-weight: 600;
+            font-size: 0.9rem;
+            font-weight: 700;
             color: var(--lg-dark);
             line-height: 1.1;
             margin: 0;
@@ -438,28 +766,91 @@
         }
         .chip-role {
             display: inline-block;
-            margin-top: 0.18rem;
-            font-size: 0.68rem;
-            font-weight: 600;
-            letter-spacing: 0.04em;
+            margin-top: 0.22rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
             color: #40916c;
             background: #d8f3dc;
-            padding: 0.1rem 0.45rem;
+            padding: 0.12rem 0.55rem;
             border-radius: 999px;
             text-transform: uppercase;
         }
+        .demo-chip.sys .chip-role { color: #6d28d9; background: #ede9fe; }
+        .demo-chip.fin .chip-role { color: #0f766e; background: #ccfbf1; }
+        .demo-chip.ops .chip-role { color: #92400e; background: #fef3c7; }
+        .demo-chip.clerk .chip-role { color: #1e40af; background: #dbeafe; }
+        .demo-chip.mgr .chip-role { color: #9d174d; background: #fce7f3; }
+        .demo-chip.admin .chip-role { color: #14532d; background: #dcfce7; }
 
         .foot-note {
             text-align: center;
-            color: #adb5bd;
+            color: #86909c;
             font-size: 0.78rem;
             margin-top: 1.75rem;
+            line-height: 1.6;
         }
+        .foot-links {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.9rem;
+            margin-top: 0.4rem;
+        }
+        .foot-links a {
+            color: #40916c;
+            font-weight: 600;
+            font-size: 0.78rem;
+            text-decoration: none;
+            position: relative;
+        }
+        .foot-links a:hover { color: #1b4332; text-decoration: underline; }
+        .foot-links .dot {
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: #cbd5e1;
+        }
+        .foot-links .dot::after { content: ""; }
     </style>
 </head>
 <body>
     <div class="login-wrap">
         <div class="login-shell">
+            <div class="m-hero">
+                <div class="m-hero-top">
+                    <div class="m-hero-brand">
+                        <div class="m-hero-logo">🌾</div>
+                        <div>
+                            <p class="m-hero-title">Livestock Manager</p>
+                            <p class="m-hero-subtitle">Farm operations made simple</p>
+                        </div>
+                    </div>
+                    <div class="m-hero-date" id="mobileDatePill">📅</div>
+                </div>
+                <div class="m-hero-emoji" aria-hidden="true">
+                    <span>🐑</span><span>🐐</span><span>🐄</span><span>🐖</span><span>🐔</span><span>🌱</span><span>🥬</span><span>🌽</span>
+                    <span>🧑‍🌾</span><span>📊</span><span>💹</span><span>📄</span><span>🧾</span><span>🏭</span><span>⚖️</span><span>🏥</span>
+                    <span>🚚</span><span>👥</span><span>🌿</span><span>🐏</span><span>🐄</span><span>🐇</span><span>🦃</span><span>📈</span>
+                </div>
+                <div class="m-stats">
+                    <div class="m-stat">
+                        <span class="m-stat-k">Livestock</span>
+                        <span class="m-stat-v">2,184</span>
+                        <span class="m-stat-c">Total head</span>
+                    </div>
+                    <div class="m-stat">
+                        <span class="m-stat-k">Revenue</span>
+                        <span class="m-stat-v">$58.2k</span>
+                        <span class="m-stat-c">This month</span>
+                    </div>
+                    <div class="m-stat">
+                        <span class="m-stat-k">Farms</span>
+                        <span class="m-stat-v">3</span>
+                        <span class="m-stat-c">Active ops</span>
+                    </div>
+                </div>
+            </div>
             <div class="brand-side">
                 <div>
                     <div class="brand-logo">🌾</div>
@@ -552,25 +943,34 @@
                     </div>
 
                     <div class="row-options">
-                        <div class="form-check">
-                            <input asp-for="RememberMe" class="form-check-input" id="RememberMeInput" />
-                            <label asp-for="RememberMe" class="form-check-label" for="RememberMeInput"></label>
-                        </div>
-                        <a class="small text-decoration-none" style="color: var(--lg-primary); font-weight: 600;" href="#">Forgot password?</a>
+                        <span class="remember-wrap">
+                            <div class="form-check">
+                                <input asp-for="RememberMe" class="form-check-input" id="RememberMeInput" />
+                                <label asp-for="RememberMe" class="form-check-label" for="RememberMeInput"></label>
+                            </div>
+                        </span>
+                        <a class="forgot-pill" href="#">🔐 Forgot password?</a>
                     </div>
 
                     <button type="submit" class="btn-login" id="submitBtn">
-                        <span id="submitLabel">Sign In →</span>
+                        <span id="submitLabel">Sign In <span class="arrow">→</span></span>
                     </button>
 
-                    <div class="divider"><span>Demo accounts</span></div>
+                    <div class="divider"><span>— Demo accounts —</span></div>
 
                     <div class="demo-chip-row">
                         @foreach (var d in demoUsers)
                         {
                             var initials = new string(d.Label.Split(new[]{' '}, StringSplitOptions.RemoveEmptyEntries).Select(w => w[0]).Take(2).ToArray());
+                            var roleClass =
+                                (d.User.StartsWith("admin") ? "admin" :
+                                 d.User.StartsWith("accounts") ? "fin" :
+                                 d.User.StartsWith("farmmanager") ? "ops" :
+                                 d.User.StartsWith("operationsmanager") ? "mgr" :
+                                 d.User.StartsWith("dataentry") ? "clerk" :
+                                 d.User.StartsWith("sysadmin") ? "sys" : "admin");
                             <button type="button"
-                                    class="demo-chip"
+                                    class="demo-chip @roleClass"
                                     data-user="@d.User"
                                     aria-label="Sign in as @d.Label">
                                 <span class="chip-avatar">@initials</span>
@@ -585,6 +985,14 @@
 
                     <p class="foot-note">
                         &copy; @DateTime.Now.Year &mdash; Livestock Manager &middot; Demo accounts share a common developer password.
+                        <br />
+                        <span class="foot-links">
+                            <a href="#">Privacy</a>
+                            <span class="dot"></span>
+                            <a href="#">Terms</a>
+                            <span class="dot"></span>
+                            <a href="#">Support</a>
+                        </span>
                     </p>
                 </form>
             </div>
@@ -593,6 +1001,16 @@
 
     <script>
         (function () {
+            try {
+                var dp = document.getElementById('mobileDatePill');
+                if (dp) {
+                    var t = new Date();
+                    var days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+                    var mos = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+                    dp.textContent = '📅 ' + days[t.getDay()] + ', ' + mos[t.getMonth()] + ' ' + t.getDate();
+                    dp.title = t.toLocaleDateString(undefined, { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+                }
+            } catch (e) { /* ignore */ }
             var pwd = document.getElementById('PasswordInput');
             var btn = document.getElementById('pwdToggle');
             var eye = document.getElementById('eyeIcon');

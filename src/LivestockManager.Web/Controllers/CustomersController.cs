@@ -9,7 +9,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewOperationalData")]
+[Authorize(Policy = PolicyNames.CanManageCustomers)]
 public class CustomersController : Controller
 {
     private readonly ICustomerService _customerService;
@@ -30,12 +30,13 @@ public class CustomersController : Controller
     }
 
     private bool CanEdit => User.IsInRole(RoleNames.Accounts)
+        || User.IsInRole(RoleNames.OperationsManager)
         || User.IsInRole(RoleNames.CompanyAdministrator)
         || User.IsInRole(RoleNames.SystemAdministrator)
         || User.IsInRole(RoleNames.FarmManager);
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanManageCustomers)]
     public async Task<IActionResult> Index(string searchString, CancellationToken ct)
     {
         ViewData["CurrentFilter"] = searchString;
@@ -56,7 +57,7 @@ public class CustomersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanManageCustomers)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -75,7 +76,7 @@ public class CustomersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = PolicyNames.CanManageCustomers)]
     public IActionResult Create()
     {
         return View();
@@ -83,7 +84,7 @@ public class CustomersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = PolicyNames.CanManageCustomers)]
     public async Task<IActionResult> Create(CustomerCreateDto dto, CancellationToken ct)
     {
         if (!ModelState.IsValid) return View(dto);
@@ -93,7 +94,7 @@ public class CustomersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = PolicyNames.CanManageCustomers)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -128,7 +129,7 @@ public class CustomersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = PolicyNames.CanManageCustomers)]
     public async Task<IActionResult> Edit(Guid id, CustomerUpdateDto dto, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -151,7 +152,7 @@ public class CustomersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = $"{RoleNames.Accounts},{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = PolicyNames.CanManageCustomers)]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -189,5 +190,12 @@ public class CustomersController : Controller
             return NotFound();
         }
         return RedirectToAction(nameof(Details), new { id });
+    }
+
+    [HttpGet]
+    public IActionResult MobileIndex()
+    {
+        ViewData["DockKey"] = "customers";
+        return RedirectToAction(nameof(Index));
     }
 }

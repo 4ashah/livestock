@@ -31,7 +31,7 @@ public class TestAuthMiddleware
         if (context.Request.Headers.TryGetValue("X-Test-Role", out var roleHeader)
             && context.Request.Headers.TryGetValue("X-Test-CompanyId", out var companyHeader))
         {
-            var role = roleHeader.FirstOrDefault() ?? "Viewer";
+            var role = roleHeader.FirstOrDefault() ?? "DataEntry";
             var company = companyHeader.FirstOrDefault() ?? LivestockManagerWebFactory.StagingCompanyIdA;
             var userId = context.Request.Headers["X-Test-UserId"].FirstOrDefault() ?? "test-user-id";
 
@@ -157,7 +157,7 @@ public class LivestockManagerWebFactory : WebApplicationFactory<HomeController>
 
         try
         {
-            var roleNames = new[] { "Viewer", "DataEntry", "FarmManager", "Accounts", "CompanyAdministrator", "SystemAdministrator" };
+            var roleNames = new[] { "DataEntry", "FarmManager", "Accounts", "OperationsManager", "CompanyAdministrator", "SystemAdministrator" };
             foreach (var r in roleNames)
             {
                 if (db.Roles.Any(x => x.Name == r))

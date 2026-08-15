@@ -13,28 +13,6 @@
     var recentInvoices = ViewData["RecentInvoices"] as IEnumerable<InvoiceSummaryDto>;
 }
 
-<div style="margin-bottom:0.5rem;">
-    <div class="mob-card-title">⚡ Quick Nav</div>
-    <div class="quick-nav">
-        <a asp-action="MobileRegister" asp-controller="Livestock" class="qbtn p">
-            <span class="icn">🐑</span>
-            <span>Register</span>
-        </a>
-        <a asp-action="MobileCreate" asp-controller="LivestockLosses" class="qbtn d">
-            <span class="icn">💀</span>
-            <span>Record Loss</span>
-        </a>
-        <a asp-action="MobileCreate" asp-controller="Expenses" class="qbtn w">
-            <span class="icn">💰</span>
-            <span>Expense</span>
-        </a>
-        <a asp-action="MobileCreate" asp-controller="Purchases" class="qbtn b">
-            <span class="icn">🛒</span>
-            <span>Purchase</span>
-        </a>
-    </div>
-</div>
-
 <div class="mob-kpi-row">
     <div class="mob-kpi" style="--kpi-color:#2d6a4f;">
         <div class="k-label">Active Herd</div>

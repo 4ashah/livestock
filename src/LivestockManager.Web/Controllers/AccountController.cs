@@ -95,6 +95,23 @@ public class AccountController : Controller
         }
     }
 
+    [HttpGet]
+    [AllowAnonymous]
+    [ActionName("Logout")]
+    public IActionResult LogoutGet(string? returnUrl = null)
+    {
+        if (!User?.Identity?.IsAuthenticated ?? true)
+        {
+            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            {
+                return Redirect(returnUrl);
+            }
+            return RedirectToAction(nameof(HomeController.Index), "Home");
+        }
+        ViewData["ReturnUrl"] = returnUrl;
+        return View();
+    }
+
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Logout(string? returnUrl = null)

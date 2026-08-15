@@ -10,7 +10,7 @@ using LivestockManager.Web.Models.SupplierViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewFinancialData")]
+[Authorize(Policy = PolicyNames.CanManageSuppliers)]
 public class SuppliersController : Controller
 {
     private readonly ISupplierService _supplierService;
@@ -31,11 +31,13 @@ public class SuppliersController : Controller
     }
 
     private bool CanEdit => User.IsInRole(RoleNames.Accounts)
+        || User.IsInRole(RoleNames.FarmManager)
+        || User.IsInRole(RoleNames.OperationsManager)
         || User.IsInRole(RoleNames.CompanyAdministrator)
         || User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
     public async Task<IActionResult> Index([FromQuery] string search, [FromQuery] bool? onlyActive, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -62,7 +64,7 @@ public class SuppliersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewFinancialData")]
+    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -103,7 +105,7 @@ public class SuppliersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
     public IActionResult Create()
     {
         var vm = new SupplierCreateEditViewModel();
@@ -112,7 +114,7 @@ public class SuppliersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
     public async Task<IActionResult> Create(SupplierCreateEditViewModel vm, CancellationToken ct)
     {
         if (!ModelState.IsValid) return View(vm);
@@ -148,7 +150,7 @@ public class SuppliersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -185,7 +187,7 @@ public class SuppliersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
     public async Task<IActionResult> Edit(Guid id, SupplierCreateEditViewModel vm, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -238,7 +240,7 @@ public class SuppliersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageAccounting")]
+    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -261,6 +263,13 @@ public class SuppliersController : Controller
         {
             return NotFound();
         }
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public IActionResult MobileIndex()
+    {
+        ViewData["DockKey"] = "suppliers";
         return RedirectToAction(nameof(Index));
     }
 }

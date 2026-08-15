@@ -17,7 +17,7 @@ using LivestockManager.Web.Models.LivestockViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewOperationalData")]
+[Authorize(Policy = PolicyNames.CanViewLivestock)]
 public class LivestockController : Controller
 {
     private readonly ILivestockService _livestockService;
@@ -80,7 +80,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewLivestock)]
     public async Task<IActionResult> Index(
         Guid? farmId,
         LivestockType? livestockTypeId,
@@ -164,7 +164,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewLivestock)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -239,7 +239,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageLivestock")]
+    [Authorize(Policy = PolicyNames.CanRegisterLivestock)]
     public async Task<IActionResult> Register(CancellationToken ct)
     {
         var vm = new LivestockRegisterViewModel
@@ -250,7 +250,7 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = "CanManageLivestock")]
+    [Authorize(Policy = PolicyNames.CanRegisterLivestock)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(LivestockRegisterViewModel vm, CancellationToken ct)
     {
@@ -288,7 +288,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = $"{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = PolicyNames.CanManageLivestock)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -320,7 +320,7 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = PolicyNames.CanManageLivestock)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(Guid id, LivestockEditViewModel vm, CancellationToken ct)
     {
@@ -386,7 +386,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageLivestock")]
+    [Authorize(Policy = PolicyNames.CanRecordWeight)]
     public async Task<IActionResult> AddWeight(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -418,7 +418,7 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = "CanManageLivestock")]
+    [Authorize(Policy = PolicyNames.CanRecordWeight)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> AddWeight(Guid id, AddWeightViewModel vm, CancellationToken ct)
     {
@@ -465,7 +465,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewLivestock)]
     public async Task<IActionResult> WeightHistory(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -499,7 +499,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewLivestock)]
     public async Task<IActionResult> MobileIndex(
         Guid? farmId,
         LivestockType? livestockTypeId,
@@ -563,7 +563,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageLivestock")]
+    [Authorize(Policy = PolicyNames.CanRegisterLivestock)]
     public async Task<IActionResult> MobileRegister(CancellationToken ct)
     {
         var vm = new LivestockRegisterViewModel { FarmOptions = await GetFarmSelectListAsync(null, ct) };
@@ -571,7 +571,7 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = "CanManageLivestock")]
+    [Authorize(Policy = PolicyNames.CanRegisterLivestock)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> MobileRegister(LivestockRegisterViewModel vm, CancellationToken ct)
     {
@@ -606,7 +606,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = $"{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = PolicyNames.CanDischargeLivestock)]
     public async Task<IActionResult> Discharge(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -637,7 +637,7 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Roles = $"{RoleNames.FarmManager},{RoleNames.CompanyAdministrator},{RoleNames.SystemAdministrator}")]
+    [Authorize(Policy = PolicyNames.CanDischargeLivestock)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Discharge(Guid id, DischargeViewModel vm, CancellationToken ct)
     {
@@ -685,7 +685,7 @@ public class LivestockController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageLivestock")]
+    [Authorize(Policy = PolicyNames.CanRecordWeight)]
     public async Task<IActionResult> AddComment(Guid id, string newComment, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(newComment))
@@ -720,7 +720,7 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageLivestock")]
+    [Authorize(Policy = PolicyNames.CanViewLivestock)]
     public async Task<FileContentResult> ExportCsv(
         Guid? farmId,
         LivestockType? livestockTypeId,

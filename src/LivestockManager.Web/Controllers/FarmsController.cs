@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using LivestockManager.Application.DTOs.Farms;
 using LivestockManager.Application.Services.Farms;
+using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Exceptions;
 using LivestockManager.Domain.ValueObjects;
 using LivestockManager.Infrastructure.Identity;
@@ -10,7 +11,7 @@ using LivestockManager.Web.Models.FarmViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = "CanViewOperationalData")]
+[Authorize(Policy = PolicyNames.CanViewFarms)]
 public class FarmsController : Controller
 {
     private readonly IFarmService _farmService;
@@ -25,7 +26,7 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewFarms)]
     public async Task<IActionResult> Index(string? search, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -69,7 +70,7 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanViewOperationalData")]
+    [Authorize(Policy = PolicyNames.CanViewFarms)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -117,7 +118,7 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageCompany")]
+    [Authorize(Policy = PolicyNames.CanManageFarms)]
     public IActionResult Create()
     {
         var vm = new FarmCreateEditViewModel();
@@ -125,7 +126,7 @@ public class FarmsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = "CanManageCompany")]
+    [Authorize(Policy = PolicyNames.CanManageFarms)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(FarmCreateEditViewModel vm, CancellationToken ct)
     {
@@ -151,7 +152,7 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageCompany")]
+    [Authorize(Policy = PolicyNames.CanManageFarms)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -188,7 +189,7 @@ public class FarmsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = "CanManageCompany")]
+    [Authorize(Policy = PolicyNames.CanManageFarms)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(Guid id, FarmCreateEditViewModel vm, CancellationToken ct)
     {
@@ -224,7 +225,7 @@ public class FarmsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = "CanManageCompany")]
+    [Authorize(Policy = PolicyNames.CanManageFarms)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
@@ -247,5 +248,12 @@ public class FarmsController : Controller
     {
         var user = await _userManager.GetUserAsync(User);
         return user?.CompanyId;
+    }
+
+    [HttpGet]
+    public IActionResult MobileIndex()
+    {
+        ViewData["DockKey"] = "farms";
+        return RedirectToAction(nameof(Index));
     }
 }

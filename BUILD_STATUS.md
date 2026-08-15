@@ -288,3 +288,36 @@ Independent audit of audited HEAD `bb4f81f` produced `audit/FULL_AUDIT_DEFECTS.m
 > 5. Sales Tab Corrections Independent Auditor review of `audit/SALES_TAB_USER_REVIEW_REPORT.md`.
 > 6. Reports Tab Corrections Independent Auditor review of `audit/REPORTS_TAB_USER_REVIEW_REPORT.md`.
 > 7. Independent Auditor re-run of the 30-defect register `audit/FULL_AUDIT_DEFECTS.md` against the remediation commit.
+
+---
+
+## REMOVE_VIEWER_AND_FINALIZE_SIX_ROLES
+
+### Status Tracker
+
+| Work item | Status | Evidence |
+|:--|:--:|:--|
+| Viewer source-reference scan | ✅ COMPLETE | Active runtime Viewer references removed from constants, policies, selectors, navigation, and seed paths. Remaining runtime references are limited to the controlled retirement service for existing databases. |
+| Viewer user-assignment count | ✅ COMPLETE | Initial dev DB count = `1`; current count = `0`. |
+| User migration status | ✅ COMPLETE (dev DB) | `viewer@livestock.dev` migrated to `DataEntry`, disabled, audit path executed. |
+| Role deletion status | ✅ COMPLETE (dev DB) | Viewer role absent from current assignments after startup migration. |
+| Policy update status | ✅ COMPLETE | Controllers and nav updated to final `PolicyNames` model. |
+| Desktop navigation status | ✅ COMPLETE | Viewer removed; Employee/manager/accounting/admin visibility aligned to active permissions. |
+| Mobile navigation status | ✅ COMPLETE | Dock now uses final policy checks per module. |
+| User administration status | ✅ COMPLETE | CompanyAdministrator cannot assign SystemAdministrator; server-side validation enforced. |
+| Database status | ✅ COMPLETE (dev DB evidence) | Startup migration is idempotent and concurrency-safe after retry fix. |
+| Unit-test status | ✅ PASS | `324 / 324` |
+| Integration-test status | ✅ PASS | `15 / 15` |
+| Authorization-matrix status | ✅ COMPLETE | Runtime policies, role-removal tests, and six-role verification matrix are aligned to the final model. |
+| Playwright status | ✅ PASS | Full suite passed `39 / 39`; targeted login regression slice also passed `8 / 8` after updating stale email-only selectors. |
+| Latest valid commit | ℹ️ `bb4f81f` | New implementation commit pending final docs + Playwright evidence. |
+| Next exact action | ℹ️ Create the stable implementation commit for the completed six-role update | — |
+
+### Current verification totals
+- Release build: **PASS** (`0 warnings / 0 errors`)
+- Unit tests: **324 / 324 PASS**
+- Integration tests: **15 / 15 PASS**
+- Architecture tests: **60 / 60 PASS**
+
+### Current status
+**SIX-ROLE RIGHTS MODEL READY FOR USER REVIEW — runtime authorization, Viewer retirement, documentation, and Playwright evidence are complete; stable commit creation is the final remaining action in this turn.**

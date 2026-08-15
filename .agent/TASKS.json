@@ -1,20 +1,68 @@
 {
   "$schema": "https://json.schemastore.org/tasklist.json",
-  "version": "reports-tab-user-review-v1",
+  "version": "remove-viewer-and-finalize-six-roles-v1",
   "branch": "feature/stock-addition-desktop-mobile",
   "baseHead": "bb4f81f",
-  "phase": "Phase 18 — Reports Tab user-review corrections",
-  "feature": "REPORTS_TAB_USER_REVIEW_FIXES",
+  "feature": "REMOVE_VIEWER_AND_FINALIZE_SIX_ROLES",
+  "phase": "Six-role authorization finalization and Viewer retirement",
   "tasks": [
-    { "id": "RFC-1", "title": "Discovery / Reproduce / Root cause", "status": "COMPLETE", "notes": "Root cause: ActiveLivestock.cshtml L5 cast ViewData[\"Farms\"] as List<dynamic> instead of IList<FarmSummaryDto> from IFarmService.ListAsync; result always empty list → dropdown never renders authorized farms → farm filter broken. Gaps: Sales farm filter missing; Profitability date filters missing; 3 mobile report pages missing (only MobileProfitLoss existed)." },
-    { "id": "RFC-2", "title": "Backend — Service + DTOs + Controller", "status": "COMPLETE", "notes": "4 DTOs created (ActiveLivestockByTypeReportDto / SalesByPeriodFarmSummaryDto / SalesByPeriodSaleDetailDto / SalesByPeriodReportDto); LivestockProfitabilityReportRowDto extended 7 fields. IReportService 3 new methods. ReportService: ActiveLivestockByTypeReportAsync company-authorized farmId validation, LivestockTypeDisplay labels, percentages; SalesByPeriodReportAsync Confirmed/Completed only, excludes Draft/Cancelled/Voided/Reversed, farm grouping + sale detail, NumberSold counts livestock SaleItems only, financial totals from sale header, Farm/Customer nav via Include projection; LivestockProfitabilityWithDatesAsync dispatches no-dates → original all-status; with dates → DischargedSold on realization sale date, preserves historical costs. ReportsController ActiveLivestock/SalesByPeriod/LivestockProfitability parameters upgraded with farmId/from/to and CSV parity. NEW 3 controller mobile actions appended after discovering sub-agent write had skipped them (caused first smoke 404)." },
-    { "id": "RFC-3", "title": "Desktop UI views rewrites", "status": "COMPLETE", "notes": "ActiveLivestock.cshtml: correct IList<FarmSummaryDto> cast, LivestockTypeDisplay GetDisplayName combined code+desc, Number Active, Clear filter, responsive cols; SalesByPeriod.cshtml COMPLETE rewrite: Date Basis Sale Date banner, From/To/Farm/Apply/Clear filters, 4 headline cards, Farm summary table (Number Sold/Gross/Add Sale Costs/Net Proceeds), Sale details table (Sale Date/Number/Farm/Customer/Number Sold/Gross/Status/View), every # Sold replaced with Number Sold; LivestockProfitability.cshtml COMPLETE rewrite: From/To/Farm/Clear/Apply filters, Date Basis Sale Date (Realized Profitability) banner, 6 summary cards, 14 col details table with Basic/Complete profit, LivestockTypeDisplay labels, CSV preserves filters." },
-    { "id": "RFC-4", "title": "Separate mobile pages", "status": "COMPLETE", "notes": "MobileActiveLivestock.cshtml (IList<ActiveLivestockByTypeReportDto> model, Farm filter card Reset Apply, Total Number Active, per-type cards with progressbar, CSV via chip-tab); MobileSalesByPeriod.cshtml (SalesByPeriodReportDto, Date Basis banner, From/To/Farm, Number Sold/Gross/Add/Net kpi rows, collapsible farm summaries if >6, sale details collapsible, Number Sold labels); MobileLivestockProfitability.cshtml (rows, Sale Date banner, From/To/Farm, Complete Profit totals card, 3 kpi rows, per-animal collapsible details with 14 fields, CSV chip-tab). All Layout=_MobileLayout; no wide tables; single-column stack, mob-field 44px min-height." },
-    { "id": "RFC-5", "title": "Build/tests/gate", "status": "COMPLETE", "notes": "Build error 1: MobileSalesByPeriod.cshtml ambiguous @if inside @for (Razor) → remove 2 stray @ prefixes before if (useDetailsForFarms) (L113, L145). Build error 2: 4 CS8602 nullable warnings ReportService.CompleteLivestockProfitabilityAsync (L193-194) and LivestockProfitabilityAsync (L470-471) Include/ThenInclude nav — fixed with dammit ! operators (si.SaleItem!/si.Sale!/s.Farm!). Build error 3: 404 Mobile routes after first smoke → ReportsController missing mobile actions; appended (MobileActiveLivestock/MobileSalesByPeriod/MobileLivestockProfitability). Build Release 0W/0E. Tests Arch 60/60, Integration 15/15, Unit 322/324 (†2 pre-existing intentional). Server restart: old PID 11576/6180 killed → dotnet run. HTTP smoke Login 200; Reports Index/ActiveLivestock/SalesByPeriod/LivestockProfitability/ProfitLoss/MobileActiveLivestock/MobileSalesByPeriod/MobileLivestockProfitability/MobileProfitLoss → 302 to Account/Login (correct auth gating). VS Code GetDiagnostics empty array." },
-    { "id": "RFC-6", "title": "Auto-resume state + BUILD_STATUS + CHANGELOG + audit report", "status": "COMPLETE", "notes": "Created .agent/STATE.md, .agent/TASKS.json, .agent/DECISIONS.md, .agent/DEFECTS.md, .agent/LAST_RUN.md (5 files). Appended BUILD_STATUS.md: commit header +REPORTS_TAB_USER_REVIEW_FIXES, appended REPORTS_TAB_USER_REVIEW_FIXES tracker section RFC-1..6 + tables/files list. Appended CHANGELOG.md Phase 18 18.1 (farm filter root-cause) through 18.10 (final status). Created new audit/REPORTS_TAB_USER_REVIEW_REPORT.md Sections 1..24 (23 spec sections + 1 independent auditor signature block). Git commit deferred SHA placeholders preserved throughout three docs as _________________ short / 40-long blank / UTC blank." }
+    {
+      "id": "RVR-1",
+      "title": "Canonical role and policy model",
+      "status": "COMPLETE",
+      "notes": "RoleNames updated to the final six roles; Viewer removed from active constants. PolicyNames created and active authorization registration normalized onto the final six-role matrix."
+    },
+    {
+      "id": "RVR-2",
+      "title": "Endpoint and navigation enforcement",
+      "status": "COMPLETE",
+      "notes": "Controllers, user administration, desktop navigation, mobile navigation, login demo chips, and role selectors updated to remove Viewer and enforce server-side role validation."
+    },
+    {
+      "id": "RVR-3",
+      "title": "Seed and identity retirement flow",
+      "status": "COMPLETE",
+      "notes": "DemoDataSeeder no longer creates Viewer users or roles. Controlled startup retirement service migrates Viewer-only users to disabled DataEntry, removes Viewer from multi-role users, audits the change, and deletes the retired role when assignments reach zero."
+    },
+    {
+      "id": "RVR-4",
+      "title": "Database migration evidence",
+      "status": "COMPLETE",
+      "notes": "Development database checked with sqlcmd. Initial Viewer assignment count was 1 (`viewer@livestock.dev`). After startup migration, the user holds only DataEntry, is disabled, and the Viewer role is absent from current assignments."
+    },
+    {
+      "id": "RVR-5",
+      "title": "Verification",
+      "status": "COMPLETE",
+      "notes": "Build passed 0W/0E. Unit 324/324 passed. Integration 15/15 passed after fixing startup role-update concurrency. Architecture 60/60 passed. Playwright/E2E passed 39/39 after updating the login selectors to the current UserName-based login form."
+    },
+    {
+      "id": "RVR-6",
+      "title": "Docs and audit artifacts",
+      "status": "COMPLETE",
+      "notes": "Current-role docs, traceability, BUILD_STATUS, CHANGELOG, and audit/ROLE_RIGHTS_IMPLEMENTATION_REPORT.md were updated to reflect the final six-role model and the retirement of Viewer as a historical note only."
+    },
+    {
+      "id": "RVR-7",
+      "title": "Stable commit",
+      "status": "IN_PROGRESS",
+      "notes": "Verification and status files are complete. Next action is to create the final implementation commit for the six-role update."
+    }
   ],
-  "nextExactTask": "Optional next: git add -A → commit with message matching audit report Section Final Commit SHA expected message → back-patch 3 placeholders (short SHA, full 40, UTC) in BUILD_STATUS.md RFC-6 tracker row, CHANGELOG header, audit/REPORTS_TAB_USER_REVIEW_REPORT.md block. No other functional work pending.",
-  "authoredAtUtc": "_________________",
-  "commitShortSha": "_________________",
-  "commitFullSha": "________________________________________________"
+  "viewerSourceReferenceScan": "complete",
+  "viewerUserAssignmentCountInitial": 1,
+  "viewerUserAssignmentCountCurrent": 0,
+  "userMigrationStatus": "complete_dev_db",
+  "roleDeletionStatus": "complete_dev_db",
+  "policyUpdateStatus": "complete",
+  "desktopNavigationStatus": "complete",
+  "mobileNavigationStatus": "complete",
+  "userAdministrationStatus": "complete",
+  "databaseStatus": "migration_verified_dev_db",
+  "unitTestStatus": "324/324 pass",
+  "integrationTestStatus": "15/15 pass",
+  "authorizationMatrixStatus": "complete",
+  "playwrightStatus": "39/39 pass",
+  "latestValidCommit": "bb4f81f",
+  "nextExactAction": "Create the stable git commit for the completed six-role update."
 }
