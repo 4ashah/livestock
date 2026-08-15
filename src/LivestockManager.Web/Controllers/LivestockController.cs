@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -17,7 +16,7 @@ using LivestockManager.Web.Models.LivestockViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanViewLivestock)]
+[Authorize(Policy = PermissionNames.Livestock.View)]
 public class LivestockController : Controller
 {
     private readonly ILivestockService _livestockService;
@@ -37,16 +36,17 @@ public class LivestockController : Controller
         _userManager = userManager;
     }
 
-    private async Task<Guid> GetCompanyIdAsync(CancellationToken ct)
+    private async Task<Guid> GetCompanyIdAsync(CancellationToken cancellationToken)
     {
+        _ = cancellationToken;
         var user = await _userManager.GetUserAsync(User);
         return user?.CompanyId ?? Guid.Empty;
     }
 
-    private async Task<Microsoft.AspNetCore.Mvc.Rendering.SelectList> GetFarmSelectListAsync(Guid? selectedFarmId, CancellationToken ct)
+    private async Task<Microsoft.AspNetCore.Mvc.Rendering.SelectList> GetFarmSelectListAsync(Guid? selectedFarmId, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
-        var farms = await _farmService.ListByCompanyAsync(companyId, null, ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
+        var farms = await _farmService.ListByCompanyAsync(companyId, null, cancellationToken);
         return new Microsoft.AspNetCore.Mvc.Rendering.SelectList(farms, "Id", "Name", selectedFarmId);
     }
 
@@ -80,16 +80,16 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewLivestock)]
+    [Authorize(Policy = PermissionNames.Livestock.View)]
     public async Task<IActionResult> Index(
         Guid? farmId,
         LivestockType? livestockTypeId,
         LivestockStatus? status,
         StockSource? sourceFilter,
         string? searchString,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
 
         var query = _db.Livestock
             .Include(l => l.Farm)
@@ -118,7 +118,7 @@ public class LivestockController : Controller
 
         var items = await query
             .OrderByDescending(l => l.AcquisitionDate)
-            .Select(l => new LivestockListItemDto
+            .Select(l => new LivestockListItemViewModel
             {
                 Id = l.Id,
                 LivestockId = l.LivestockId,
@@ -138,7 +138,7 @@ public class LivestockController : Controller
                 SoldAmount = l.SoldAmount,
                 BasicProfitLoss = l.BasicProfitLoss
             })
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         var vm = new LivestockIndexViewModel
         {
@@ -148,7 +148,7 @@ public class LivestockController : Controller
             SourceFilter = sourceFilter,
             SearchString = searchString,
             Items = items,
-            FarmOptions = await GetFarmSelectListAsync(farmId, ct)
+            FarmOptions = await GetFarmSelectListAsync(farmId, cancellationToken)
         };
 
         ViewData["FarmId"] = farmId;
@@ -164,14 +164,14 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewLivestock)]
-    public async Task<IActionResult> Details(Guid id, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.Details)]
+    public async Task<IActionResult> Details(Guid id, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         LivestockDetailDto detail;
         try
         {
-            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+            detail = await _livestockService.GetByIdAsync(id, companyId, cancellationToken);
         }
         catch (DomainException)
         {
@@ -182,7 +182,7 @@ public class LivestockController : Controller
             .AsNoTracking()
             .Where(l => l.Id == id && l.CompanyId == companyId)
             .Select(l => new { l.StockSource, l.DateOfBirth, l.MotherLivestockId, l.FatherLivestockId })
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(cancellationToken);
 
         var vm = new LivestockDetailsViewModel
         {
@@ -219,7 +219,7 @@ public class LivestockController : Controller
             Weights = detail.WeightHistory
                 .OrderByDescending(w => w.WeighedAt)
                 .Take(10)
-                .Select(w => new LivestockWeightHistoryItem
+                .Select(w => new LivestockWeightHistoryItemViewModel
                 {
                     LivestockWeightId = w.Id,
                     Weight = w.Weight,
@@ -239,28 +239,28 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRegisterLivestock)]
-    public async Task<IActionResult> Register(CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.Register)]
+    public async Task<IActionResult> Register(CancellationToken cancellationToken)
     {
         var vm = new LivestockRegisterViewModel
         {
-            FarmOptions = await GetFarmSelectListAsync(null, ct)
+            FarmOptions = await GetFarmSelectListAsync(null, cancellationToken)
         };
         return View(vm);
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanRegisterLivestock)]
+    [Authorize(Policy = PermissionNames.Livestock.Register)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Register(LivestockRegisterViewModel vm, CancellationToken ct)
+    public async Task<IActionResult> Register(LivestockRegisterViewModel vm, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
             return View(vm);
         }
 
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
 
         var dto = new LivestockRegisterDto
         {
@@ -276,26 +276,26 @@ public class LivestockController : Controller
 
         try
         {
-            var result = await _livestockService.RegisterAsync(dto, companyId, ct);
+            var result = await _livestockService.RegisterAsync(dto, companyId, cancellationToken);
             return RedirectToAction(nameof(Details), new { id = result.Id });
         }
         catch (Exception ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
             return View(vm);
         }
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageLivestock)]
-    public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.Edit)]
+    public async Task<IActionResult> Edit(Guid id, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         LivestockDetailDto detail;
         try
         {
-            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+            detail = await _livestockService.GetByIdAsync(id, companyId, cancellationToken);
         }
         catch (DomainException)
         {
@@ -311,7 +311,7 @@ public class LivestockController : Controller
             AcquisitionDate = detail.AcquisitionDate,
             InitialWeight = detail.InitialWeight,
             Comments = detail.Comments,
-            FarmOptions = await GetFarmSelectListAsync(detail.FarmId, ct)
+            FarmOptions = await GetFarmSelectListAsync(detail.FarmId, cancellationToken)
         };
 
         ViewData["GetLivestockTypeDescription"] = (Func<LivestockType, string>)GetLivestockTypeDescription;
@@ -320,21 +320,21 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanManageLivestock)]
+    [Authorize(Policy = PermissionNames.Livestock.Edit)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(Guid id, LivestockEditViewModel vm, CancellationToken ct)
+    public async Task<IActionResult> Edit(Guid id, LivestockEditViewModel vm, CancellationToken cancellationToken)
     {
         if (id != vm.Id)
             return NotFound();
 
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
 
         if (!ModelState.IsValid)
         {
             LivestockDetailDto detail;
             try
             {
-                detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+                detail = await _livestockService.GetByIdAsync(id, companyId, cancellationToken);
             }
             catch (DomainException)
             {
@@ -342,7 +342,7 @@ public class LivestockController : Controller
             }
             vm.LivestockId = detail.LivestockId;
             vm.LivestockTypeId = detail.LivestockTypeId;
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
             ViewData["GetLivestockTypeDescription"] = (Func<LivestockType, string>)GetLivestockTypeDescription;
             return View(vm);
         }
@@ -358,7 +358,7 @@ public class LivestockController : Controller
 
         try
         {
-            await _livestockService.UpdateAsync(id, dto, companyId, ct);
+            await _livestockService.UpdateAsync(id, dto, companyId, cancellationToken);
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (DomainException)
@@ -371,7 +371,7 @@ public class LivestockController : Controller
             LivestockDetailDto detail;
             try
             {
-                detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+                detail = await _livestockService.GetByIdAsync(id, companyId, cancellationToken);
             }
             catch (DomainException)
             {
@@ -379,21 +379,21 @@ public class LivestockController : Controller
             }
             vm.LivestockId = detail.LivestockId;
             vm.LivestockTypeId = detail.LivestockTypeId;
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
             ViewData["GetLivestockTypeDescription"] = (Func<LivestockType, string>)GetLivestockTypeDescription;
             return View(vm);
         }
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordWeight)]
-    public async Task<IActionResult> AddWeight(Guid id, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.AddWeight)]
+    public async Task<IActionResult> AddWeight(Guid id, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         LivestockDetailDto detail;
         try
         {
-            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+            detail = await _livestockService.GetByIdAsync(id, companyId, cancellationToken);
         }
         catch (DomainException)
         {
@@ -418,18 +418,18 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanRecordWeight)]
+    [Authorize(Policy = PermissionNames.Livestock.AddWeight)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> AddWeight(Guid id, AddWeightViewModel vm, CancellationToken ct)
+    public async Task<IActionResult> AddWeight(Guid id, AddWeightViewModel vm, CancellationToken cancellationToken)
     {
         if (id != vm.LivestockId)
             return NotFound();
 
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         LivestockDetailDto detail;
         try
         {
-            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+            detail = await _livestockService.GetByIdAsync(id, companyId, cancellationToken);
         }
         catch (DomainException)
         {
@@ -450,7 +450,7 @@ public class LivestockController : Controller
 
         try
         {
-            await _livestockService.AddWeightAsync(id, dto, companyId, ct);
+            await _livestockService.AddWeightAsync(id, dto, companyId, cancellationToken);
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (DomainException)
@@ -465,25 +465,25 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewLivestock)]
-    public async Task<IActionResult> WeightHistory(Guid id, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.View)]
+    public async Task<IActionResult> WeightHistory(Guid id, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         LivestockDetailDto detail;
         try
         {
-            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+            detail = await _livestockService.GetByIdAsync(id, companyId, cancellationToken);
         }
         catch (DomainException)
         {
             return NotFound();
         }
-        var weights = await _livestockService.GetWeightHistoryAsync(id, companyId, ct);
+        var weights = await _livestockService.GetWeightHistoryAsync(id, companyId, cancellationToken);
 
-        var vm = new List<LivestockWeightHistoryItem>();
+        var vm = new List<LivestockWeightHistoryItemViewModel>();
         foreach (var w in weights.OrderByDescending(w => w.WeighedAt))
         {
-            vm.Add(new LivestockWeightHistoryItem
+            vm.Add(new LivestockWeightHistoryItemViewModel
             {
                 LivestockWeightId = w.Id,
                 Weight = w.Weight,
@@ -499,16 +499,16 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewLivestock)]
+    [Authorize(Policy = PermissionNames.Livestock.View)]
     public async Task<IActionResult> MobileIndex(
         Guid? farmId,
         LivestockType? livestockTypeId,
         LivestockStatus? status,
         StockSource? sourceFilter,
         string? searchString,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         var query = _db.Livestock
             .Include(l => l.Farm)
             .Where(l => l.CompanyId == companyId)
@@ -528,7 +528,7 @@ public class LivestockController : Controller
 
         var items = await query
             .OrderByDescending(l => l.AcquisitionDate)
-            .Select(l => new LivestockListItemDto
+            .Select(l => new LivestockListItemViewModel
             {
                 Id = l.Id,
                 LivestockId = l.LivestockId,
@@ -549,38 +549,38 @@ public class LivestockController : Controller
                 BasicProfitLoss = l.BasicProfitLoss
             })
             .Take(200)
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         ViewData["FarmId"] = farmId;
         ViewData["LivestockTypeId"] = livestockTypeId;
         ViewData["Status"] = status;
         ViewData["SourceFilter"] = sourceFilter;
         ViewData["SearchString"] = searchString;
-        ViewData["FarmOptions"] = await GetFarmSelectListAsync(farmId, ct);
+        ViewData["FarmOptions"] = await GetFarmSelectListAsync(farmId, cancellationToken);
         ViewData["GetStatusBadgeClass"] = (Func<LivestockStatus, string>)GetStatusBadgeClass;
         ViewData["GetLivestockTypeDescription"] = (Func<LivestockType, string>)GetLivestockTypeDescription;
         return View("MobileIndex", items);
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRegisterLivestock)]
-    public async Task<IActionResult> MobileRegister(CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.Register)]
+    public async Task<IActionResult> MobileRegister(CancellationToken cancellationToken)
     {
-        var vm = new LivestockRegisterViewModel { FarmOptions = await GetFarmSelectListAsync(null, ct) };
+        var vm = new LivestockRegisterViewModel { FarmOptions = await GetFarmSelectListAsync(null, cancellationToken) };
         return View("MobileRegister", vm);
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanRegisterLivestock)]
+    [Authorize(Policy = PermissionNames.Livestock.Register)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> MobileRegister(LivestockRegisterViewModel vm, CancellationToken ct)
+    public async Task<IActionResult> MobileRegister(LivestockRegisterViewModel vm, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
             return View("MobileRegister", vm);
         }
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         var dto = new LivestockRegisterDto
         {
             CompanyId = companyId,
@@ -594,26 +594,26 @@ public class LivestockController : Controller
         };
         try
         {
-            await _livestockService.RegisterAsync(dto, companyId, ct);
+            await _livestockService.RegisterAsync(dto, companyId, cancellationToken);
             return RedirectToAction(nameof(MobileIndex));
         }
         catch (Exception ex)
         {
             ModelState.AddModelError(string.Empty, ex.Message);
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
             return View("MobileRegister", vm);
         }
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanDischargeLivestock)]
-    public async Task<IActionResult> Discharge(Guid id, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.Discharge)]
+    public async Task<IActionResult> Discharge(Guid id, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         LivestockDetailDto detail;
         try
         {
-            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+            detail = await _livestockService.GetByIdAsync(id, companyId, cancellationToken);
         }
         catch (DomainException)
         {
@@ -637,18 +637,18 @@ public class LivestockController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanDischargeLivestock)]
+    [Authorize(Policy = PermissionNames.Livestock.Discharge)]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Discharge(Guid id, DischargeViewModel vm, CancellationToken ct)
+    public async Task<IActionResult> Discharge(Guid id, DischargeViewModel vm, CancellationToken cancellationToken)
     {
         if (id != vm.LivestockId)
             return NotFound();
 
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         LivestockDetailDto detail;
         try
         {
-            detail = await _livestockService.GetByIdAsync(id, companyId, ct);
+            detail = await _livestockService.GetByIdAsync(id, companyId, cancellationToken);
         }
         catch (DomainException)
         {
@@ -669,7 +669,7 @@ public class LivestockController : Controller
 
         try
         {
-            await _livestockService.DischargeAsync(id, dto, companyId, ct);
+            await _livestockService.DischargeAsync(id, dto, companyId, cancellationToken);
             return RedirectToAction(nameof(Details), new { id });
         }
         catch (DomainException)
@@ -685,8 +685,8 @@ public class LivestockController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanRecordWeight)]
-    public async Task<IActionResult> AddComment(Guid id, string newComment, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.AddWeight)]
+    public async Task<IActionResult> AddComment(Guid id, string newComment, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(newComment))
         {
@@ -694,7 +694,7 @@ public class LivestockController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
 
         var activityDto = new LivestockActivityDto
         {
@@ -705,7 +705,7 @@ public class LivestockController : Controller
 
         try
         {
-            await _livestockService.AddActivityAsync(id, activityDto, companyId, ct);
+            await _livestockService.AddActivityAsync(id, activityDto, companyId, cancellationToken);
         }
         catch (DomainException)
         {
@@ -720,15 +720,15 @@ public class LivestockController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewLivestock)]
+    [Authorize(Policy = PermissionNames.Livestock.ExportCsv)]
     public async Task<FileContentResult> ExportCsv(
         Guid? farmId,
         LivestockType? livestockTypeId,
         LivestockStatus? status,
         string? searchString,
-        CancellationToken ct)
+        CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
 
         var query = _db.Livestock
             .Include(l => l.Farm)
@@ -754,7 +754,7 @@ public class LivestockController : Controller
 
         var items = await query
             .OrderByDescending(l => l.AcquisitionDate)
-            .ToListAsync(ct);
+            .ToListAsync(cancellationToken);
 
         var sb = new StringBuilder();
         sb.AppendLine("LivestockId,Type,Farm,Status,AcquisitionDate,InitialWeight,CurrentWeight,PurchaseAmount,SoldAmount,BasicProfitLoss,Comments");

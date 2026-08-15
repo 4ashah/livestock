@@ -10,6 +10,6 @@ public class LivestockIndexViewModel
     public LivestockStatus? Status { get; set; }
     public StockSource? SourceFilter { get; set; }
     public string? SearchString { get; set; }
-    public List<LivestockListItemDto> Items { get; set; } = new();
+    public List<LivestockListItemViewModel> Items { get; set; } = new();
     public SelectList? FarmOptions { get; set; }
 }

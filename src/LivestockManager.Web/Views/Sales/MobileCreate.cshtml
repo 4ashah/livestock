@@ -23,7 +23,7 @@
     </div>
 }
 
-<form asp-action="MobileCreate" method="post" class="mob-form" id="saleForm" style="overflow-x:hidden;">
+<form asp-action="MobileCreate" method="post" class="mob-form" id="saleForm" style="min-width:0;max-width:100%;display:grid;grid-template-columns:minmax(0,1fr);">
     <input type="hidden" asp-for="CompanyId" />
 
     <div class="mob-card mb-3">

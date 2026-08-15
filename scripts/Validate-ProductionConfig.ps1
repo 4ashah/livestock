@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Validates the Livestock Manager ASP.NET Core web application production configuration
+Validates the AHK Livestock Manager ASP.NET Core web application production configuration
 and environment prerequisites before deployment or startup. Returns exit 0 only when
 all critical and informational checks pass; nonzero on any failure.
 

@@ -13,7 +13,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanViewOperationalReports)]
+[Authorize(Policy = PermissionNames.Reports.ActiveLivestock)]
 public class ReportsController : Controller
 {
     private readonly IReportService _reportService;
@@ -40,14 +40,23 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewOperationalReports)]
+    [Authorize(Policy = PermissionNames.Reports.ActiveLivestock)]
     public IActionResult Index()
     {
         return View();
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewOperationalReports)]
+    [Authorize(Policy = PermissionNames.Reports.ActiveLivestock)]
+    public async Task<IActionResult> MobileIndex(CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync();
+        ViewData["Farms"] = await _farmService.ListAsync(companyId, ct);
+        return View();
+    }
+
+    [HttpGet]
+    [Authorize(Policy = PermissionNames.Reports.ActiveLivestock)]
     public async Task<IActionResult> ActiveLivestock(Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -71,7 +80,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
+    [Authorize(Policy = PermissionNames.Reports.SalesByPeriod)]
     public async Task<IActionResult> SalesByPeriod(DateTime? from, DateTime? to, Guid? farmId, Guid? customerId, string? status, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -111,7 +120,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
+    [Authorize(Policy = PermissionNames.Reports.LivestockProfitability)]
     public async Task<IActionResult> LivestockProfitability(DateTime? from, DateTime? to, Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -156,7 +165,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
+    [Authorize(Policy = PermissionNames.Reports.ProfitAndLoss)]
     public async Task<IActionResult> ProfitLoss(DateTime? from, DateTime? to, Guid? farmId, string? format, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -199,7 +208,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
+    [Authorize(Policy = PermissionNames.Reports.ProfitAndLoss)]
     public async Task<IActionResult> MobileProfitLoss(DateTime? from, DateTime? to, Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -223,7 +232,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewOperationalReports)]
+    [Authorize(Policy = PermissionNames.Reports.ActiveLivestock)]
     public async Task<IActionResult> MobileActiveLivestock(Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -234,7 +243,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
+    [Authorize(Policy = PermissionNames.Reports.SalesByPeriod)]
     public async Task<IActionResult> MobileSalesByPeriod(DateTime? from, DateTime? to, Guid? farmId, Guid? customerId, string? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -257,7 +266,7 @@ public class ReportsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewFinancialReports)]
+    [Authorize(Policy = PermissionNames.Reports.LivestockProfitability)]
     public async Task<IActionResult> MobileLivestockProfitability(DateTime? from, DateTime? to, Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();

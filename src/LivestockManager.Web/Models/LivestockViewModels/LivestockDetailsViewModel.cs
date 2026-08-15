@@ -37,7 +37,7 @@ public class LivestockDetailsViewModel
     public DischargeCondition? DischargeCondition { get; set; }
     public string? DischargeDetails { get; set; }
 
-    public List<LivestockWeightHistoryItem> Weights { get; set; } = new();
+    public List<LivestockWeightHistoryItemViewModel> Weights { get; set; } = new();
     public List<LivestockActivityDto> Activities { get; set; } = new();
 
     [System.ComponentModel.DataAnnotations.MaxLength(2000, ErrorMessage = "Comment cannot exceed 2000 characters.")]

@@ -14,7 +14,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanRecordLosses)]
+[Authorize(Policy = PermissionNames.Losses.View)]
 public class LivestockLossesController : Controller
 {
     private readonly ILivestockLossService _lossService;
@@ -47,7 +47,7 @@ public class LivestockLossesController : Controller
         User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordLosses)]
+    [Authorize(Policy = PermissionNames.Losses.View)]
     public async Task<IActionResult> Index(
         DateTime? from,
         DateTime? to,
@@ -75,7 +75,7 @@ public class LivestockLossesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordLosses)]
+    [Authorize(Policy = PermissionNames.Losses.View)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -92,7 +92,7 @@ public class LivestockLossesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordLosses)]
+    [Authorize(Policy = PermissionNames.Losses.Record)]
     public async Task<IActionResult> Create(Guid? livestockId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -150,7 +150,7 @@ public class LivestockLossesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordLosses)]
+    [Authorize(Policy = PermissionNames.Losses.View)]
     public async Task<IActionResult> MobileIndex(DateTime? from, DateTime? to, Guid? farmId, DischargeCondition? lossType, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -167,7 +167,7 @@ public class LivestockLossesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordLosses)]
+    [Authorize(Policy = PermissionNames.Losses.Record)]
     public async Task<IActionResult> MobileCreate(Guid? livestockId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -225,7 +225,7 @@ public class LivestockLossesController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanRecordLosses)]
+    [Authorize(Policy = PermissionNames.Losses.Record)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> MobileCreate(LivestockLossCreateDto dto, CancellationToken ct)
     {
@@ -269,7 +269,7 @@ public class LivestockLossesController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanRecordLosses)]
+    [Authorize(Policy = PermissionNames.Losses.Record)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(LivestockLossCreateDto dto, CancellationToken ct)
     {
@@ -320,7 +320,7 @@ public class LivestockLossesController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanRecordLosses)]
+    [Authorize(Policy = PermissionNames.Losses.Record)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Reverse(Guid id, string reason, CancellationToken ct)
     {

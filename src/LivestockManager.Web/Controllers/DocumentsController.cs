@@ -2,29 +2,27 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using LivestockManager.Application.Common;
 using LivestockManager.Domain.Abstractions;
 using LivestockManager.Domain.Common;
-using LivestockManager.Domain.Entities;
-using LivestockManager.Domain.Enums;
 using LivestockManager.Domain.Exceptions;
 using LivestockManager.Infrastructure.Identity;
-using LivestockManager.Infrastructure.Persistence;
 using LivestockManager.Infrastructure.Services.Storage;
 using LivestockManager.Web.Models.DocumentViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanViewDocuments)]
+[Authorize(Policy = PermissionNames.Documents.View)]
 public class DocumentsController : Controller
 {
     private readonly IProtectedDocumentStorage _storage;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly AppDbContext _db;
+    private readonly IAppDbContext _db;
 
     public DocumentsController(
         IProtectedDocumentStorage storage,
         UserManager<ApplicationUser> userManager,
-        AppDbContext db)
+        IAppDbContext db)
     {
         _storage = storage;
         _userManager = userManager;
@@ -34,7 +32,7 @@ public class DocumentsController : Controller
     private async Task<(Guid companyId, Guid? userId)> GetCurrentCompanyAndUser()
     {
         var user = await _userManager.GetUserAsync(User);
-        if (user == null)
+        if (user is null)
             throw new DomainException("Current user not found.");
 
         var userId = user.Id;
@@ -48,7 +46,7 @@ public class DocumentsController : Controller
 
     private static string FormatSizeBytes(long bytes)
     {
-        string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
+        string[] suffixes = [ "B", "KB", "MB", "GB", "TB" ];
         int counter = 0;
         decimal number = bytes;
         while (Math.Round(number / 1024) >= 1)
@@ -60,7 +58,7 @@ public class DocumentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanUploadDocuments)]
+    [Authorize(Policy = PermissionNames.Documents.Upload)]
     public IActionResult Upload(string entityType, Guid? entityId)
     {
         var vm = new UploadDocumentViewModel
@@ -72,7 +70,7 @@ public class DocumentsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanUploadDocuments)]
+    [Authorize(Policy = PermissionNames.Documents.Upload)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Upload(UploadDocumentViewModel vm, CancellationToken ct)
     {
@@ -85,7 +83,7 @@ public class DocumentsController : Controller
         var (companyId, userId) = await GetCurrentCompanyAndUser();
 
         var successCount = 0;
-        var errorMessages = new List<string>();
+        List<string> errorMessages = [];
 
         Guid? parsedEntityId = null;
         if (!string.IsNullOrWhiteSpace(vm.EntityIdStr) && Guid.TryParse(vm.EntityIdStr, out var eid))
@@ -118,7 +116,7 @@ public class DocumentsController : Controller
 
                 if (!string.IsNullOrWhiteSpace(vm.EntityTypeStr) || parsedEntityId.HasValue)
                 {
-                    var doc = await _db.Documents.FindAsync(new object[] { documentId }, ct);
+                    var doc = await _db.Documents.FindAsync([ documentId ], ct);
                     if (doc != null)
                     {
                         doc.EntityType = vm.EntityTypeStr;
@@ -145,8 +143,11 @@ public class DocumentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewDocuments)]
+    [Authorize(Policy = PermissionNames.Documents.View)]
     public async Task<IActionResult> List(string entityType, Guid? entityId, CancellationToken ct)
+        => View(await BuildListViewModelAsync(entityType, entityId, ct));
+
+    private async Task<DocumentListViewModel> BuildListViewModelAsync(string? entityType, Guid? entityId, CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();
 
@@ -192,7 +193,7 @@ public class DocumentsController : Controller
         var canDelete = User.IsInRole(RoleNames.CompanyAdministrator)
                         || User.IsInRole(RoleNames.SystemAdministrator);
 
-        var vm = new DocumentListViewModel
+        return new DocumentListViewModel
         {
             Items = items,
             EntityType = entityType,
@@ -200,16 +201,14 @@ public class DocumentsController : Controller
             CanUpload = canUpload,
             CanDelete = canDelete
         };
-
-        return View(vm);
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewDocuments)]
+    [Authorize(Policy = PermissionNames.Documents.View)]
     public IActionResult Index() => RedirectToAction(nameof(List));
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewDocuments)]
+    [Authorize(Policy = PermissionNames.Documents.View)]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();
@@ -239,7 +238,7 @@ public class DocumentsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanManageCompany)]
+    [Authorize(Policy = PermissionNames.Documents.Delete)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Delete(Guid id, string? returnUrl, CancellationToken ct)
     {
@@ -263,9 +262,7 @@ public class DocumentsController : Controller
     }
 
     [HttpGet]
-    public IActionResult MobileIndex()
-    {
-        ViewData["DockKey"] = "docs";
-        return RedirectToAction(nameof(List));
-    }
+    [Authorize(Policy = PermissionNames.Documents.View)]
+    public async Task<IActionResult> MobileIndex(string entityType, Guid? entityId, CancellationToken ct)
+        => View("MobileIndex", await BuildListViewModelAsync(entityType, entityId, ct));
 }

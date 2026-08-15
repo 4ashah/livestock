@@ -102,7 +102,7 @@
             </div>
             <div>
                 <dt>Notes</dt>
-                <dd>@(string.IsNullOrWhiteSpace(Model.Notes) ? "<span class=\"text-muted\">—</span>" : Model.Notes)</dd>
+                <dd>@(string.IsNullOrWhiteSpace(Model.Notes) ? "—" : Model.Notes)</dd>
             </div>
         </dl>
     </div>
@@ -134,19 +134,19 @@
             <hr class="my-2" />
             <div>
                 <dt>Seller Commission</dt>
-                <dd class="text-end">@(Model.CommissionAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.CommissionAmount.ToString("F2")))</dd>
+                <dd class="text-end">@(Model.CommissionAmount == 0 ? "—" : ("$" + Model.CommissionAmount.ToString("F2")))</dd>
             </div>
             <div>
                 <dt>Seller-Paid Tax</dt>
-                <dd class="text-end">@(Model.SellerTaxAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.SellerTaxAmount.ToString("F2")))</dd>
+                <dd class="text-end">@(Model.SellerTaxAmount == 0 ? "—" : ("$" + Model.SellerTaxAmount.ToString("F2")))</dd>
             </div>
             <div>
                 <dt>Transportation</dt>
-                <dd class="text-end">@(Model.TransportationAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.TransportationAmount.ToString("F2")))</dd>
+                <dd class="text-end">@(Model.TransportationAmount == 0 ? "—" : ("$" + Model.TransportationAmount.ToString("F2")))</dd>
             </div>
             <div>
                 <dt>Other Seller Cost</dt>
-                <dd class="text-end">@(Model.OtherCostAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.OtherCostAmount.ToString("F2")))</dd>
+                <dd class="text-end">@(Model.OtherCostAmount == 0 ? "—" : ("$" + Model.OtherCostAmount.ToString("F2")))</dd>
             </div>
             @if (Model.OtherCostAmount > 0 && !string.IsNullOrWhiteSpace(Model.OtherCostDescription))
             {

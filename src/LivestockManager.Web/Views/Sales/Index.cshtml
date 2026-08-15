@@ -1,10 +1,21 @@
+@using LivestockManager.Domain.Enums
+@using LivestockManager.Domain.Common
+@using Microsoft.AspNetCore.Authorization
 @model IEnumerable<LivestockManager.Application.DTOs.Sales.SaleSummaryDto>
+@inject IAuthorizationService Authorization
 @{
     ViewData["Title"] = "Sales";
-    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
     var customers = ViewData["Customers"] as System.Collections.IEnumerable;
     var selCustomerId = ViewData["CustomerId"] as Guid?;
     var selStatus = ViewData["Status"] as SaleStatus?;
+    var authed = User.Identity?.IsAuthenticated == true;
+
+    var caps = new PageCapabilities
+    {
+        CanCreate = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Sales.Create)).Succeeded,
+        CanConfirm = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Sales.Confirm)).Succeeded,
+        CanReverse = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Sales.Reverse)).Succeeded
+    };
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
@@ -12,7 +23,7 @@
         <h1 class="h3 mb-1">💼 Sales</h1>
         <div class="text-muted small">Sales orders and invoice generation</div>
     </div>
-    @if (canEdit)
+    @if (caps.CanCreate)
     {
         <a asp-action="Create" class="btn btn-primary"><span class="me-1">+</span> New Sale</a>
     }
@@ -154,7 +165,21 @@
                                 { <span class="badge bg-secondary">Cancelled</span> }
                             </td>
                             <td class="text-end">
-                                <a asp-action="Details" asp-route-id="@s.Id" class="btn btn-sm btn-outline-primary">View</a>
+                                <div class="d-flex flex-wrap gap-1 justify-content-end">
+                                    <a asp-action="Details" asp-route-id="@s.Id" class="btn btn-sm btn-outline-primary">View</a>
+                                    @if (caps.CanConfirm && s.Status == SaleStatus.Draft)
+                                    {
+                                        <form asp-action="Confirm" asp-route-id="@s.Id" method="post" class="d-inline" onsubmit="return confirm('Confirm this sale?');">
+                                            <button type="submit" class="btn btn-sm btn-outline-success">Confirm</button>
+                                        </form>
+                                    }
+                                    @if (caps.CanReverse && (s.Status == SaleStatus.Confirmed || s.Status == SaleStatus.Completed))
+                                    {
+                                        <form asp-action="Reverse" asp-route-id="@s.Id" method="post" class="d-inline" onsubmit="return confirm('Reverse this sale? This cannot be undone.');">
+                                            <button type="submit" class="btn btn-sm btn-outline-warning">Reverse</button>
+                                        </form>
+                                    }
+                                </div>
                             </td>
                         </tr>
                     }

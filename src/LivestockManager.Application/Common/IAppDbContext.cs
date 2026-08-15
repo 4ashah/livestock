@@ -26,6 +26,7 @@ public interface IAppDbContext
     DbSet<Receipt> Receipts { get; }
     DbSet<InvoiceAdditionalCharge> InvoiceAdditionalCharges { get; }
     DbSet<LivestockLoss> LivestockLosses { get; }
+    DbSet<Document> Documents { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

@@ -1,3 +1,4 @@
+using System.Reflection;
 using NetArchTest.Rules;
 using LivestockManager.Web.Controllers;
 using Xunit;
@@ -88,6 +89,104 @@ public class LayerReferenceTests
     }
 
     [Fact]
+    public void Web_DoesNotReference_Infrastructure_ImplementationNamespaces()
+    {
+        var forbiddenInfraSubNamespaces = new[]
+        {
+            "LivestockManager.Infrastructure.Persistence",
+            "LivestockManager.Infrastructure.Services",
+            "LivestockManager.Infrastructure.Security"
+        };
+
+        var allWebTypes = WebAssembly.GetTypes()
+            .Where(t => t != null && !string.IsNullOrWhiteSpace(t.FullName))
+            .Where(t =>
+                !t.FullName!.StartsWith("AspNetCoreGeneratedDocument", StringComparison.Ordinal) &&
+                !t.FullName.Equals("Program", StringComparison.Ordinal) &&
+                !t.FullName.StartsWith("Program+", StringComparison.Ordinal) &&
+                !t.FullName.StartsWith("ConnectionStringStartupValidator", StringComparison.Ordinal) &&
+                !t.IsNestedPrivate)
+            .ToList();
+
+        Assert.NotEmpty(allWebTypes);
+
+        var violations = new List<string>();
+
+        foreach (var type in allWebTypes)
+        {
+            try
+            {
+                var referenced = new List<string>();
+
+                void CollectReferences(MemberInfo? member)
+                {
+                    if (member == null) return;
+                    try
+                    {
+                        if (member is Type t)
+                        {
+                            var baseType = t.BaseType;
+                            if (baseType != null) referenced.Add(baseType.FullName ?? string.Empty);
+                            foreach (var iface in t.GetInterfaces())
+                                referenced.Add(iface.FullName ?? string.Empty);
+
+                            foreach (var f in t.GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                                referenced.Add(f.FieldType.FullName ?? string.Empty);
+                            foreach (var p in t.GetProperties(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                                referenced.Add(p.PropertyType.FullName ?? string.Empty);
+                            foreach (var c in t.GetConstructors(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                            foreach (var cp in c.GetParameters())
+                                referenced.Add(cp.ParameterType.FullName ?? string.Empty);
+                            foreach (var m in t.GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+                            {
+                                referenced.Add(m.ReturnType.FullName ?? string.Empty);
+                                foreach (var mp in m.GetParameters())
+                                    referenced.Add(mp.ParameterType.FullName ?? string.Empty);
+                            }
+                        }
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                CollectReferences(type);
+
+                foreach (var r in referenced)
+                {
+                    foreach (var ns in forbiddenInfraSubNamespaces)
+                    {
+                        if (r.StartsWith(ns, StringComparison.Ordinal))
+                        {
+                            violations.Add($"{type.FullName} references type in {ns}: {r}");
+                            break;
+                        }
+                    }
+                }
+
+                var attrs = type.GetCustomAttributesData();
+                foreach (var cad in attrs)
+                {
+                    var attrType = cad.AttributeType.FullName ?? string.Empty;
+                    foreach (var ns in forbiddenInfraSubNamespaces)
+                    {
+                        if (attrType.StartsWith(ns, StringComparison.Ordinal))
+                        {
+                            violations.Add($"{type.FullName} has attribute in {ns}: {attrType}");
+                            break;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+            }
+        }
+
+        Assert.Empty(violations);
+    }
+
+    [Fact]
     public void Controllers_Inherit_FromControllerBase()
     {
         var controllerTypes = Types
@@ -120,5 +219,29 @@ public class LayerReferenceTests
             Assert.True(inheritsFromControllerBase,
                 $"Controller {ctl.FullName} should inherit from Controller or ControllerBase.");
         }
+    }
+
+    [Fact]
+    public void ViewModels_FollowNamingConvention_EndWithViewModel()
+    {
+        var modelsNamespacePrefix = "LivestockManager.Web.Models";
+        var allTypes = WebAssembly.GetTypes()
+            .Where(t => t.IsClass && !t.IsAbstract && !t.IsNested)
+            .Where(t => !string.IsNullOrWhiteSpace(t.Namespace) &&
+                        t.Namespace.StartsWith(modelsNamespacePrefix, StringComparison.Ordinal))
+            .ToList();
+
+        Assert.NotEmpty(allTypes);
+
+        var violators = new List<string>();
+        foreach (var mt in allTypes)
+        {
+            if (!mt.Name.EndsWith("ViewModel", StringComparison.Ordinal))
+            {
+                violators.Add(mt.FullName ?? mt.Name);
+            }
+        }
+
+        Assert.Empty(violators);
     }
 }

@@ -1,11 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
 using Microsoft.Playwright;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace LivestockManager.EndToEndTests;
@@ -15,34 +9,32 @@ public class LiveVerification2A : E2ETestCollectionBase
 {
     private static readonly object _resultsLock = new();
     private static readonly LiveVerificationResults _results = new();
+    private static readonly JsonSerializerOptions JsonOpts = new() { WriteIndented = true };
     private static int _testsStarted = 0;
     private static bool _resultsWritten = false;
 
-    private readonly E2ETestAssemblyFixture _fixture;
+    public static IEnumerable<object[]> AllUsers =>
+    [
+        ["sysadmin@livestock.dev", "Dev@123456", "SysAdmin"],
+        ["admin@livestock.dev", "Dev@123456", "Admin"],
+        ["farmmanager@livestock.dev", "Dev@123456", "FarmManager"],
+        ["operationsmanager@livestock.dev", "Dev@123456", "OperationsManager"],
+        ["accounts@livestock.dev", "Dev@123456", "Accounts"],
+        ["dataentry@livestock.dev", "Dev@123456", "DataEntry"],
+    ];
 
-    public static IEnumerable<object[]> AllUsers => new List<object[]>
-    {
-        new object[] { "sysadmin@livestock.dev", "Dev@123456", "SysAdmin" },
-        new object[] { "admin@livestock.dev", "Dev@123456", "Admin" },
-        new object[] { "farmmanager@livestock.dev", "Dev@123456", "FarmManager" },
-        new object[] { "operationsmanager@livestock.dev", "Dev@123456", "OperationsManager" },
-        new object[] { "accounts@livestock.dev", "Dev@123456", "Accounts" },
-        new object[] { "dataentry@livestock.dev", "Dev@123456", "DataEntry" },
-    };
-
-    public static IEnumerable<object[]> MobileViewports => new List<object[]>
-    {
-        new object[] { 360, 800, "Galaxy-S8" },
-        new object[] { 390, 844, "iPhone-14" },
-        new object[] { 430, 932, "iPhone-14ProMax" },
-        new object[] { 768, 1024, "iPad-Mini-Portrait" },
-        new object[] { 1024, 768, "iPad-Mini-Landscape" },
-        new object[] { 1366, 768, "Laptop-HD" }
-    };
+    public static IEnumerable<object[]> MobileViewports =>
+    [
+        [360, 800, "Galaxy-S8"],
+        [390, 844, "iPhone-14"],
+        [430, 932, "iPhone-14ProMax"],
+        [768, 1024, "iPad-Mini-Portrait"],
+        [1024, 768, "iPad-Mini-Landscape"],
+        [1366, 768, "Laptop-HD"]
+    ];
 
     public LiveVerification2A(ITestOutputHelper output, E2ETestAssemblyFixture fixture) : base(output, fixture)
     {
-        _fixture = fixture;
         Interlocked.Increment(ref _testsStarted);
     }
 
@@ -60,18 +52,18 @@ public class LiveVerification2A : E2ETestCollectionBase
         return Environment.CurrentDirectory;
     }
 
-    private void RecordLogin(string role, bool success)
+    private static void RecordLogin(string role, bool success)
     {
         lock (_resultsLock) { _results.LoginResults[role] = success; }
     }
 
-    private void RecordPageResult(string role, string path, int status)
+    private static void RecordPageResult(string role, string path, int status)
     {
         lock (_resultsLock)
         {
             if (!_results.PageStatusByRole.TryGetValue(role, out var dict))
             {
-                dict = new Dictionary<string, int>();
+                dict = [];
                 _results.PageStatusByRole[role] = dict;
             }
             dict[path] = status;
@@ -80,7 +72,7 @@ public class LiveVerification2A : E2ETestCollectionBase
         }
     }
 
-    private void RecordViewport(int w, int h, string label, bool drawerOpen, bool drawerClose, bool noOverflow, bool tableScroll)
+    private static void RecordViewport(int w, int h, string label, bool drawerOpen, bool drawerClose, bool noOverflow, bool tableScroll)
     {
         lock (_resultsLock)
         {
@@ -95,7 +87,7 @@ public class LiveVerification2A : E2ETestCollectionBase
         }
     }
 
-    private void RecordPdf(string kind, string contentType, long bytes, bool ok)
+    private static void RecordPdf(string kind, string contentType, long bytes, bool ok)
     {
         lock (_resultsLock)
         {
@@ -108,7 +100,7 @@ public class LiveVerification2A : E2ETestCollectionBase
         }
     }
 
-    private void IncrementAssertions(bool passed)
+    private static void IncrementAssertions(bool passed)
     {
         lock (_resultsLock)
         {
@@ -117,7 +109,7 @@ public class LiveVerification2A : E2ETestCollectionBase
         }
     }
 
-    private void SaveScreenshotInfo(string name, long bytes)
+    private static void SaveScreenshotInfo(string name, long bytes)
     {
         lock (_resultsLock) { _results.Screenshots[name] = bytes; }
     }
@@ -130,7 +122,7 @@ public class LiveVerification2A : E2ETestCollectionBase
             try
             {
                 var path = Path.Combine(ArtifactsDir, "live-verification-results.json");
-                var json = JsonSerializer.Serialize(_results, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(_results, JsonOpts);
                 File.WriteAllText(path, json);
             }
             catch { }
@@ -205,7 +197,7 @@ public class LiveVerification2A : E2ETestCollectionBase
                     await burger.ClickAsync();
                     await Task.Delay(500);
                     var sidebarOrCollapse = page.Locator(".navbar-collapse.show, .sidebar.open, .offcanvas.show, [class*='show'][class*='nav'], [class*='sidebar']").First;
-                    drawerOpenOk = (await sidebarOrCollapse.CountAsync() > 0) ? await sidebarOrCollapse.IsVisibleAsync() : true;
+                    drawerOpenOk = await sidebarOrCollapse.CountAsync() <= 0 || await sidebarOrCollapse.IsVisibleAsync();
 
                     var backdrop = page.Locator(".modal-backdrop, .offcanvas-backdrop, .sidebar-backdrop").First;
                     backdropOk = true;
@@ -213,7 +205,7 @@ public class LiveVerification2A : E2ETestCollectionBase
                     try { await burger.ClickAsync(); await Task.Delay(400); } catch { }
                     try
                     {
-                        var isShown = (await sidebarOrCollapse.CountAsync() > 0) ? await sidebarOrCollapse.IsVisibleAsync() : false;
+                        var isShown = await sidebarOrCollapse.CountAsync() > 0 && await sidebarOrCollapse.IsVisibleAsync();
                         drawerCloseOk = true;
                     }
                     catch { drawerCloseOk = true; }
@@ -303,7 +295,7 @@ public class LiveVerification2A : E2ETestCollectionBase
             await page.GotoAsync($"{BaseUrl}/Documents", new() { WaitUntil = WaitUntilState.NetworkIdle });
             var documentIds = await ExtractIdsFromListPageAsync(page, "Documents", "Details");
 
-            string First(IEnumerable<string> list, string fallback) => list.FirstOrDefault() ?? fallback;
+            static string First(IEnumerable<string> list, string fallback) => list.FirstOrDefault() ?? fallback;
 
             var pages = new List<(string Path, string ExpectedContains, string role)>
             {
@@ -450,7 +442,7 @@ public class LiveVerification2A : E2ETestCollectionBase
             var resultsPath = Path.Combine(ArtifactsDir, "live-verification-results.json");
             try
             {
-                var json = JsonSerializer.Serialize(_results, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(_results, JsonOpts);
                 File.WriteAllText(resultsPath, json);
             }
             catch { }
@@ -581,7 +573,7 @@ public class LiveVerification2A : E2ETestCollectionBase
             var resultsPath = Path.Combine(ArtifactsDir, "live-verification-results.json");
             try
             {
-                var json = JsonSerializer.Serialize(_results, new JsonSerializerOptions { WriteIndented = true });
+                var json = JsonSerializer.Serialize(_results, JsonOpts);
                 File.WriteAllText(resultsPath, json);
             }
             catch { }
@@ -636,13 +628,13 @@ public class LiveVerification2A : E2ETestCollectionBase
 
     private async Task<List<string>> ExtractIdsFromListPageAsync(IPage page, string area, string actionContains)
     {
-        var ids = new List<string>();
+        List<string> ids = [];
         try
         {
             await page.WaitForLoadStateAsync(LoadState.NetworkIdle);
             await Task.Delay(800);
             var hrefs = await page.Locator("a").EvaluateAllAsync<string[]>("(anchors) => anchors.map(a => a.getAttribute('href') || '')");
-            var anyHrefList = hrefs ?? Array.Empty<string>();
+            var anyHrefList = hrefs ?? [];
             foreach (var h in anyHrefList)
             {
                 if (string.IsNullOrEmpty(h)) continue;
@@ -670,12 +662,12 @@ public class LiveVerification2A : E2ETestCollectionBase
 
 public class LiveVerificationResults
 {
-    public Dictionary<string, bool> LoginResults { get; set; } = new();
-    public Dictionary<string, Dictionary<string, int>> PageStatusByRole { get; set; } = new();
-    public Dictionary<int, int> StatusCounts { get; set; } = new();
-    public Dictionary<string, ViewportResult> ViewportResults { get; set; } = new();
-    public Dictionary<string, PdfResult> PdfResults { get; set; } = new();
-    public Dictionary<string, long> Screenshots { get; set; } = new();
+    public Dictionary<string, bool> LoginResults { get; set; } = [];
+    public Dictionary<string, Dictionary<string, int>> PageStatusByRole { get; set; } = [];
+    public Dictionary<int, int> StatusCounts { get; set; } = [];
+    public Dictionary<string, ViewportResult> ViewportResults { get; set; } = [];
+    public Dictionary<string, PdfResult> PdfResults { get; set; } = [];
+    public Dictionary<string, long> Screenshots { get; set; } = [];
     public int TotalAssertions { get; set; }
     public int PassedAssertions { get; set; }
 }

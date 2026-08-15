@@ -1,8 +1,17 @@
+@using LivestockManager.Domain.Common
+@using Microsoft.AspNetCore.Authorization
 @model IEnumerable<LivestockManager.Application.DTOs.Customers.CustomerSummaryDto>
+@inject IAuthorizationService Authorization
 @{
     ViewData["Title"] = "Customers";
-    var canEdit = (bool?)ViewData["CanEdit"] ?? false;
     var currentFilter = ViewData["CurrentFilter"] as string;
+    var authed = User.Identity?.IsAuthenticated == true;
+
+    var caps = new PageCapabilities
+    {
+        CanCreate = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Customers.Create)).Succeeded,
+        CanEdit = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Customers.Edit)).Succeeded
+    };
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
@@ -10,7 +19,7 @@
         <h1 class="h3 mb-1">👥 Customers</h1>
         <div class="text-muted small">Manage your customer database</div>
     </div>
-    @if (canEdit)
+    @if (caps.CanCreate)
     {
         <a asp-action="Create" class="btn btn-primary"><span class="me-1">+</span> New Customer</a>
     }
@@ -69,17 +78,19 @@
                                 }
                             </td>
                             <td class="text-end">
-                                <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">Details</a>
-                                @if (canEdit)
-                                {
-                                    <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
-                                }
+                                <div class="d-flex flex-wrap gap-1 justify-content-end">
+                                    <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary">Details</a>
+                                    @if (caps.CanEdit)
+                                    {
+                                        <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-sm btn-outline-secondary">Edit</a>
+                                    }
+                                </div>
                             </td>
                         </tr>
                     }
                     @if (!Model.Any())
                     {
-                        <tr><td colspan="7" class="text-center py-5 text-muted small">No customers found. @if (canEdit) { <text>Create your first customer.</text> }</td></tr>
+                        <tr><td colspan="7" class="text-center py-5 text-muted small">No customers found. @if (caps.CanCreate) { <text>Create your first customer.</text> }</td></tr>
                     }
                 </tbody>
             </table>

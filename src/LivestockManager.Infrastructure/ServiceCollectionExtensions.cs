@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using LivestockManager.Application.Common;
+using LivestockManager.Domain;
 using LivestockManager.Domain.Abstractions;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Infrastructure.Persistence;
+using LivestockManager.Infrastructure.Security;
 using LivestockManager.Infrastructure.Services;
 using LivestockManager.Infrastructure.Services.Pdf;
 using LivestockManager.Infrastructure.Services.Sequencing;
@@ -62,6 +64,8 @@ public static class ServiceCollectionExtensions
 
         services.AddScoped<DocumentNumberGenerator>();
         services.AddScoped<IProtectedDocumentStorage, ProtectedDocumentStorage>();
+
+        services.AddScoped<IUserCapabilityService, UserCapabilityService>();
 
         return services;
     }

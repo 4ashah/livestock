@@ -7,7 +7,6 @@ using LivestockManager.Application.DTOs.Purchases;
 using LivestockManager.Application.Services.Farms;
 using LivestockManager.Application.Services.Purchases;
 using LivestockManager.Application.Services.Suppliers;
-using LivestockManager.Application.Services.Livestock;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Enums;
 using LivestockManager.Domain.Exceptions;
@@ -16,13 +15,12 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+[Authorize(Policy = PermissionNames.PurchaseInvoices.View)]
 public class PurchasesController : Controller
 {
     private readonly IPurchaseService _purchaseService;
     private readonly ISupplierService _supplierService;
     private readonly IFarmService _farmService;
-    private readonly ILivestockService _livestockService;
     private readonly IAppDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
 
@@ -30,14 +28,12 @@ public class PurchasesController : Controller
         IPurchaseService purchaseService,
         ISupplierService supplierService,
         IFarmService farmService,
-        ILivestockService livestockService,
         IAppDbContext db,
         UserManager<ApplicationUser> userManager)
     {
         _purchaseService = purchaseService;
         _supplierService = supplierService;
         _farmService = farmService;
-        _livestockService = livestockService;
         _db = db;
         _userManager = userManager;
     }
@@ -54,7 +50,7 @@ public class PurchasesController : Controller
         || User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+    [Authorize(Policy = PermissionNames.PurchaseInvoices.View)]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? supplierId, PurchaseStatus? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -72,7 +68,7 @@ public class PurchasesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+    [Authorize(Policy = PermissionNames.PurchaseInvoices.View)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -91,7 +87,7 @@ public class PurchasesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+    [Authorize(Policy = PermissionNames.PurchaseInvoices.Create)]
     public async Task<IActionResult> Create(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -115,13 +111,13 @@ public class PurchasesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+    [Authorize(Policy = PermissionNames.PurchaseInvoices.Create)]
     public async Task<IActionResult> Create(PurchaseCreateDto dto, string[] lineDesc, int[] lineQty, decimal[] lineUnitCost, Guid[] lineLivestockId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
         dto.CompanyId = companyId;
         dto.PurchaseDate = DateTimeOffset.UtcNow;
-        dto.Items = new List<PurchaseItemCreateDto>();
+        dto.Items = [];
 
         if (lineDesc != null)
         {
@@ -179,7 +175,7 @@ public class PurchasesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+    [Authorize(Policy = PermissionNames.PurchaseInvoices.Create)]
     public async Task<IActionResult> PostPurchase(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -199,7 +195,7 @@ public class PurchasesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+    [Authorize(Policy = PermissionNames.PurchaseInvoices.Create)]
     public async Task<IActionResult> Void(Guid id, string reason, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -216,7 +212,7 @@ public class PurchasesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+    [Authorize(Policy = PermissionNames.PurchaseInvoices.View)]
     public async Task<IActionResult> MobileIndex(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -242,7 +238,7 @@ public class PurchasesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+    [Authorize(Policy = PermissionNames.PurchaseInvoices.Create)]
     public async Task<IActionResult> MobileCreate(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -271,13 +267,13 @@ public class PurchasesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManagePurchaseInvoices)]
+    [Authorize(Policy = PermissionNames.PurchaseInvoices.Create)]
     public async Task<IActionResult> MobileCreate(PurchaseCreateDto dto, string[] lineDesc, int[] lineQty, decimal[] lineUnitCost, Guid[] lineLivestockId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
         dto.CompanyId = companyId;
         dto.PurchaseDate = DateTimeOffset.UtcNow;
-        dto.Items = new List<PurchaseItemCreateDto>();
+        dto.Items = [];
 
         if (lineDesc != null)
         {

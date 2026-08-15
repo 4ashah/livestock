@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using LivestockManager.Application.Common;
 using LivestockManager.Application.Services.Receipts;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Exceptions;
@@ -10,7 +9,7 @@ using LivestockManager.Web.Models.ReceiptViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanGenerateReceipts)]
+[Authorize(Policy = PermissionNames.Receipts.View)]
 public class ReceiptsController : Controller
 {
     private readonly IReceiptService _receiptService;
@@ -30,16 +29,10 @@ public class ReceiptsController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
-    private async Task<Guid> GetUserIdAsync()
-    {
-        var user = await _userManager.GetUserAsync(User);
-        return user?.Id ?? Guid.Empty;
-    }
-
     private async Task<(Guid companyId, Guid? userId)> GetCurrentCompanyAndUser()
     {
         var user = await _userManager.GetUserAsync(User);
-        if (user == null)
+        if (user is null)
             throw new DomainException("Current user not found.");
 
         var userId = user.Id;
@@ -52,7 +45,7 @@ public class ReceiptsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanGenerateReceipts)]
+    [Authorize(Policy = PermissionNames.Receipts.View)]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         var (companyId, _) = await GetCurrentCompanyAndUser();
@@ -62,7 +55,7 @@ public class ReceiptsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanGenerateReceipts)]
+    [Authorize(Policy = PermissionNames.Receipts.GenerateFromPayment)]
     public async Task<IActionResult> GenerateForPayment(Guid paymentId, string? notes, CancellationToken ct)
     {
         if (paymentId == Guid.Empty) return NotFound();
@@ -79,7 +72,7 @@ public class ReceiptsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanGenerateReceipts)]
+    [Authorize(Policy = PermissionNames.Receipts.Download)]
     public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -97,9 +90,11 @@ public class ReceiptsController : Controller
     }
 
     [HttpGet]
-    public IActionResult MobileIndex()
+    [Authorize(Policy = PermissionNames.Receipts.View)]
+    public async Task<IActionResult> MobileIndex(CancellationToken ct)
     {
-        ViewData["DockKey"] = "receipts";
-        return RedirectToAction(nameof(Index));
+        var (companyId, _) = await GetCurrentCompanyAndUser();
+        var list = await _receiptService.ListAsync(companyId, ct);
+        return View("MobileIndex", new ReceiptListViewModel { Items = list });
     }
 }

@@ -1,0 +1,123 @@
+@model IEnumerable<LivestockManager.Application.DTOs.Payments.PaymentSummaryDto>
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Payments";
+    ViewData["PageIcon"] = "💵";
+    ViewData["PageSubtitle"] = "Payments against invoices";
+    ViewData["DockKey"] = "payments";
+    ViewData["ActionLabel"] = "Record";
+    ViewData["ActionIcon"] = "＋";
+    ViewData["ActionUrl"] = Url.Action("Create", "Payments");
+    var customers = ViewData["Customers"] as System.Collections.IEnumerable;
+    var selCustomerId = ViewData["CustomerId"] as Guid?;
+    var selMethod = ViewData["Method"] as PaymentMethod?;
+    var fromStr = ViewData["From"] as string;
+    var toStr = ViewData["To"] as string;
+    var list = Model?.ToList() ?? new List<LivestockManager.Application.DTOs.Payments.PaymentSummaryDto>();
+    var total = list.Where(x => !x.IsReversed).Sum(x => x.Amount);
+}
+
+<div class="mob-totals-card">
+    <div class="label">Payments Received</div>
+    <div class="total">$@total.ToString("N2")</div>
+    <div class="breakdown">
+        <div><div class="k">Records</div><div class="v">@list.Count</div></div>
+        <div><div class="k">Reversed</div><div class="v">@list.Count(x => x.IsReversed)</div></div>
+    </div>
+</div>
+
+<div class="mob-card" style="margin-bottom:0.75rem;">
+    <div class="mob-card-title">🔎 Filters</div>
+    <form asp-action="MobileIndex" method="get">
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>From</label>
+                    <input type="date" name="from" value="@fromStr" />
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>To</label>
+                    <input type="date" name="to" value="@toStr" />
+                </div>
+            </div>
+        </div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label>Customer</label>
+                    <select name="customerId">
+                        <option value="">All</option>
+                        @if (customers != null)
+                        {
+                            @foreach (var c in (IEnumerable<dynamic>)customers)
+                            {
+                                Guid cid = c.Id;
+                                if (selCustomerId == cid)
+                                { <option value="@c.Id" selected>@c.Name</option> }
+                                else
+                                { <option value="@c.Id">@c.Name</option> }
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label>Method</label>
+                    <select name="method">
+                        <option value="">Any</option>
+                        @foreach (var m in Enum.GetValues<PaymentMethod>())
+                        {
+                            if (selMethod == m)
+                            { <option value="@((int)m)" selected>@m</option> }
+                            else
+                            { <option value="@((int)m)">@m</option> }
+                        }
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <button type="submit" class="mob-btn primary" style="flex:1;justify-content:center;">🔍 Apply</button>
+            <a asp-action="MobileIndex" class="mob-btn" style="flex:1;justify-content:center;background:#f3f4f6;color:#374151;">✕ Clear</a>
+        </div>
+    </form>
+</div>
+
+<div class="mob-list-cards">
+    @if (!list.Any())
+    {
+        <div class="mob-empty">No payments found for these filters.</div>
+    }
+    else
+    {
+        @foreach (var p in list)
+        {
+            <div class="mob-list-card">
+                <div class="row-top">
+                    <div>
+                        <code>@p.PaymentDate.ToString("yyyy-MM-dd")</code>
+                        <div class="pill-stack">
+                            <span class="pill idle">@p.Method</span>
+                            @if (p.IsReversed)
+                            { <span class="pill bad">Reversed</span> }
+                            else
+                            { <span class="pill ok">Posted</span> }
+                        </div>
+                    </div>
+                    <div class="val-right">
+                        <div class="amt @(p.IsReversed ? "" : "")" style="@(p.IsReversed ? "text-decoration:line-through;color:var(--ink-muted);" : "color:#007d73;")">$@p.Amount.ToString("F2")</div>
+                        @if (!string.IsNullOrWhiteSpace(p.Reference))
+                        { <div class="sub">@p.Reference</div> }
+                    </div>
+                </div>
+                <div class="body-copy" style="font-weight:700;color:var(--ink-900);">@p.CustomerName</div>
+                <div class="row-actions">
+                    <a asp-action="Details" asp-route-id="@p.Id" class="mob-btn">👁 View</a>
+                </div>
+            </div>
+        }
+    }
+</div>

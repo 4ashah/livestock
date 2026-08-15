@@ -9,13 +9,12 @@ using LivestockManager.Application.Services.Livestock;
 using LivestockManager.Application.Services.StockAddition;
 using LivestockManager.Application.Services.Suppliers;
 using LivestockManager.Domain.Common;
-using LivestockManager.Domain.Enums;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models.StockAdditionViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanViewLivestock)]
+[Authorize(Policy = PermissionNames.Livestock.View)]
 public class StockAdditionController : Controller
 {
     private readonly IStockAdditionService _stockAdditionService;
@@ -44,26 +43,26 @@ public class StockAdditionController : Controller
         _supplierService = supplierService;
     }
 
-    private async Task<Guid> GetCompanyIdAsync(CancellationToken ct)
+    private async Task<Guid> GetCompanyIdAsync(CancellationToken cancellationToken)
     {
         var user = await _userManager.GetUserAsync(User);
         return user?.CompanyId ?? Guid.Empty;
     }
 
-    private async Task<Microsoft.AspNetCore.Mvc.Rendering.SelectList> GetFarmSelectListAsync(Guid? selectedFarmId, CancellationToken ct)
+    private async Task<Microsoft.AspNetCore.Mvc.Rendering.SelectList> GetFarmSelectListAsync(Guid? selectedFarmId, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
-        var farms = await _farmService.ListByCompanyAsync(companyId, null, ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
+        var farms = await _farmService.ListByCompanyAsync(companyId, null, cancellationToken);
         return new Microsoft.AspNetCore.Mvc.Rendering.SelectList(farms, "Id", "Name", selectedFarmId);
     }
 
-    private async Task<Microsoft.AspNetCore.Mvc.Rendering.SelectList> GetSupplierSelectListAsync(Guid? selectedSupplierId, CancellationToken ct)
+    private async Task<Microsoft.AspNetCore.Mvc.Rendering.SelectList> GetSupplierSelectListAsync(Guid? selectedSupplierId, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
 
         if (_supplierService != null)
         {
-            var suppliers = await _supplierService.ListAsync(companyId, ct);
+            var suppliers = await _supplierService.ListAsync(companyId, cancellationToken);
             var activeSuppliers = suppliers
                 .Where(s => s.IsActive)
                 .OrderBy(s => s.Name)
@@ -75,13 +74,13 @@ public class StockAdditionController : Controller
             var suppliers = await _db.Suppliers
                 .Where(s => s.CompanyId == companyId && s.IsActive && !s.IsDeleted)
                 .OrderBy(s => s.Name)
-                .ToListAsync(ct);
+                .ToListAsync(cancellationToken);
             return new Microsoft.AspNetCore.Mvc.Rendering.SelectList(suppliers, "Id", "Name", selectedSupplierId);
         }
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewLivestock)]
+    [Authorize(Policy = PermissionNames.Livestock.View)]
     public IActionResult Index()
     {
         ViewData["Title"] = "Stock Addition";
@@ -90,32 +89,32 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordStockPurchase)]
-    public async Task<IActionResult> Purchase(CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordPurchase)]
+    public async Task<IActionResult> Purchase(CancellationToken cancellationToken)
     {
         var vm = new StockAdditionPurchaseViewModel
         {
             IdempotencyKey = Guid.NewGuid(),
             PurchaseDate = new DateTimeOffset(DateTime.Today),
-            FarmOptions = await GetFarmSelectListAsync(null, ct),
-            SupplierOptions = await GetSupplierSelectListAsync(null, ct)
+            FarmOptions = await GetFarmSelectListAsync(null, cancellationToken),
+            SupplierOptions = await GetSupplierSelectListAsync(null, cancellationToken)
         };
         return View(vm);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanRecordStockPurchase)]
-    public async Task<IActionResult> Purchase(StockAdditionPurchaseViewModel vm, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordPurchase)]
+    public async Task<IActionResult> Purchase(StockAdditionPurchaseViewModel vm, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
-            vm.SupplierOptions = await GetSupplierSelectListAsync(vm.SupplierId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
+            vm.SupplierOptions = await GetSupplierSelectListAsync(vm.SupplierId, cancellationToken);
             return View(vm);
         }
 
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         var user = await _userManager.GetUserAsync(User);
         var userId = user?.Id ?? Guid.Empty;
 
@@ -139,13 +138,13 @@ public class StockAdditionController : Controller
             Comments = vm.Comments
         };
 
-        var result = await _stockAdditionService.AddPurchasedLivestockAsync(dto, companyId, userId, ct);
+        var result = await _stockAdditionService.AddPurchasedLivestockAsync(dto, companyId, userId, cancellationToken);
 
         if (!result.Succeeded)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Failed to add purchased livestock.");
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
-            vm.SupplierOptions = await GetSupplierSelectListAsync(vm.SupplierId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
+            vm.SupplierOptions = await GetSupplierSelectListAsync(vm.SupplierId, cancellationToken);
             return View(vm);
         }
 
@@ -158,30 +157,30 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
-    public async Task<IActionResult> Newborn(CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordNewborn)]
+    public async Task<IActionResult> Newborn(CancellationToken cancellationToken)
     {
         var vm = new StockAdditionNewbornViewModel
         {
             IdempotencyKey = Guid.NewGuid(),
             DateOfBirth = new DateTimeOffset(DateTime.Today),
-            FarmOptions = await GetFarmSelectListAsync(null, ct)
+            FarmOptions = await GetFarmSelectListAsync(null, cancellationToken)
         };
         return View(vm);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
-    public async Task<IActionResult> Newborn(StockAdditionNewbornViewModel vm, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordNewborn)]
+    public async Task<IActionResult> Newborn(StockAdditionNewbornViewModel vm, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
             return View(vm);
         }
 
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         var user = await _userManager.GetUserAsync(User);
         var userId = user?.Id ?? Guid.Empty;
 
@@ -198,12 +197,12 @@ public class StockAdditionController : Controller
             BirthComments = vm.BirthComments
         };
 
-        var result = await _stockAdditionService.AddNewbornLivestockAsync(dto, companyId, userId, ct);
+        var result = await _stockAdditionService.AddNewbornLivestockAsync(dto, companyId, userId, cancellationToken);
 
         if (!result.Succeeded)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Failed to add newborn livestock.");
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
             return View(vm);
         }
 
@@ -216,31 +215,31 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
-    public async Task<JsonResult> SearchEligibleEwes(string keyword, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordNewborn)]
+    public async Task<JsonResult> SearchEligibleEwes(string keyword, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
-        var results = await _stockAdditionService.SearchEligibleEwesAsync(keyword ?? string.Empty, companyId, 25, ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
+        var results = await _stockAdditionService.SearchEligibleEwesAsync(keyword ?? string.Empty, companyId, 25, cancellationToken);
         return Json(results);
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
-    public async Task<JsonResult> SearchEligibleRams(string keyword, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordNewborn)]
+    public async Task<JsonResult> SearchEligibleRams(string keyword, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
-        var results = await _stockAdditionService.SearchEligibleRamsAsync(keyword ?? string.Empty, companyId, 25, ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
+        var results = await _stockAdditionService.SearchEligibleRamsAsync(keyword ?? string.Empty, companyId, 25, cancellationToken);
         return Json(results);
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewLivestock)]
-    public async Task<IActionResult> Success(Guid livestockId, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.View)]
+    public async Task<IActionResult> Success(Guid livestockId, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         try
         {
-            var detail = await _livestockService.GetByIdAsync(livestockId, companyId, ct);
+            var detail = await _livestockService.GetByIdAsync(livestockId, companyId, cancellationToken);
             ViewData["LivestockDetail"] = detail;
             return View(livestockId);
         }
@@ -252,7 +251,7 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewLivestock)]
+    [Authorize(Policy = PermissionNames.Livestock.View)]
     public IActionResult MobileIndex()
     {
         ViewData["DockKey"] = "stock";
@@ -260,32 +259,32 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordStockPurchase)]
-    public async Task<IActionResult> MobilePurchase(CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordPurchase)]
+    public async Task<IActionResult> MobilePurchase(CancellationToken cancellationToken)
     {
         var vm = new StockAdditionPurchaseViewModel
         {
             IdempotencyKey = Guid.NewGuid(),
             PurchaseDate = new DateTimeOffset(DateTime.Today),
-            FarmOptions = await GetFarmSelectListAsync(null, ct),
-            SupplierOptions = await GetSupplierSelectListAsync(null, ct)
+            FarmOptions = await GetFarmSelectListAsync(null, cancellationToken),
+            SupplierOptions = await GetSupplierSelectListAsync(null, cancellationToken)
         };
         return View("MobilePurchase", vm);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanRecordStockPurchase)]
-    public async Task<IActionResult> MobilePurchase(StockAdditionPurchaseViewModel vm, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordPurchase)]
+    public async Task<IActionResult> MobilePurchase(StockAdditionPurchaseViewModel vm, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
         {
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
-            vm.SupplierOptions = await GetSupplierSelectListAsync(vm.SupplierId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
+            vm.SupplierOptions = await GetSupplierSelectListAsync(vm.SupplierId, cancellationToken);
             return View("MobilePurchase", vm);
         }
 
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         var user = await _userManager.GetUserAsync(User);
         var userId = user?.Id ?? Guid.Empty;
 
@@ -309,13 +308,13 @@ public class StockAdditionController : Controller
             Comments = vm.Comments
         };
 
-        var result = await _stockAdditionService.AddPurchasedLivestockAsync(dto, companyId, userId, ct);
+        var result = await _stockAdditionService.AddPurchasedLivestockAsync(dto, companyId, userId, cancellationToken);
 
         if (!result.Succeeded)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Failed to add purchased livestock.");
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
-            vm.SupplierOptions = await GetSupplierSelectListAsync(vm.SupplierId, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
+            vm.SupplierOptions = await GetSupplierSelectListAsync(vm.SupplierId, cancellationToken);
             return View("MobilePurchase", vm);
         }
 
@@ -328,19 +327,19 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
-    public async Task<IActionResult> MobileNewborn(CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordNewborn)]
+    public async Task<IActionResult> MobileNewborn(CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         var vm = new StockAdditionNewbornViewModel
         {
             IdempotencyKey = Guid.NewGuid(),
             DateOfBirth = new DateTimeOffset(DateTime.Today),
-            FarmOptions = await GetFarmSelectListAsync(null, ct)
+            FarmOptions = await GetFarmSelectListAsync(null, cancellationToken)
         };
 
-        var ewes = await _stockAdditionService.SearchEligibleEwesAsync(string.Empty, companyId, 25, ct);
-        var rams = await _stockAdditionService.SearchEligibleRamsAsync(string.Empty, companyId, 25, ct);
+        var ewes = await _stockAdditionService.SearchEligibleEwesAsync(string.Empty, companyId, 25, cancellationToken);
+        var rams = await _stockAdditionService.SearchEligibleRamsAsync(string.Empty, companyId, 25, cancellationToken);
 
         ViewData["EweOptions"] = ewes;
         ViewData["RamOptions"] = rams;
@@ -350,16 +349,16 @@ public class StockAdditionController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanRecordNewborn)]
-    public async Task<IActionResult> MobileNewborn(StockAdditionNewbornViewModel vm, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.StockAddition.RecordNewborn)]
+    public async Task<IActionResult> MobileNewborn(StockAdditionNewbornViewModel vm, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
 
         if (!ModelState.IsValid)
         {
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
-            var ewes = await _stockAdditionService.SearchEligibleEwesAsync(string.Empty, companyId, 25, ct);
-            var rams = await _stockAdditionService.SearchEligibleRamsAsync(string.Empty, companyId, 25, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
+            var ewes = await _stockAdditionService.SearchEligibleEwesAsync(string.Empty, companyId, 25, cancellationToken);
+            var rams = await _stockAdditionService.SearchEligibleRamsAsync(string.Empty, companyId, 25, cancellationToken);
             ViewData["EweOptions"] = ewes;
             ViewData["RamOptions"] = rams;
             return View("MobileNewborn", vm);
@@ -381,14 +380,14 @@ public class StockAdditionController : Controller
             BirthComments = vm.BirthComments
         };
 
-        var result = await _stockAdditionService.AddNewbornLivestockAsync(dto, companyId, userId, ct);
+        var result = await _stockAdditionService.AddNewbornLivestockAsync(dto, companyId, userId, cancellationToken);
 
         if (!result.Succeeded)
         {
             ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "Failed to add newborn livestock.");
-            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, ct);
-            var ewes = await _stockAdditionService.SearchEligibleEwesAsync(string.Empty, companyId, 25, ct);
-            var rams = await _stockAdditionService.SearchEligibleRamsAsync(string.Empty, companyId, 25, ct);
+            vm.FarmOptions = await GetFarmSelectListAsync(vm.FarmId, cancellationToken);
+            var ewes = await _stockAdditionService.SearchEligibleEwesAsync(string.Empty, companyId, 25, cancellationToken);
+            var rams = await _stockAdditionService.SearchEligibleRamsAsync(string.Empty, companyId, 25, cancellationToken);
             ViewData["EweOptions"] = ewes;
             ViewData["RamOptions"] = rams;
             return View("MobileNewborn", vm);
@@ -403,13 +402,13 @@ public class StockAdditionController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewLivestock)]
-    public async Task<IActionResult> MobileSuccess(Guid livestockId, CancellationToken ct)
+    [Authorize(Policy = PermissionNames.Livestock.View)]
+    public async Task<IActionResult> MobileSuccess(Guid livestockId, CancellationToken cancellationToken)
     {
-        var companyId = await GetCompanyIdAsync(ct);
+        var companyId = await GetCompanyIdAsync(cancellationToken);
         try
         {
-            var detail = await _livestockService.GetByIdAsync(livestockId, companyId, ct);
+            var detail = await _livestockService.GetByIdAsync(livestockId, companyId, cancellationToken);
             ViewData["LivestockDetail"] = detail;
             return View("MobileSuccess", livestockId);
         }

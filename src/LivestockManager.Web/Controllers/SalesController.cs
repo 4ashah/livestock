@@ -17,14 +17,13 @@ using LivestockManager.Domain.Helpers;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanCreateSales)]
+[Authorize(Policy = PermissionNames.Sales.View)]
 public class SalesController : Controller
 {
     private readonly ISaleService _saleService;
     private readonly IInvoiceService _invoiceService;
     private readonly ICustomerService _customerService;
     private readonly IFarmService _farmService;
-    private readonly ILivestockService _livestockService;
     private readonly IAppDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
 
@@ -37,11 +36,11 @@ public class SalesController : Controller
         IAppDbContext db,
         UserManager<ApplicationUser> userManager)
     {
+        _ = livestockService;
         _saleService = saleService;
         _invoiceService = invoiceService;
         _customerService = customerService;
         _farmService = farmService;
-        _livestockService = livestockService;
         _db = db;
         _userManager = userManager;
     }
@@ -73,7 +72,7 @@ public class SalesController : Controller
         || User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.View)]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, SaleStatus? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -104,7 +103,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.View)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -129,7 +128,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.Create)]
     public async Task<IActionResult> Create(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -144,10 +143,10 @@ public class SalesController : Controller
                 l.LivestockTypeId,
                 l.FarmId,
                 l.PurchaseAmount,
-                Display = l.LivestockId + " (" + LivestockManager.Domain.Helpers.LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")",
+                Display = l.LivestockId + " (" + LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")",
                 SuggestedPrice = Math.Round(l.PurchaseAmount * 1.3m, 2, MidpointRounding.AwayFromZero),
-                SuggestedWeight = (decimal?)l.CurrentWeight,
-                SuggestedWeightDate = (DateTimeOffset?)l.CurrentWeightDate
+                SuggestedWeight = l.CurrentWeight,
+                SuggestedWeightDate = l.CurrentWeightDate
             })
             .ToListAsync(ct);
         return View();
@@ -155,7 +154,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.Create)]
     public async Task<IActionResult> Create(SaleCreateDto dto,
         Guid[] livestockIds, decimal[] livestockPrices,
         string[] lineDesc, decimal[] lineQty, decimal[] linePrice,
@@ -169,7 +168,7 @@ public class SalesController : Controller
         var companyId = await GetCompanyIdAsync();
         dto.CompanyId = companyId;
         dto.Date = DateTimeOffset.UtcNow;
-        dto.Items = new List<SaleItemDto>();
+        dto.Items = [];
 
         dto.CommissionAmount = commissionAmount;
         dto.SellerTaxAmount = sellerTaxAmount;
@@ -189,7 +188,7 @@ public class SalesController : Controller
                 dto.Items.Add(new SaleItemDto
                 {
                     LivestockId = livestockIds[i],
-                    Description = "Livestock #" + livestockIds[i].ToString().Substring(0, 8),
+                    Description = "Livestock #" + livestockIds[i].ToString()[..8],
                     Quantity = 1,
                     UnitPrice = price,
                     DiscountPercent = itemDiscountPct,
@@ -237,10 +236,10 @@ public class SalesController : Controller
                     l.LivestockTypeId,
                     l.FarmId,
                     l.PurchaseAmount,
-                    Display = l.LivestockId + " (" + LivestockManager.Domain.Helpers.LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")",
+                    Display = l.LivestockId + " (" + LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId) + ")",
                     SuggestedPrice = Math.Round(l.PurchaseAmount * 1.3m, 2, MidpointRounding.AwayFromZero),
-                    SuggestedWeight = (decimal?)l.CurrentWeight,
-                    SuggestedWeightDate = (DateTimeOffset?)l.CurrentWeightDate
+                    SuggestedWeight = l.CurrentWeight,
+                    SuggestedWeightDate = l.CurrentWeightDate
                 })
                 .ToListAsync(ct);
             return View();
@@ -250,7 +249,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.Confirm)]
     public async Task<IActionResult> Confirm(Guid id, SaleConfirmDto dto, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -278,7 +277,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.Create)]
     public async Task<IActionResult> Cancel(Guid id, string reason, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -295,7 +294,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.View)]
     public async Task<IActionResult> ListEligibleLivestockBulkAdd(Guid? farmId, string? keyword, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -320,14 +319,14 @@ public class SalesController : Controller
                 l.Id,
                 l.LivestockId,
                 l.LivestockTypeId,
-                TypeLabel = LivestockManager.Domain.Helpers.LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
+                TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
                 l.FarmId,
-                InitialWeight = (decimal?)l.InitialWeight,
-                PurchaseAmount = (decimal?)l.PurchaseAmount,
-                SuggestedPrice = Math.Round(((decimal?)l.PurchaseAmount ?? 0) * 1.3m, 2, MidpointRounding.AwayFromZero),
+                l.InitialWeight,
+                l.PurchaseAmount,
+                SuggestedPrice = Math.Round(l.PurchaseAmount * 1.3m, 2, MidpointRounding.AwayFromZero),
                 SuggestedPriceMethod = SuggestedPricingMethod.CostMarkupLegacy,
-                SuggestedWeight = (decimal?)l.CurrentWeight,
-                SuggestedWeightDate = (DateTimeOffset?)l.CurrentWeightDate,
+                SuggestedWeight = l.CurrentWeight,
+                SuggestedWeightDate = l.CurrentWeightDate,
                 SuggestedRate = (decimal?)null
             })
             .ToListAsync(ct);
@@ -337,7 +336,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.Create)]
     public async Task<IActionResult> BulkAdd(Guid saleId, [FromForm] Guid[] selectedLivestockIds, CancellationToken ct)
     {
         if (saleId == Guid.Empty) return NotFound();
@@ -347,7 +346,7 @@ public class SalesController : Controller
         try
         {
             var result = await _saleService.BulkAddLivestockToDraftSaleAsync(
-                saleId, companyId, selectedLivestockIds ?? Array.Empty<Guid>(),
+                saleId, companyId, selectedLivestockIds ?? [],
                 actingUserId == Guid.Empty ? null : actingUserId, ct);
 
             TempData["Success"] = $"Bulk add complete: {result.AddedCount} added, " +
@@ -368,7 +367,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanReverseSales)]
+    [Authorize(Policy = PermissionNames.Sales.Reverse)]
     public async Task<IActionResult> Reverse(SaleReversalDto dto, CancellationToken ct)
     {
         if (!ModelState.IsValid)
@@ -401,7 +400,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.View)]
     public async Task<JsonResult> SearchLivestock(string? keyword, Guid? farmId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -423,20 +422,20 @@ public class SalesController : Controller
                 l.Id,
                 l.LivestockId,
                 l.LivestockTypeId,
-                TypeLabel = LivestockManager.Domain.Helpers.LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
+                TypeLabel = LivestockTypeDisplay.GetDisplayName(l.LivestockTypeId),
                 l.FarmId,
-                InitialWeight = (decimal?)l.InitialWeight,
-                PurchaseAmount = (decimal?)l.PurchaseAmount,
-                SuggestedPrice = Math.Round(((decimal?)l.PurchaseAmount ?? 0) * 1.3m, 2, MidpointRounding.AwayFromZero),
-                SuggestedWeight = (decimal?)l.CurrentWeight,
-                SuggestedWeightDate = (DateTimeOffset?)l.CurrentWeightDate
+                l.InitialWeight,
+                l.PurchaseAmount,
+                SuggestedPrice = Math.Round(l.PurchaseAmount * 1.3m, 2, MidpointRounding.AwayFromZero),
+                SuggestedWeight = l.CurrentWeight,
+                SuggestedWeightDate = l.CurrentWeightDate
             })
             .ToListAsync(ct);
         return Json(results);
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.View)]
     public async Task<JsonResult> ResolveLivestock(string id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -450,13 +449,13 @@ public class SalesController : Controller
                 x.Id,
                 x.LivestockId,
                 x.LivestockTypeId,
-                TypeLabel = LivestockManager.Domain.Helpers.LivestockTypeDisplay.GetDisplayName(x.LivestockTypeId),
+                TypeLabel = LivestockTypeDisplay.GetDisplayName(x.LivestockTypeId),
                 x.FarmId,
-                InitialWeight = (decimal?)x.InitialWeight,
-                PurchaseAmount = (decimal?)x.PurchaseAmount,
-                SuggestedPrice = Math.Round(((decimal?)x.PurchaseAmount ?? 0) * 1.3m, 2, MidpointRounding.AwayFromZero),
-                SuggestedWeight = (decimal?)x.CurrentWeight,
-                SuggestedWeightDate = (DateTimeOffset?)x.CurrentWeightDate
+                x.InitialWeight,
+                x.PurchaseAmount,
+                SuggestedPrice = Math.Round(x.PurchaseAmount * 1.3m, 2, MidpointRounding.AwayFromZero),
+                SuggestedWeight = x.CurrentWeight,
+                SuggestedWeightDate = x.CurrentWeightDate
             })
             .FirstOrDefaultAsync(ct);
         if (l == null) return Json(new { ok = false, msg = "No active livestock matches '" + clean + "'" });
@@ -464,7 +463,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.View)]
     public async Task<JsonResult> SearchCustomers(string? keyword, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -485,7 +484,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.View)]
     public async Task<IActionResult> MobileIndex(DateTime? from, DateTime? to, Guid? customerId, SaleStatus? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -514,7 +513,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.Create)]
     public async Task<IActionResult> MobileCreate(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -526,7 +525,7 @@ public class SalesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.Create)]
     public async Task<IActionResult> MobileCreate(SaleCreateDto dto,
         Guid[] livestockIds, decimal[] livestockPrices,
         string[] lineDesc, decimal[] lineQty, decimal[] linePrice,
@@ -540,7 +539,7 @@ public class SalesController : Controller
         var companyId = await GetCompanyIdAsync();
         dto.CompanyId = companyId;
         dto.Date = DateTimeOffset.UtcNow;
-        dto.Items = new List<SaleItemDto>();
+        dto.Items = [];
 
         dto.CommissionAmount = commissionAmount;
         dto.SellerTaxAmount = sellerTaxAmount;
@@ -560,7 +559,7 @@ public class SalesController : Controller
                 dto.Items.Add(new SaleItemDto
                 {
                     LivestockId = livestockIds[i],
-                    Description = "Livestock #" + livestockIds[i].ToString().Substring(0, 8),
+                    Description = "Livestock #" + livestockIds[i].ToString()[..8],
                     Quantity = 1,
                     UnitPrice = price,
                     DiscountPercent = itemDiscountPct,
@@ -603,7 +602,7 @@ public class SalesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanCreateSales)]
+    [Authorize(Policy = PermissionNames.Sales.View)]
     public async Task<IActionResult> MobileDetails(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();

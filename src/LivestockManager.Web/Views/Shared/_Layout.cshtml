@@ -1,6 +1,8 @@
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
 @using LivestockManager.Domain.Common
 @inject SignInManager<ApplicationUser> SignInManager
+@inject IAuthorizationService Authorization
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -10,7 +12,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>@ViewData["Title"] - Livestock Manager</title>
+    <title>@ViewData["Title"] - AHK Livestock Manager</title>
     <environment include="Development">
         <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.css" />
         <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -20,22 +22,10 @@
         <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     </environment>
     <style>
-        :root {
-            --agri-dark: #1b4332;
-            --agri-primary: #2d6a4f;
-            --agri-secondary: #40916c;
-            --agri-light: #74c69d;
-            --agri-accent: #95d5b2;
-            --agri-bg: #f8faf6;
-            --sidebar-width: 250px;
-            --sat: env(safe-area-inset-top, 0px);
-            --sab: env(safe-area-inset-bottom, 0px);
-            --sal: env(safe-area-inset-left, 0px);
-            --sar: env(safe-area-inset-right, 0px);
-        }
         html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
-        body { background-color: var(--agri-bg); min-height: 100vh; padding-bottom: var(--sab); }
-        body.sidebar-open { overflow: hidden; touch-action: none; }
+        html, body { overflow-x: hidden; max-width: 100%; }
+        body { background-color: var(--agri-bg); min-height: 100vh; padding-bottom: var(--sab); min-width: 320px; max-width: 100%; }
+        body.sidebar-open { overflow-y: hidden; touch-action: none; }
         .topbar {
             background-color: var(--agri-dark);
             height: auto;
@@ -72,9 +62,14 @@
             bottom: 0;
             z-index: 1020;
             overflow-y: auto;
+            overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
             padding-left: var(--sal);
             padding-bottom: calc(var(--sab) + 0.5rem);
+            will-change: transform;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            direction: ltr;
         }
         .sidebar .nav-link {
             color: #d8f3dc;
@@ -130,9 +125,11 @@
             min-height: 100vh;
         }
         @@media (max-width: 991.98px) {
-            .sidebar { transform: translateX(-100%); box-shadow: 0 10px 40px rgba(0,0,0,0.35); }
+            body { overflow-x: hidden; }
+            .sidebar { transform: translateX(-100%); box-shadow: 0 10px 40px rgba(0,0,0,0.35); -webkit-overflow-scrolling: touch; }
             .sidebar.open { transform: translateX(0); }
-            .main-content { margin-left: 0; padding: 1rem; padding-top: calc(56px + 1rem + var(--sat)); padding-left: calc(0.75rem + var(--sal)); padding-right: calc(0.75rem + var(--sar)); }
+            .main-content { margin-left: 0; padding: 1rem; padding-top: calc(56px + 1rem + var(--sat)); padding-left: calc(0.75rem + var(--sal)); padding-right: calc(0.75rem + var(--sar)); overflow-x: hidden; min-width: 0; max-width: 100%; }
+            .main-content .row > [class^="col-"], .main-content .row > [class*=" col-"] { min-width: 0; }
             .sidebar-backdrop { top: calc(56px + var(--sat)); }
         }
         .user-dropdown .dropdown-toggle {
@@ -183,10 +180,15 @@
             var search = (typeof window !== 'undefined' ? window.location.search : '') || '';
             var fullHere = here + search;
             var COOKIE = 'noMobileRedirect';
+            var bypass = false;
             try {
-                var bypass = (typeof document !== 'undefined' && document.cookie || '').split(';').some(function (c) { return c.trim().indexOf(COOKIE + '=') === 0; });
-                if (bypass) return;
-            } catch (e) { /* no-op */ }
+                bypass = (typeof document !== 'undefined' && document.cookie || '').split(';').some(function (c) { return c.trim().indexOf(COOKIE + '=') === 0; });
+            } catch (e) { bypass = false; }
+            if (bypass && forceMobile) {
+                try { document.cookie = COOKIE + '=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT;SameSite=Lax;Max-Age=0'; } catch (e) { /* no-op */ }
+                bypass = false;
+            }
+            if (bypass) return;
             if (!forceMobile) return;
             var noCache = function (u) { return u + (u.indexOf('?') > -1 ? '&' : '?') + 'm=' + Date.now().toString(36); };
             var dest = null;
@@ -206,6 +208,16 @@
             else if (here === '/StockAddition' || here === '/StockAddition/Index' || here.indexOf('/StockAddition/Index') === 0) dest = '/StockAddition/MobileIndex' + search;
             else if (here === '/StockAddition/Purchase' || here.indexOf('/StockAddition/Purchase') === 0) dest = '/StockAddition/MobilePurchase';
             else if (here === '/StockAddition/Newborn' || here.indexOf('/StockAddition/Newborn') === 0) dest = '/StockAddition/MobileNewborn';
+            else if (here === '/Customers' || here === '/Customers/Index' || here.indexOf('/Customers/Index') === 0) dest = '/Customers/MobileIndex' + search;
+            else if (here === '/Suppliers' || here === '/Suppliers/Index' || here.indexOf('/Suppliers/Index') === 0) dest = '/Suppliers/MobileIndex' + search;
+            else if (here === '/Farms' || here === '/Farms/Index' || here.indexOf('/Farms/Index') === 0) dest = '/Farms/MobileIndex' + search;
+            else if (here === '/Invoices' || here === '/Invoices/Index' || here.indexOf('/Invoices/Index') === 0) dest = '/Invoices/MobileIndex' + search;
+            else if (here === '/Payments' || here === '/Payments/Index' || here.indexOf('/Payments/Index') === 0) dest = '/Payments/MobileIndex' + search;
+            else if (here === '/Receipts' || here === '/Receipts/Index' || here.indexOf('/Receipts/Index') === 0) dest = '/Receipts/MobileIndex' + search;
+            else if (here === '/Documents' || here === '/Documents/Index' || here === '/Documents/List' || here.indexOf('/Documents/List') === 0) dest = '/Documents/MobileIndex' + search;
+            else if (here === '/Reports' || here === '/Reports/Index' || here.indexOf('/Reports/Index') === 0) dest = '/Reports/MobileIndex' + search;
+            else if (here === '/Settings' || here === '/Settings/Index' || here.indexOf('/Settings/Index') === 0) dest = '/Settings/MobileIndex' + search;
+            else if (here === '/UserManagement' || here === '/UserManagement/Index' || here.indexOf('/UserManagement/Index') === 0) dest = '/UserManagement/MobileIndex' + search;
             if (dest && typeof window !== 'undefined' && dest !== fullHere) window.location.replace(noCache(dest));
         })();
     </script>
@@ -218,7 +230,7 @@
                 &#9776;
             </button>
             <a class="navbar-brand ms-lg-0 ms-2" asp-area="" asp-controller="Home" asp-action="Index">
-                🌾 Livestock Manager
+                🌾 AHK Livestock Manager
             </a>
             <div class="ms-auto">
                 <partial name="_LoginPartial" />
@@ -232,24 +244,39 @@
         <div class="py-2">
             @if (SignInManager.IsSignedIn(User))
             {
-                var isDataEntry = User.IsInRole(RoleNames.DataEntry);
-                var isFarmManager = User.IsInRole(RoleNames.FarmManager);
-                var isAccounts = User.IsInRole(RoleNames.Accounts);
-                var isOperationsManager = User.IsInRole(RoleNames.OperationsManager);
-                var isCompanyAdmin = User.IsInRole(RoleNames.CompanyAdministrator);
-                var isSystemAdmin = User.IsInRole(RoleNames.SystemAdministrator);
-                var canViewOperational = isDataEntry || isFarmManager || isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
-                var canManageLivestock = isDataEntry || isFarmManager || isOperationsManager || isCompanyAdmin || isSystemAdmin;
-                var canManageSales = isFarmManager || isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
-                var canManagePurchases = isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
-                var canManageLosses = isFarmManager || isOperationsManager || isCompanyAdmin || isSystemAdmin;
-                var canManageAccounting = isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
-                var canManageExpenses = isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
-                var canManageCompany = isCompanyAdmin || isSystemAdmin;
-                var canViewFinancial = isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
-                var canManageCustomers = isFarmManager || isAccounts || isOperationsManager || isCompanyAdmin || isSystemAdmin;
-                var canManageSuppliers = canManageCustomers;
-                var canWrite = canManageLivestock || canManageAccounting || canManageCompany;
+                var authed = User.Identity?.IsAuthenticated == true;
+
+                var canViewOperational = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Farms.View)).Succeeded;
+                var canViewFarms = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Farms.View)).Succeeded;
+                var canViewLivestock = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.View)).Succeeded;
+                var canStockAdditionPurchase = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.StockAddition.RecordPurchase)).Succeeded;
+                var canStockAdditionNewborn = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.StockAddition.RecordNewborn)).Succeeded;
+                var canStockAddition = canStockAdditionPurchase || canStockAdditionNewborn;
+                var canCreateCustomers = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Customers.Create)).Succeeded;
+                var canCreateSuppliers = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Suppliers.Create)).Succeeded;
+                var canViewDocuments = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Documents.View)).Succeeded;
+
+                var canViewSales = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Sales.View)).Succeeded;
+                var canViewPurchaseInvoices = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.PurchaseInvoices.View)).Succeeded;
+                var canViewInvoices = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Invoices.View)).Succeeded;
+                var canViewPayments = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Payments.View)).Succeeded;
+                var canViewReceipts = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Receipts.View)).Succeeded;
+                var canViewExpenses = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Expenses.View)).Succeeded;
+                var canViewLosses = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Losses.View)).Succeeded;
+                var canShowFinance = canViewSales || canViewPurchaseInvoices || canViewInvoices || canViewPayments || canViewReceipts || canViewExpenses || canViewLosses;
+
+                var canViewReportActiveLivestock = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.ActiveLivestock)).Succeeded;
+                var canViewReportSalesByPeriod = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.SalesByPeriod)).Succeeded;
+                var canViewReportLivestockProfitability = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.LivestockProfitability)).Succeeded;
+                var canViewReportProfitAndLoss = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.ProfitAndLoss)).Succeeded;
+                var canViewReportProfitAndLossStatements = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.ProfitAndLossStatements)).Succeeded;
+                var canShowReporting = canViewReportActiveLivestock || canViewReportSalesByPeriod || canViewReportLivestockProfitability || canViewReportProfitAndLoss || canViewReportProfitAndLossStatements;
+
+                var canViewAuditLogs = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Administration.AuditLogs)).Succeeded;
+                var canViewUsers = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Administration.Users)).Succeeded;
+                var canViewCompanies = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Administration.Companies)).Succeeded;
+                var canViewSettings = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Administration.Settings)).Succeeded;
+                var canShowAdministration = canViewAuditLogs || canViewUsers || canViewCompanies || canViewSettings;
 
                 var currentController = (ViewContext.RouteData.Values["controller"] as string ?? string.Empty).ToLowerInvariant();
 
@@ -284,7 +311,7 @@
                     <span class="float-end section-chevron" aria-hidden="true">▾</span>
                 </div>
                 <ul class="nav flex-column nav-section-body" data-section="ops">
-                    @if (canViewOperational)
+                    @if (canViewFarms)
                     {
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Farms")" asp-area="" asp-controller="Farms" asp-action="Index">
@@ -292,7 +319,7 @@
                             </a>
                         </li>
                     }
-                    @if (canViewOperational)
+                    @if (canViewLivestock)
                     {
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Livestock")" asp-area="" asp-controller="Livestock" asp-action="Index">
@@ -300,7 +327,7 @@
                             </a>
                         </li>
                     }
-                    @if (canManageLivestock)
+                    @if (canStockAddition)
                     {
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("StockAddition")" asp-area="" asp-controller="StockAddition" asp-action="Index">
@@ -308,7 +335,7 @@
                             </a>
                         </li>
                     }
-                    @if (canManageCustomers)
+                    @if (canCreateCustomers)
                     {
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Customers")" asp-area="" asp-controller="Customers" asp-action="Index">
@@ -316,7 +343,7 @@
                             </a>
                         </li>
                     }
-                    @if (canManageSuppliers)
+                    @if (canCreateSuppliers)
                     {
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Suppliers")" asp-area="" asp-controller="Suppliers" asp-action="Index">
@@ -324,7 +351,7 @@
                             </a>
                         </li>
                     }
-                    @if (canViewOperational)
+                    @if (canViewDocuments)
                     {
                         <li class="nav-item">
                             <a class="nav-link @ActiveIf("Documents")" asp-area="" asp-controller="Documents" asp-action="Index">
@@ -334,7 +361,7 @@
                     }
                 </ul>
 
-                @if (canViewFinancial)
+                @if (canShowFinance)
                 {
                     <div class="nav-section-title"
                          role="button"
@@ -345,72 +372,96 @@
                         <span class="float-end section-chevron" aria-hidden="true">▾</span>
                     </div>
                     <ul class="nav flex-column nav-section-body" data-section="fin">
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("Sales")" asp-area="" asp-controller="Sales" asp-action="Index">
-                                <span>&#128176;</span><span>Sales</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("Purchases")" asp-area="" asp-controller="Purchases" asp-action="Index">
-                                <span>&#128722;</span><span>Purchase Invoices</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("Invoices")" asp-area="" asp-controller="Invoices" asp-action="Index">
-                                <span>&#128196;</span><span>Invoices</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("Payments")" asp-area="" asp-controller="Payments" asp-action="Index">
-                                <span>&#128179;</span><span>Payments</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("Receipts")" asp-area="" asp-controller="Receipts" asp-action="Index">
-                                <span>&#129534;</span><span>Receipts</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("Expenses")" asp-area="" asp-controller="Expenses" asp-action="Index">
-                                <span>&#128176;</span><span>Expenses</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("LivestockLosses")" asp-area="" asp-controller="LivestockLosses" asp-action="Index">
-                                <span>&#128128;</span><span>Losses</span>
-                            </a>
-                        </li>
+                        @if (canViewSales)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Sales")" asp-area="" asp-controller="Sales" asp-action="Index">
+                                    <span>&#128176;</span><span>Sales</span>
+                                </a>
+                            </li>
+                        }
+                        @if (canViewPurchaseInvoices)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Purchases")" asp-area="" asp-controller="Purchases" asp-action="Index">
+                                    <span>&#128722;</span><span>Purchase Invoices</span>
+                                </a>
+                            </li>
+                        }
+                        @if (canViewInvoices)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Invoices")" asp-area="" asp-controller="Invoices" asp-action="Index">
+                                    <span>&#128196;</span><span>Invoices</span>
+                                </a>
+                            </li>
+                        }
+                        @if (canViewPayments)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Payments")" asp-area="" asp-controller="Payments" asp-action="Index">
+                                    <span>&#128179;</span><span>Payments</span>
+                                </a>
+                            </li>
+                        }
+                        @if (canViewReceipts)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Receipts")" asp-area="" asp-controller="Receipts" asp-action="Index">
+                                    <span>&#129534;</span><span>Receipts</span>
+                                </a>
+                            </li>
+                        }
+                        @if (canViewExpenses)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Expenses")" asp-area="" asp-controller="Expenses" asp-action="Index">
+                                    <span>&#128176;</span><span>Expenses</span>
+                                </a>
+                            </li>
+                        }
+                        @if (canViewLosses)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("LivestockLosses")" asp-area="" asp-controller="LivestockLosses" asp-action="Index">
+                                    <span>&#128128;</span><span>Losses</span>
+                                </a>
+                            </li>
+                        }
                     </ul>
                 }
 
-                <div class="nav-section-title"
-                     role="button"
-                     tabindex="0"
-                     data-toggle-section="rep"
-                     aria-expanded="true">
-                    <span>Reporting</span>
-                    <span class="float-end section-chevron" aria-hidden="true">▾</span>
-                </div>
-                <ul class="nav flex-column nav-section-body" data-section="rep">
-                    @if (canViewOperational)
-                    {
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("Reports")" asp-area="" asp-controller="Reports" asp-action="Index">
-                                <span>&#128200;</span><span>Reports</span>
-                            </a>
-                        </li>
-                    }
-                    @if (canViewFinancial)
-                    {
-                        <li class="nav-item">
-                            <a class="nav-link @(string.Equals(currentController, "reports", StringComparison.OrdinalIgnoreCase) && string.Equals(ViewContext.RouteData.Values["action"] as string ?? string.Empty, "profitloss", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)" asp-area="" asp-controller="Reports" asp-action="ProfitLoss">
-                                <span>💰</span><span>P &amp; L Statement</span>
-                            </a>
-                        </li>
-                    }
-                </ul>
+                @if (canShowReporting)
+                {
+                    <div class="nav-section-title"
+                         role="button"
+                         tabindex="0"
+                         data-toggle-section="rep"
+                         aria-expanded="true">
+                        <span>Reporting</span>
+                        <span class="float-end section-chevron" aria-hidden="true">▾</span>
+                    </div>
+                    <ul class="nav flex-column nav-section-body" data-section="rep">
+                        @if (canViewReportActiveLivestock)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Reports")" asp-area="" asp-controller="Reports" asp-action="Index">
+                                    <span>&#128200;</span><span>Reports</span>
+                                </a>
+                            </li>
+                        }
+                        @if (canViewReportProfitAndLoss)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(string.Equals(currentController, "reports", StringComparison.OrdinalIgnoreCase) && string.Equals(ViewContext.RouteData.Values["action"] as string ?? string.Empty, "profitloss", StringComparison.OrdinalIgnoreCase) ? "active" : string.Empty)" asp-area="" asp-controller="Reports" asp-action="ProfitLoss">
+                                    <span>💰</span><span>P &amp; L Statement</span>
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                }
 
-                @if (canManageCompany)
+                @if (canShowAdministration)
                 {
                     <div class="nav-section-title"
                          role="button"
@@ -421,17 +472,23 @@
                         <span class="float-end section-chevron" aria-hidden="true">▾</span>
                     </div>
                     <ul class="nav flex-column nav-section-body" data-section="adm">
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("Audit")" asp-area="" asp-controller="Audit" asp-action="Index">
-                                <span>&#128195;</span><span>Audit Logs</span>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("UserManagement")" asp-area="" asp-controller="UserManagement" asp-action="Index">
-                                <span>&#128101;</span><span>Users</span>
-                            </a>
-                        </li>
-                        @if (isSystemAdmin)
+                        @if (canViewAuditLogs)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Audit")" asp-area="" asp-controller="Audit" asp-action="Index">
+                                    <span>&#128195;</span><span>Audit Logs</span>
+                                </a>
+                            </li>
+                        }
+                        @if (canViewUsers)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("UserManagement")" asp-area="" asp-controller="UserManagement" asp-action="Index">
+                                    <span>&#128101;</span><span>Users</span>
+                                </a>
+                            </li>
+                        }
+                        @if (canViewCompanies)
                         {
                             <li class="nav-item">
                                 <a class="nav-link @ActiveIf("Companies")" asp-area="" asp-controller="Companies" asp-action="Index">
@@ -439,11 +496,14 @@
                                 </a>
                             </li>
                         }
-                        <li class="nav-item">
-                            <a class="nav-link @ActiveIf("Settings")" asp-area="" asp-controller="Settings" asp-action="Index">
-                                <span>&#9881;</span><span>Settings</span>
-                            </a>
-                        </li>
+                        @if (canViewSettings)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @ActiveIf("Settings")" asp-area="" asp-controller="Settings" asp-action="Index">
+                                    <span>&#9881;</span><span>Settings</span>
+                                </a>
+                            </li>
+                        }
                     </ul>
                 }
             }
@@ -457,7 +517,7 @@
         <footer class="mt-5 pt-4 border-top text-muted small">
             <div class="row">
                 <div class="col-md-6">
-                    &copy; @DateTime.Now.Year &mdash; Livestock Manager
+                    &copy; @DateTime.Now.Year &mdash; AHK Livestock Manager
                 </div>
                 <div class="col-md-6 text-md-end">
                     <a asp-area="" asp-controller="Home" asp-action="Privacy" class="text-muted me-3">Privacy</a>
@@ -480,11 +540,15 @@
                 if (open) {
                     sidebar.classList.add('open');
                     backdrop.classList.add('show');
+                    try { document.body.classList.add('sidebar-open'); } catch (e) { /* no-op */ }
                 } else {
                     sidebar.classList.remove('open');
                     backdrop.classList.remove('show');
+                    try { document.body.classList.remove('sidebar-open'); } catch (e) { /* no-op */ }
                 }
             }
+            var isMobileInit = window.matchMedia && window.matchMedia('(max-width: 991.98px)').matches;
+            if (isMobileInit) { try { toggleSidebar(false); } catch (e) { /* no-op */ } }
             if (toggle) toggle.addEventListener('click', function (e) {
                 e.preventDefault();
                 toggleSidebar(!sidebar.classList.contains('open'));

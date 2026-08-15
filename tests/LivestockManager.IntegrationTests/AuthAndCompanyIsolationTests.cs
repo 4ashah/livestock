@@ -1,6 +1,5 @@
 using System.Net;
 using LivestockManager.Domain.Common;
-using Xunit;
 
 namespace LivestockManager.IntegrationTests;
 

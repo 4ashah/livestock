@@ -1,0 +1,97 @@
+@model DocumentListViewModel
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Documents";
+    ViewData["PageIcon"] = "📁";
+    ViewData["PageSubtitle"] = "Uploaded files & attachments";
+    ViewData["DockKey"] = "docs";
+    if (Model.CanUpload)
+    {
+        ViewData["ActionLabel"] = "Upload";
+        ViewData["ActionIcon"] = "＋";
+        ViewData["ActionUrl"] = Url.Action("Upload", "Documents", new { entityType = Model.EntityType, entityId = Model.EntityId });
+    }
+    var items = Model.Items?.ToList() ?? new List<DocumentListItemViewModel>();
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.EntityType))
+{
+    <div class="mob-card" style="border-left:4px solid #3a6ea5;">
+        <div class="small" style="color:#294e78;font-weight:600;">
+            📎 Filtered: <strong>@Model.EntityType</strong>
+            @if (Model.EntityId.HasValue)
+            {
+                <span class="text-muted">(Record: @Model.EntityId.Value.ToString("N").Substring(0, 8)…)</span>
+            }
+            <a asp-action="MobileIndex" style="color:#294e78;font-weight:700;">Clear filter</a>
+        </div>
+    </div>
+}
+
+@if (TempData["Success"] != null)
+{
+    <div class="mob-val" style="background:rgba(45,106,79,0.10);border-color:rgba(45,106,79,0.3);color:#14532d;">✅ @TempData["Success"]</div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="mob-val">@TempData["Error"]</div>
+}
+
+<div class="mob-list-cards">
+    @if (!items.Any())
+    {
+        <div class="mob-empty">
+            <div style="font-size:2rem;margin-bottom:0.5rem;">📎</div>
+            <div style="font-weight:800;color:var(--ink-900);margin-bottom:0.25rem;">No documents found</div>
+            @if (Model.CanUpload)
+            {
+                <text>Upload your first document using the button above.</text>
+            }
+            else
+            {
+                <text>Contact your administrator to upload documents.</text>
+            }
+        </div>
+    }
+    else
+    {
+        @foreach (var item in items)
+        {
+            <div class="mob-list-card">
+                <div class="row-top">
+                    <div>
+                        <a asp-action="Download" asp-route-id="@item.Id" class="body-copy" style="font-weight:800;color:var(--brand);text-decoration:none;word-break:break-word;">@item.DisplayName</a>
+                        <div class="pill-stack">
+                            <span class="pill info">@item.DocumentType</span>
+                            <span class="pill idle">@item.SizeFriendly</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="rows">
+                    <div class="cell">
+                        <div class="label">Uploaded</div>
+                        <div class="val">@item.UploadedAt.ToString("yyyy-MM-dd HH:mm")</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label">Type</div>
+                        <div class="val">@(string.IsNullOrWhiteSpace(item.Extension) ? item.ContentType ?? "—" : item.Extension.TrimStart('.').ToUpperInvariant())</div>
+                    </div>
+                </div>
+                <div class="row-actions">
+                    <a asp-action="Download" asp-route-id="@item.Id" class="mob-btn primary">⬇ Download</a>
+                    @if (Model.CanDelete)
+                    {
+                        <form asp-action="Delete" method="post" style="display:inline;"
+                              onsubmit="return confirm('Delete this document? It will be retained for audit purposes.');">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" name="id" value="@item.Id" />
+                            <input type="hidden" name="returnUrl"
+                                   value="@Url.Action("MobileIndex", new { entityType = Model.EntityType, entityId = Model.EntityId })" />
+                            <button type="submit" class="mob-btn danger">🗑️ Delete</button>
+                        </form>
+                    }
+                </div>
+            </div>
+        }
+    }
+</div>

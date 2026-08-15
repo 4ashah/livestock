@@ -17,6 +17,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
 {
     private readonly ICurrentUserService? _currentUserService;
 
+    protected virtual Guid? CurrentUserCompanyId => _currentUserService?.CompanyId;
+
+    protected virtual bool IsGlobalScope => _currentUserService?.IsSystemAdministrator ?? false;
+
     public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserService? currentUserService = null)
         : base(options)
     {
@@ -83,7 +87,33 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
                 var falseConstant = Expression.Constant(false, typeof(bool));
                 var isDeletedEqualFalse = Expression.Equal(isDeletedProperty, falseConstant);
 
-                var lambda = Expression.Lambda(isDeletedEqualFalse, parameter);
+                Expression combinedFilter = isDeletedEqualFalse;
+
+                var companyIdPropertyInfo = entityType.ClrType.GetProperty("CompanyId", BindingFlags.Public | BindingFlags.Instance);
+                if (companyIdPropertyInfo != null && companyIdPropertyInfo.PropertyType == typeof(Guid))
+                {
+                    var companyIdProperty = Expression.Property(parameter, companyIdPropertyInfo);
+
+                    var contextExpression = Expression.Constant(this, typeof(AppDbContext));
+                    var currentUserCompanyIdProperty = Expression.Property(contextExpression, nameof(CurrentUserCompanyId));
+                    var isGlobalScopeProperty = Expression.Property(contextExpression, nameof(IsGlobalScope));
+
+                    var currentUserCompanyIdHasValue = Expression.Property(currentUserCompanyIdProperty, nameof(Nullable<Guid>.HasValue));
+                    var companyIdNullable = Expression.Convert(companyIdProperty, typeof(Guid?));
+                    var companyIdEqual = Expression.Equal(companyIdNullable, currentUserCompanyIdProperty);
+
+                    var negateIsGlobalScope = Expression.Not(isGlobalScopeProperty);
+                    var scopedAndHasValue = Expression.AndAlso(negateIsGlobalScope, currentUserCompanyIdHasValue);
+
+                    var scopedMatchOrBypass = Expression.OrElse(
+                        Expression.Not(scopedAndHasValue),
+                        companyIdEqual
+                    );
+
+                    combinedFilter = Expression.AndAlso(isDeletedEqualFalse, scopedMatchOrBypass);
+                }
+
+                var lambda = Expression.Lambda(combinedFilter, parameter);
                 builder.Entity(entityType.ClrType).HasQueryFilter(lambda);
 
                 builder.Entity(entityType.ClrType)

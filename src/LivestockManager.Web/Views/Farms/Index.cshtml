@@ -1,15 +1,24 @@
 @using LivestockManager.Web.Models.FarmViewModels
 @using LivestockManager.Domain.Common;
+@using Microsoft.AspNetCore.Authorization
 @model IEnumerable<FarmListViewModel>
+@inject IAuthorizationService Authorization
 @{
     ViewData["Title"] = "Farms";
     var search = ViewData["Search"] as string;
-    var canEdit = User.IsInRole(RoleNames.CompanyAdministrator) || User.IsInRole(RoleNames.SystemAdministrator) || User.IsInRole(RoleNames.FarmManager);
+    var authed = User.Identity?.IsAuthenticated == true;
+
+    var caps = new PageCapabilities
+    {
+        CanCreate = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Farms.Create)).Succeeded,
+        CanEdit = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Farms.Edit)).Succeeded,
+        CanArchive = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Farms.Archive)).Succeeded
+    };
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
     <h1 class="h2">🏞️ Farms</h1>
-    @if (canEdit)
+    @if (caps.CanCreate)
     {
         <a asp-action="Create" class="btn btn-primary"><span class="me-1">+</span> New Farm</a>
     }
@@ -57,7 +66,7 @@
                                 else
                                 {
                                     <p class="mb-1">No farms yet.</p>
-                                    if (canEdit)
+                                    if (caps.CanCreate)
                                     {
                                         <a asp-action="Create" class="text-decoration-none">+ Create the first farm</a>
                                     }
@@ -95,9 +104,12 @@
                                 <td class="text-end">
                                     <div class="btn-group btn-group-sm">
                                         <a asp-action="Details" asp-route-id="@farm.Id" class="btn btn-outline-info">Details</a>
-                                        @if (canEdit)
+                                        @if (caps.CanEdit)
                                         {
                                             <a asp-action="Edit" asp-route-id="@farm.Id" class="btn btn-outline-primary">Edit</a>
+                                        }
+                                        @if (caps.CanArchive)
+                                        {
                                             <form asp-action="Archive" asp-route-id="@farm.Id" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to archive this farm?');">
                                                 <button type="submit" class="btn btn-outline-danger">Archive</button>
                                             </form>

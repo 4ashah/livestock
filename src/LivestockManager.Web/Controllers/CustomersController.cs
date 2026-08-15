@@ -9,7 +9,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanManageCustomers)]
+[Authorize(Policy = PermissionNames.Customers.Details)]
 public class CustomersController : Controller
 {
     private readonly ICustomerService _customerService;
@@ -36,7 +36,7 @@ public class CustomersController : Controller
         || User.IsInRole(RoleNames.FarmManager);
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageCustomers)]
+    [Authorize(Policy = PermissionNames.Customers.Details)]
     public async Task<IActionResult> Index(string searchString, CancellationToken ct)
     {
         ViewData["CurrentFilter"] = searchString;
@@ -57,7 +57,7 @@ public class CustomersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageCustomers)]
+    [Authorize(Policy = PermissionNames.Customers.Details)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -76,7 +76,7 @@ public class CustomersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageCustomers)]
+    [Authorize(Policy = PermissionNames.Customers.Create)]
     public IActionResult Create()
     {
         return View();
@@ -84,7 +84,7 @@ public class CustomersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManageCustomers)]
+    [Authorize(Policy = PermissionNames.Customers.Create)]
     public async Task<IActionResult> Create(CustomerCreateDto dto, CancellationToken ct)
     {
         if (!ModelState.IsValid) return View(dto);
@@ -94,7 +94,7 @@ public class CustomersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageCustomers)]
+    [Authorize(Policy = PermissionNames.Customers.Edit)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -129,7 +129,7 @@ public class CustomersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManageCustomers)]
+    [Authorize(Policy = PermissionNames.Customers.Edit)]
     public async Task<IActionResult> Edit(Guid id, CustomerUpdateDto dto, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -152,7 +152,7 @@ public class CustomersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManageCustomers)]
+    [Authorize(Policy = PermissionNames.Customers.Edit)]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -193,9 +193,23 @@ public class CustomersController : Controller
     }
 
     [HttpGet]
-    public IActionResult MobileIndex()
+    [Authorize(Policy = PermissionNames.Customers.Details)]
+    public async Task<IActionResult> MobileIndex(string searchString, CancellationToken ct)
     {
-        ViewData["DockKey"] = "customers";
-        return RedirectToAction(nameof(Index));
+        ViewData["CurrentFilter"] = searchString;
+        var companyId = await GetCompanyIdAsync();
+        IList<CustomerSummaryDto> customers;
+
+        if (!string.IsNullOrWhiteSpace(searchString))
+        {
+            customers = await _customerService.SearchAsync(companyId, searchString, ct);
+        }
+        else
+        {
+            customers = await _customerService.ListAsync(companyId, ct);
+        }
+
+        ViewData["CanEdit"] = CanEdit;
+        return View("MobileIndex", customers);
     }
 }

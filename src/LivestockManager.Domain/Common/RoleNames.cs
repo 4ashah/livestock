@@ -11,24 +11,24 @@ public static class RoleNames
 
     public const string Administrator = CompanyAdministrator;
 
-    public static readonly string[] All = new[]
-    {
+    public static readonly string[] All =
+    [
         DataEntry,
         FarmManager,
         Accounts,
         OperationsManager,
         CompanyAdministrator,
         SystemAdministrator
-    };
+    ];
 
-    public static readonly string[] CompanySafeAssignable = new[]
-    {
+    public static readonly string[] CompanySafeAssignable =
+    [
         DataEntry,
         FarmManager,
         Accounts,
         OperationsManager,
         CompanyAdministrator
-    };
+    ];
 
     public static string GetDisplayName(string? roleName)
         => roleName switch

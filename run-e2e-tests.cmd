@@ -1,6 +1,6 @@
 @echo off
 REM =========================================================================
-REM Livestock Manager Playwright E2E Runner (CMD wrapper for
+REM AHK Livestock Manager Playwright E2E Runner (CMD wrapper for
 REM scripts\Run-E2ETests.ps1).
 REM
 REM Default: automated/headless CI run.
@@ -84,7 +84,7 @@ set "EC=%ERRORLEVEL%"
 exit /b %EC%
 
 :HELP
-echo Livestock Manager E2E runner (cmd wrapper for scripts\Run-E2ETests.ps1)
+echo AHK Livestock Manager E2E runner (cmd wrapper for scripts\Run-E2ETests.ps1)
 echo.
 echo Usage:
 echo   %~n0 [ServerInstance] [DatabaseName] [AppPort] [keepdatabase] [headed] [skipbrowserinstall]

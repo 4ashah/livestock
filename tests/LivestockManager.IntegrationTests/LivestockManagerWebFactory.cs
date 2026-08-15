@@ -1,11 +1,14 @@
 using System.Reflection;
-using Microsoft.AspNetCore.Builder;
+using System.Security.Claims;
+using System.Text.Encodings.Web;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Entities;
 using LivestockManager.Domain.Enums;
@@ -13,52 +16,46 @@ using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Infrastructure.Persistence;
 using LivestockManager.Web.Controllers;
 using System.Data.Common;
-using System.Security.Claims;
 
 namespace LivestockManager.IntegrationTests;
 
-public class TestAuthMiddleware
+public class TestAuthHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    private readonly RequestDelegate _next;
+    public const string SchemeName = "TestScheme";
 
-    public TestAuthMiddleware(RequestDelegate next)
+#pragma warning disable CS0618
+    public TestAuthHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options,
+        ILoggerFactory logger,
+        UrlEncoder encoder,
+        ISystemClock clock)
+        : base(options, logger, encoder, clock)
     {
-        _next = next;
     }
+#pragma warning restore CS0618
 
-    public Task InvokeAsync(HttpContext context)
+    protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        if (context.Request.Headers.TryGetValue("X-Test-Role", out var roleHeader)
-            && context.Request.Headers.TryGetValue("X-Test-CompanyId", out var companyHeader))
+        if (!Context.Request.Headers.TryGetValue("X-Test-Role", out var roleHeader))
+            return Task.FromResult(AuthenticateResult.NoResult());
+
+        var role = roleHeader.FirstOrDefault() ?? "DataEntry";
+        var company = Context.Request.Headers["X-Test-CompanyId"].FirstOrDefault()
+            ?? LivestockManagerWebFactory.StagingCompanyIdA;
+        var userId = Context.Request.Headers["X-Test-UserId"].FirstOrDefault()
+            ?? "test-user-id";
+
+        var claims = new List<Claim>
         {
-            var role = roleHeader.FirstOrDefault() ?? "DataEntry";
-            var company = companyHeader.FirstOrDefault() ?? LivestockManagerWebFactory.StagingCompanyIdA;
-            var userId = context.Request.Headers["X-Test-UserId"].FirstOrDefault() ?? "test-user-id";
-
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.Name, "Test User"),
-                new(ClaimTypes.NameIdentifier, userId),
-                new(ClaimTypes.Role, role),
-                new("CompanyId", company)
-            };
-            var identity = new ClaimsIdentity(claims, "TestMiddlewareAuth");
-            context.User = new ClaimsPrincipal(identity);
-        }
-
-        return _next(context);
-    }
-}
-
-public class TestAuthStartupFilter : IStartupFilter
-{
-    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next)
-    {
-        return builder =>
-        {
-            builder.UseMiddleware<TestAuthMiddleware>();
-            next(builder);
+            new(ClaimTypes.Name, "Test User"),
+            new(ClaimTypes.NameIdentifier, userId),
+            new(ClaimTypes.Role, role),
+            new("CompanyId", company)
         };
+        var identity = new ClaimsIdentity(claims, Scheme.Name);
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, Scheme.Name);
+        return Task.FromResult(AuthenticateResult.Success(ticket));
     }
 }
 
@@ -95,7 +92,15 @@ public class LivestockManagerWebFactory : WebApplicationFactory<HomeController>
 
         builder.ConfigureTestServices(services =>
         {
-            services.AddTransient<IStartupFilter, TestAuthStartupFilter>();
+            services.AddAuthentication(options =>
+            {
+                options.DefaultScheme = TestAuthHandler.SchemeName;
+                options.DefaultAuthenticateScheme = TestAuthHandler.SchemeName;
+                options.DefaultChallengeScheme = "Identity.Application";
+                options.DefaultForbidScheme = TestAuthHandler.SchemeName;
+                options.DefaultSignInScheme = "Identity.Application";
+                options.DefaultSignOutScheme = "Identity.Application";
+            }).AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(TestAuthHandler.SchemeName, _ => { });
 
             var dbDescriptor = services.SingleOrDefault(
                 d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
@@ -120,24 +125,22 @@ public class LivestockManagerWebFactory : WebApplicationFactory<HomeController>
             ConfigureTestServicesHook?.Invoke(services);
 
             var sp = services.BuildServiceProvider();
-            using (var scope = sp.CreateScope())
+            using var scope = sp.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            lock (_lock)
             {
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                lock (_lock)
+                if (!_dbCreated)
                 {
-                    if (!_dbCreated)
+                    try { db.Database.EnsureDeleted(); } catch { }
+                    db.Database.MigrateAsync().GetAwaiter().GetResult();
+                    try
                     {
-                        try { db.Database.EnsureDeleted(); } catch { }
-                        db.Database.MigrateAsync().GetAwaiter().GetResult();
-                        try
-                        {
-                            SeedTestData(db);
-                        }
-                        catch
-                        {
-                        }
-                        _dbCreated = true;
+                        SeedTestData(db);
                     }
+                    catch
+                    {
+                    }
+                    _dbCreated = true;
                 }
             }
         });
@@ -210,7 +213,7 @@ public class LivestockManagerWebFactory : WebApplicationFactory<HomeController>
 
         var createdAtProp = typeof(BaseAuditableEntity).GetProperty("CreatedAt",
             BindingFlags.Public | BindingFlags.Instance);
-        if (createdAtProp != null)
+        if (createdAtProp is not null)
         {
             createdAtProp.SetValue(company, DateTimeOffset.UtcNow);
         }

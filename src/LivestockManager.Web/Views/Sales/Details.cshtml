@@ -126,13 +126,13 @@
                     <dd class="col-sm-6 text-end fw-bold">$@Model.GrandTotal.ToString("F2")</dd>
                     <hr class="my-2" />
                     <dt class="col-sm-6 text-muted small fw-semibold">Seller Commission</dt>
-                    <dd class="col-sm-6 text-end">@(Model.CommissionAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.CommissionAmount.ToString("F2")))</dd>
+                    <dd class="col-sm-6 text-end">@(Model.CommissionAmount == 0 ? "—" : ("$" + Model.CommissionAmount.ToString("F2")))</dd>
                     <dt class="col-sm-6 text-muted small fw-semibold">Seller-Paid Tax</dt>
-                    <dd class="col-sm-6 text-end">@(Model.SellerTaxAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.SellerTaxAmount.ToString("F2")))</dd>
+                    <dd class="col-sm-6 text-end">@(Model.SellerTaxAmount == 0 ? "—" : ("$" + Model.SellerTaxAmount.ToString("F2")))</dd>
                     <dt class="col-sm-6 text-muted small fw-semibold">Transportation</dt>
-                    <dd class="col-sm-6 text-end">@(Model.TransportationAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.TransportationAmount.ToString("F2")))</dd>
+                    <dd class="col-sm-6 text-end">@(Model.TransportationAmount == 0 ? "—" : ("$" + Model.TransportationAmount.ToString("F2")))</dd>
                     <dt class="col-sm-6 text-muted small fw-semibold">Other Seller Cost</dt>
-                    <dd class="col-sm-6 text-end">@(Model.OtherCostAmount == 0 ? "<span class=\"text-muted\">—</span>" : ("$" + Model.OtherCostAmount.ToString("F2")))</dd>
+                    <dd class="col-sm-6 text-end">@(Model.OtherCostAmount == 0 ? "—" : ("$" + Model.OtherCostAmount.ToString("F2")))</dd>
                     @if (Model.OtherCostAmount > 0 && !string.IsNullOrWhiteSpace(Model.OtherCostDescription))
                     {
                         <dt class="col-sm-6 text-muted small fst-italic ps-3">↳ Other Cost Description</dt>

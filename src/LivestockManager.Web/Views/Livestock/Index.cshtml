@@ -1,20 +1,31 @@
 @using LivestockManager.Domain.Enums
 @using LivestockManager.Domain.Helpers
 @using LivestockManager.Domain.Common
+@using Microsoft.AspNetCore.Authorization
 @using LivestockManager.Web.Models.LivestockViewModels
 @model LivestockIndexViewModel
+@inject IAuthorizationService Authorization
 @{
     ViewData["Title"] = "Livestock";
     var getStatusBadge = (Func<LivestockStatus, string>)ViewData["GetStatusBadgeClass"]!;
     var getStatusDesc = (Func<LivestockStatus, string>)ViewData["GetStatusDescription"]!;
-    var canEdit = User.IsInRole(RoleNames.CompanyAdministrator) || User.IsInRole(RoleNames.SystemAdministrator) || User.IsInRole(RoleNames.FarmManager);
-    var canDataEntry = canEdit || User.IsInRole(RoleNames.DataEntry);
+    var authed = User.Identity?.IsAuthenticated == true;
+
+    var caps = new PageCapabilities
+    {
+        CanCreate = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.Register)).Succeeded,
+        CanExport = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.Export)).Succeeded,
+        CanExportCsv = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.ExportCsv)).Succeeded,
+        CanAddWeight = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.AddWeight)).Succeeded,
+        CanEdit = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.Edit)).Succeeded,
+        CanDischarge = authed && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.Discharge)).Succeeded
+    };
 }
 
 <div class="d-flex justify-content-between flex-wrap align-items-center pb-2 mb-4 border-bottom">
     <h1 class="h2 mb-2 mb-md-0">🐑 Livestock</h1>
     <div class="btn-toolbar mb-2 mb-md-0">
-        @if (canDataEntry)
+        @if (caps.CanCreate)
         {
             <a asp-action="Register" class="btn btn-primary">
                 <span class="me-1">+</span> Register Livestock
@@ -62,14 +73,25 @@
             <div class="col-12 d-flex flex-wrap gap-2 align-items-center">
                 <button type="submit" class="btn btn-outline-primary">Apply Filters</button>
                 <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
-                @if (canDataEntry)
+                @if (caps.CanExport)
+                {
+                    <a asp-action="Export" asp-route-farmId="@ViewData["FarmId"]"
+                       asp-route-livestockTypeId="@ViewData["LivestockTypeId"]"
+                       asp-route-status="@ViewData["Status"]"
+                       asp-route-sourceFilter="@ViewData["SourceFilter"]"
+                       asp-route-searchString="@ViewData["SearchString"]"
+                       class="btn btn-outline-success ms-md-auto">
+                        📤 Export
+                    </a>
+                }
+                @if (caps.CanExportCsv)
                 {
                     <a asp-action="ExportCsv" asp-route-farmId="@ViewData["FarmId"]"
                        asp-route-livestockTypeId="@ViewData["LivestockTypeId"]"
                        asp-route-status="@ViewData["Status"]"
                        asp-route-sourceFilter="@ViewData["SourceFilter"]"
                        asp-route-searchString="@ViewData["SearchString"]"
-                       class="btn btn-outline-success ms-md-auto">
+                       class="btn btn-outline-success @(caps.CanExport ? "" : "ms-md-auto")">
                         📥 Export CSV
                     </a>
                 }
@@ -176,17 +198,17 @@
                                     <div class="d-flex flex-wrap gap-1 justify-content-end">
                                         <a asp-action="Details" asp-route-id="@item.Id"
                                            class="btn btn-sm btn-outline-secondary">Details</a>
-                                        @if (canEdit && item.Status == LivestockStatus.Active)
+                                        @if (caps.CanEdit && item.Status == LivestockStatus.Active)
                                         {
                                             <a asp-action="Edit" asp-route-id="@item.Id"
                                                class="btn btn-sm btn-outline-primary">Edit</a>
                                         }
-                                        @if (canDataEntry && item.Status == LivestockStatus.Active)
+                                        @if (caps.CanAddWeight && item.Status == LivestockStatus.Active)
                                         {
                                             <a asp-action="AddWeight" asp-route-id="@item.Id"
                                                class="btn btn-sm btn-outline-success">Weight</a>
                                         }
-                                        @if (canEdit && item.Status == LivestockStatus.Active)
+                                        @if (caps.CanDischarge && item.Status == LivestockStatus.Active)
                                         {
                                             <a asp-action="Discharge" asp-route-id="@item.Id"
                                                class="btn btn-sm btn-outline-warning">Discharge</a>

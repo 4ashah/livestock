@@ -21,15 +21,15 @@ public static class DemoDataSeeder
     internal static bool LastUsedTestingE2EPath;
     internal static bool LastUsedDevelopmentPath;
 
-    internal static readonly string[] KnownDevEmails = new[]
-    {
+    internal static readonly string[] KnownDevEmails =
+    [
         "admin@livestock.dev",
         "accounts@livestock.dev",
         "farmmanager@livestock.dev",
         "operationsmanager@livestock.dev",
         "dataentry@livestock.dev",
         "sysadmin@livestock.dev"
-    };
+    ];
 
     internal static bool IsTruthy(string? value)
     {

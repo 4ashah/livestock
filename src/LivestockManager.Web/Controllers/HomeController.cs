@@ -9,30 +9,31 @@ using LivestockManager.Application.DTOs.Livestock;
 using LivestockManager.Application.DTOs.Invoices;
 using LivestockManager.Application.Services.Reports;
 using LivestockManager.Domain.Common;
-using LivestockManager.Domain.Enums;
 using LivestockManager.Infrastructure.Identity;
 using LivestockManager.Web.Models;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanViewOperationalData)]
+[Authorize(Policy = PermissionNames.Reports.ActiveLivestock)]
 public class HomeController : Controller
 {
-    private readonly ILogger<HomeController> _logger;
     private readonly IAppDbContext _db;
     private readonly IReportService _reportService;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IAuthorizationService _authorizationService;
 
     public HomeController(
         ILogger<HomeController> logger,
         IAppDbContext db,
         IReportService reportService,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IAuthorizationService authorizationService)
     {
-        _logger = logger;
+        _ = logger;
         _db = db;
         _reportService = reportService;
         _userManager = userManager;
+        _authorizationService = authorizationService;
     }
 
     private async Task<Guid> GetCompanyIdAsync()
@@ -41,11 +42,8 @@ public class HomeController : Controller
         return user?.CompanyId ?? Guid.Empty;
     }
 
-    private bool UserCanViewFinancials() =>
-        User.IsInRole(RoleNames.Accounts) ||
-        User.IsInRole(RoleNames.OperationsManager) ||
-        User.IsInRole(RoleNames.CompanyAdministrator) ||
-        User.IsInRole(RoleNames.SystemAdministrator);
+    private async Task<bool> UserCanViewFinancialsAsync() =>
+        (await _authorizationService.AuthorizeAsync(User, PermissionNames.Reports.ProfitAndLoss)).Succeeded;
 
     private static void SanitizeFinancialKpis(DashboardKpisDto kpis)
     {
@@ -59,14 +57,14 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewOperationalData)]
+    [Authorize(Policy = PermissionNames.Reports.ActiveLivestock)]
     public async Task<IActionResult> Index(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
 
         var kpis = await _reportService.GetDashboardKpisAsync(companyId, ct);
 
-        var canViewFinancials = UserCanViewFinancials();
+        var canViewFinancials = await UserCanViewFinancialsAsync();
         if (!canViewFinancials)
             SanitizeFinancialKpis(kpis);
         ViewData["CanViewFinancials"] = canViewFinancials;
@@ -119,13 +117,13 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewOperationalData)]
+    [Authorize(Policy = PermissionNames.Reports.ActiveLivestock)]
     public async Task<IActionResult> MobileDashboard(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
         var kpis = await _reportService.GetDashboardKpisAsync(companyId, ct);
 
-        var canViewFinancials = UserCanViewFinancials();
+        var canViewFinancials = await UserCanViewFinancialsAsync();
         if (!canViewFinancials)
             SanitizeFinancialKpis(kpis);
         ViewData["CanViewFinancials"] = canViewFinancials;
@@ -177,18 +175,21 @@ public class HomeController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewOperationalData)]
+    [AllowAnonymous]
     public IActionResult Privacy()
     {
         return View();
     }
 
+    [HttpGet]
     [AllowAnonymous]
     public IActionResult AccessDenied()
     {
         return View();
     }
 
+    [HttpGet]
+    [AllowAnonymous]
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error()
     {

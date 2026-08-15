@@ -16,7 +16,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanManageExpenses)]
+[Authorize(Policy = PermissionNames.Expenses.View)]
 public class ExpensesController : Controller
 {
     private readonly IExpenseService _expenseService;
@@ -55,6 +55,7 @@ public class ExpensesController : Controller
         User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
+    [Authorize(Policy = PermissionNames.Expenses.View)]
     public async Task<IActionResult> Index(
         DateTime? from,
         DateTime? to,
@@ -72,7 +73,7 @@ public class ExpensesController : Controller
         if (string.Equals(format, "csv", StringComparison.OrdinalIgnoreCase))
         {
             var bytes = await _expenseService.ExportCsvAsync(companyId, farmId, supplierId, livestockId, category, fromDto, toDto, ct);
-            var fileName = $"Expenses_{(from ?? DateTime.Today.AddMonths(-1)).ToString("yyyyMMdd")}_{(to ?? DateTime.Today).ToString("yyyyMMdd")}.csv";
+            var fileName = $"Expenses_{from ?? DateTime.Today.AddMonths(-1):yyyyMMdd}_{to ?? DateTime.Today:yyyyMMdd}.csv";
             return File(bytes, "text/csv", fileName);
         }
 
@@ -93,6 +94,7 @@ public class ExpensesController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PermissionNames.Expenses.View)]
     public async Task<IActionResult> MobileIndex(
         DateTime? from,
         DateTime? to,
@@ -119,7 +121,7 @@ public class ExpensesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageExpenses")]
+    [Authorize(Policy = PermissionNames.Expenses.Create)]
     public async Task<IActionResult> MobileCreate(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -138,7 +140,7 @@ public class ExpensesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageExpenses")]
+    [Authorize(Policy = PermissionNames.Expenses.Create)]
     public async Task<IActionResult> MobileCreate(ExpenseCreateDto dto, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -155,7 +157,7 @@ public class ExpensesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageExpenses")]
+    [Authorize(Policy = PermissionNames.Expenses.Create)]
     public async Task<IActionResult> MobileEdit(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -185,7 +187,7 @@ public class ExpensesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageExpenses")]
+    [Authorize(Policy = PermissionNames.Expenses.Create)]
     public async Task<IActionResult> MobileEdit(Guid id, ExpenseUpdateDto dto, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -202,6 +204,7 @@ public class ExpensesController : Controller
     }
 
     [HttpGet]
+    [Authorize(Policy = PermissionNames.Expenses.View)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -235,7 +238,7 @@ public class ExpensesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageExpenses")]
+    [Authorize(Policy = PermissionNames.Expenses.Create)]
     public async Task<IActionResult> Create(CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -254,7 +257,7 @@ public class ExpensesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageExpenses")]
+    [Authorize(Policy = PermissionNames.Expenses.Create)]
     public async Task<IActionResult> Create(ExpenseCreateDto dto, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -277,7 +280,7 @@ public class ExpensesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = "CanManageExpenses")]
+    [Authorize(Policy = PermissionNames.Expenses.Create)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -313,7 +316,7 @@ public class ExpensesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageExpenses")]
+    [Authorize(Policy = PermissionNames.Expenses.Create)]
     public async Task<IActionResult> Edit(Guid id, ExpenseUpdateDto dto, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -337,7 +340,7 @@ public class ExpensesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = "CanManageExpenses")]
+    [Authorize(Policy = PermissionNames.Expenses.Create)]
     public async Task<IActionResult> Delete(Guid id, string reason, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();

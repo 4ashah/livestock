@@ -1,0 +1,87 @@
+@model UserManagementListViewModel
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Users";
+    ViewData["PageIcon"] = "🧑‍💼";
+    ViewData["PageSubtitle"] = "Manage team members and access";
+    ViewData["DockKey"] = "users";
+    ViewData["ActionLabel"] = "Invite";
+    ViewData["ActionIcon"] = "＋";
+    ViewData["ActionUrl"] = Url.Action("AddUser", "UserManagement");
+    var currentUserIsSystemAdmin = Model.CurrentUserIsSystemAdmin;
+    var items = Model.Items?.ToList() ?? new List<UserRowViewModel>();
+}
+
+@if (Model.SuccessMessage != null)
+{
+    <div class="mob-val" style="background:rgba(45,106,79,0.10);border-color:rgba(45,106,79,0.3);color:#14532d;">✅ @Model.SuccessMessage</div>
+}
+@if (Model.ErrorMessage != null)
+{
+    <div class="mob-val">@Model.ErrorMessage</div>
+}
+
+<div class="mob-list-cards">
+    @if (!items.Any())
+    {
+        <div class="mob-empty">No users found. Tap ＋ Invite to add a team member.</div>
+    }
+    else
+    {
+        @foreach (var item in items)
+        {
+            <div class="mob-list-card">
+                <div class="row-top">
+                    <div>
+                        <div class="body-copy" style="font-weight:800;color:var(--ink-900);">@item.FullName</div>
+                        <div class="pill-stack">
+                            @if (item.IsEnabled)
+                            { <span class="pill ok">Enabled</span> }
+                            else
+                            { <span class="pill bad">Disabled</span> }
+                            @foreach (var role in item.Roles)
+                            {
+                                <span class="pill @(role == "System Admin" ? "primary" : "info")">@role</span>
+                            }
+                            @if (currentUserIsSystemAdmin)
+                            {
+                                <span class="pill idle" title="System Admin edit available">SA</span>
+                            }
+                        </div>
+                    </div>
+                </div>
+                <div class="rows">
+                    <div class="cell">
+                        <div class="label">Username</div>
+                        <div class="val">@item.UserName</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label">Email</div>
+                        <div class="val">@item.Email</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label">Last Login</div>
+                        <div class="val">@(item.LastLoginAt.HasValue ? item.LastLoginAt.Value.ToString("yyyy-MM-dd HH:mm") : "—")</div>
+                    </div>
+                    <div class="cell">
+                        <div class="label">Created</div>
+                        <div class="val">@item.CreatedAt.ToString("yyyy-MM-dd")</div>
+                    </div>
+                </div>
+                <div class="row-actions">
+                    <a asp-action="EditUser" asp-route-id="@item.Id" class="mob-btn primary">✏️ Edit</a>
+                    <form asp-action="ResetPassword" method="post" style="display:inline;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@item.Id" />
+                        <button type="submit" class="mob-btn warn">🔑 Reset Password</button>
+                    </form>
+                    <form asp-action="ToggleEnabled" method="post" style="display:inline;">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@item.Id" />
+                        <button type="submit" class="mob-btn">@(item.IsEnabled ? "⏸ Disable" : "▶ Enable")</button>
+                    </form>
+                </div>
+            </div>
+        }
+    }
+</div>

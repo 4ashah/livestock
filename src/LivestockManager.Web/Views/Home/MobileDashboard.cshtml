@@ -3,6 +3,9 @@
 @using LivestockManager.Application.DTOs.Invoices
 @using LivestockManager.Domain.Enums
 @using LivestockManager.Domain.Helpers
+@using LivestockManager.Domain.Common
+@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService Authorization
 @{
     Layout = "_MobileLayout";
     ViewData["Title"] = "Dashboard";
@@ -11,8 +14,14 @@
     ViewData["DockKey"] = "dashboard";
     var recentLivestock = ViewData["RecentLivestock"] as IEnumerable<LivestockSummaryDto>;
     var recentInvoices = ViewData["RecentInvoices"] as IEnumerable<InvoiceSummaryDto>;
+
+    var auth = User.Identity?.IsAuthenticated == true;
+    var canViewOpsKpis = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.ActiveLivestock)).Succeeded;
+    var canViewFinKpis = ViewData["CanViewFinancials"] is true;
 }
 
+@if (canViewOpsKpis)
+{
 <div class="mob-kpi-row">
     <div class="mob-kpi" style="--kpi-color:#2d6a4f;">
         <div class="k-label">Active Herd</div>
@@ -37,8 +46,9 @@
         <div class="k-caption">Weighings overdue</div>
     </div>
 </div>
+}
 
-@if (ViewData["CanViewFinancials"] is true)
+@if (canViewFinKpis)
 {
 <div class="mob-kpi-row">
     <div class="mob-kpi" style="--kpi-color:#2a9d8f;">

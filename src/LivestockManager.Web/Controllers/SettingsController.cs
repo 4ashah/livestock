@@ -9,32 +9,39 @@ using LivestockManager.Web.Models.SettingsViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanManageCompany)]
+[Authorize(Policy = PermissionNames.Administration.Settings)]
 public class SettingsController : Controller
 {
     private readonly IAppDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IConfiguration _configuration;
 
     public SettingsController(
         IAppDbContext db,
-        UserManager<ApplicationUser> userManager,
-        IConfiguration configuration)
+        UserManager<ApplicationUser> userManager)
     {
         _db = db;
         _userManager = userManager;
-        _configuration = configuration;
-    }
-
-    private async Task<Guid> GetCompanyIdAsync()
-    {
-        var user = await _userManager.GetUserAsync(User);
-        return user?.CompanyId ?? Guid.Empty;
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageCompany)]
+    [Authorize(Policy = PermissionNames.Administration.Settings)]
     public async Task<IActionResult> Index(Guid? companyId, CancellationToken ct = default)
+    {
+        var result = await LoadSettingsAsync(companyId, ct);
+        return result.Failure ?? View(result.Vm);
+    }
+
+    [HttpGet]
+    [Authorize(Policy = PermissionNames.Administration.Settings)]
+    public async Task<IActionResult> MobileIndex(Guid? companyId, CancellationToken ct = default)
+    {
+        var result = await LoadSettingsAsync(companyId, ct);
+        return result.Failure ?? View("MobileIndex", result.Vm);
+    }
+
+    private sealed record SettingsLoadResult(SettingsViewModel? Vm, IActionResult? Failure);
+
+    private async Task<SettingsLoadResult> LoadSettingsAsync(Guid? companyId, CancellationToken ct)
     {
         var currentUser = await _userManager.GetUserAsync(User);
         var userCompanyId = currentUser?.CompanyId ?? Guid.Empty;
@@ -52,7 +59,7 @@ public class SettingsController : Controller
 
         if (targetCompanyId == Guid.Empty)
         {
-            return NotFound();
+            return new SettingsLoadResult(null, NotFound());
         }
 
         var company = await _db.Companies
@@ -61,12 +68,12 @@ public class SettingsController : Controller
 
         if (company == null)
         {
-            return NotFound();
+            return new SettingsLoadResult(null, NotFound());
         }
 
         if (!isSystemAdmin && company.Id != userCompanyId)
         {
-            return Forbid();
+            return new SettingsLoadResult(null, Forbid());
         }
 
         var vm = new SettingsViewModel
@@ -86,17 +93,21 @@ public class SettingsController : Controller
             IsActive = company.IsActive
         };
 
-        return View(vm);
+        return new SettingsLoadResult(vm, null);
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanManageCompany)]
+    [Authorize(Policy = PermissionNames.Administration.Settings)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Index(SettingsViewModel vm, CancellationToken ct = default)
     {
+        // The mobile settings form posts here with a hidden "mobile" marker so that
+        // validation failures and the post-save redirect stay on the mobile page.
+        var isMobile = Request.Form.ContainsKey("mobile");
+
         if (!ModelState.IsValid)
         {
-            return View(vm);
+            return isMobile ? View("MobileIndex", vm) : View(vm);
         }
 
         var currentUser = await _userManager.GetUserAsync(User);
@@ -132,6 +143,6 @@ public class SettingsController : Controller
         await _db.SaveChangesAsync(ct);
 
         TempData["SuccessMessage"] = "Settings saved successfully.";
-        return RedirectToAction(nameof(Index), new { companyId = vm.Id });
+        return RedirectToAction(isMobile ? nameof(MobileIndex) : nameof(Index), new { companyId = vm.Id });
     }
 }

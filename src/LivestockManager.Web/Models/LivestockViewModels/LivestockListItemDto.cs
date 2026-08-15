@@ -2,7 +2,7 @@ using LivestockManager.Domain.Enums;
 
 namespace LivestockManager.Web.Models.LivestockViewModels;
 
-public class LivestockListItemDto
+public class LivestockListItemViewModel
 {
     public Guid Id { get; set; }
     public string LivestockId { get; set; } = string.Empty;

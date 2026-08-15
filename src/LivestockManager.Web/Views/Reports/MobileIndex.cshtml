@@ -1,0 +1,50 @@
+@using Microsoft.AspNetCore.Authorization
+@using LivestockManager.Domain.Common
+@inject IAuthorizationService Authorization
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Reports";
+    ViewData["PageIcon"] = "📈";
+    ViewData["PageSubtitle"] = "Analytics and exports";
+    ViewData["DockKey"] = "reports";
+
+    var auth = User.Identity?.IsAuthenticated == true;
+    var canActiveLivestock = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.ActiveLivestock)).Succeeded;
+    var canSalesByPeriod = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.SalesByPeriod)).Succeeded;
+    var canLivestockProfitability = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.LivestockProfitability)).Succeeded;
+    var canProfitAndLoss = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.ProfitAndLoss)).Succeeded;
+}
+
+<div class="mob-card">
+    <div class="mob-card-title">📈 Available Reports</div>
+    <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:0.55rem;">
+        @if (canActiveLivestock)
+        {
+            <li style="margin:0;">
+                <a asp-action="MobileActiveLivestock" class="mob-btn" style="justify-content:flex-start; width:100%;">🐑 Active Livestock Report</a>
+            </li>
+        }
+        @if (canSalesByPeriod)
+        {
+            <li style="margin:0;">
+                <a asp-action="MobileSalesByPeriod" class="mob-btn" style="justify-content:flex-start; width:100%;">💸 Sales by Period Report</a>
+            </li>
+        }
+        @if (canLivestockProfitability)
+        {
+            <li style="margin:0;">
+                <a asp-action="MobileLivestockProfitability" class="mob-btn" style="justify-content:flex-start; width:100%;">📊 Livestock Profitability Report</a>
+            </li>
+        }
+        @if (canProfitAndLoss)
+        {
+            <li style="margin:0;">
+                <a asp-action="MobileProfitLoss" class="mob-btn" style="justify-content:flex-start; width:100%;">💰 Profit &amp; Loss Report</a>
+            </li>
+        }
+    </ul>
+    @if (!(canActiveLivestock || canSalesByPeriod || canLivestockProfitability || canProfitAndLoss))
+    {
+        <div class="mob-empty">No reports available for your role.</div>
+    }
+</div>

@@ -2,7 +2,7 @@ using LivestockManager.Domain.Enums;
 
 namespace LivestockManager.Web.Models.LivestockViewModels;
 
-public class LivestockWeightHistoryItem
+public class LivestockWeightHistoryItemViewModel
 {
     public Guid LivestockWeightId { get; set; }
     public decimal Weight { get; set; }

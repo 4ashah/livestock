@@ -1,11 +1,20 @@
+@using Microsoft.AspNetCore.Authorization
+@using LivestockManager.Domain.Common
+@inject IAuthorizationService Authorization
 @{
     Layout = "_MobileLayout";
     ViewData["Title"] = "Stock Addition";
     ViewData["PageIcon"] = "🐑";
     ViewData["PageSubtitle"] = "Add purchased or newborn livestock";
     ViewData["DockKey"] = "stock";
+
+    var auth = User.Identity?.IsAuthenticated == true;
+    var canRecordPurchase = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.StockAddition.RecordPurchase)).Succeeded;
+    var canRecordNewborn = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.StockAddition.RecordNewborn)).Succeeded;
 }
 
+@if (canRecordPurchase)
+{
 <div class="mob-card" style="cursor:pointer;" onclick="location.href='@Url.Action("MobilePurchase")'">
     <div class="mob-card-title" style="display:flex;align-items:center;gap:0.75rem;">
         <div style="font-size:2rem;">🛒</div>
@@ -27,7 +36,10 @@
         🛒 Open Purchase Form
     </a>
 </div>
+}
 
+@if (canRecordNewborn)
+{
 <div class="mob-card" style="cursor:pointer;" onclick="location.href='@Url.Action("MobileNewborn")'">
     <div class="mob-card-title" style="display:flex;align-items:center;gap:0.75rem;">
         <div style="font-size:2rem;">🐣</div>
@@ -45,3 +57,15 @@
         🐣 Open Newborn Form
     </a>
 </div>
+}
+
+@if (!canRecordPurchase && !canRecordNewborn)
+{
+<div class="mob-card">
+    <div class="mob-empty">
+        🐑<br />
+        You do not have permission to record stock additions.<br />
+        Please contact your administrator.
+    </div>
+</div>
+}

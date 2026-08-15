@@ -20,65 +20,50 @@
     var actionIcon = ViewData["ActionIcon"] as string;
     var showDock = ViewData["ShowDock"] as bool? ?? true;
 
-    var sat = "env(safe-area-inset-top, 0px)";
-    var sab = "env(safe-area-inset-bottom, 0px)";
-    var sal = "env(safe-area-inset-left, 0px)";
-    var sar = "env(safe-area-inset-right, 0px)";
+    var auth = User.Identity?.IsAuthenticated == true;
+    var canHome = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.ActiveLivestock)).Succeeded;
+    var canLivestockView = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.View)).Succeeded;
+    var canSalesCreate = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Sales.Create)).Succeeded;
+    var canPurchaseInvoicesView = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.PurchaseInvoices.View)).Succeeded;
+    var canStockAddPurchase = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.StockAddition.RecordPurchase)).Succeeded;
+    var canStockAddNewborn = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.StockAddition.RecordNewborn)).Succeeded;
+    var canStockAdd = canStockAddPurchase || canStockAddNewborn;
+    var canInvoicesView = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Invoices.View)).Succeeded;
+    var canPaymentsView = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Payments.View)).Succeeded;
+    var canReceiptsGenerate = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Receipts.GenerateFromPayment)).Succeeded;
+    var canReceiptsView = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Receipts.View)).Succeeded;
+    var canReceipts = canReceiptsGenerate || canReceiptsView;
+    var canExpensesCreate = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Expenses.Create)).Succeeded;
+    var canLossesRecord = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Losses.Record)).Succeeded;
+    var canCustomersCreate = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Customers.Create)).Succeeded;
+    var canSuppliersCreate = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Suppliers.Create)).Succeeded;
+    var canFarmsView = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Farms.View)).Succeeded;
+    var canDocumentsView = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Documents.View)).Succeeded;
+    var canReportsActive = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.ActiveLivestock)).Succeeded;
+    var canAdminSettings = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Administration.Settings)).Succeeded;
+    var canAdminUsers = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Administration.Users)).Succeeded;
+    var canReportsPnl = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Reports.ProfitAndLoss)).Succeeded;
+    var settingsUrl = canAdminSettings ? Url.Action("Index", "Settings") : Url.Action("MobileDashboard", "Home");
 
-    var canViewOperational = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanViewOperationalData)).Succeeded;
-    var canCreateSales = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanCreateSales)).Succeeded;
-    var canManagePurchaseInvoices = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanManagePurchaseInvoices)).Succeeded;
-    var canViewInvoices = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanViewInvoices)).Succeeded;
-    var canRecordPayments = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanRecordPayments)).Succeeded;
-    var canGenerateReceipts = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanGenerateReceipts)).Succeeded;
-    var canManageUsers = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanManageUsers)).Succeeded;
-    var canManageCompany = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanManageCompany)).Succeeded;
-    var canViewReports = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanViewOperationalReports)).Succeeded;
-    var canViewFinancialReports = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanViewFinancialReports)).Succeeded;
-    var canManageExpenses = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanManageExpenses)).Succeeded;
-    var canRecordLosses = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanRecordLosses)).Succeeded;
-    var canManageCustomers = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanManageCustomers)).Succeeded;
-    var canManageSuppliers = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanManageSuppliers)).Succeeded;
-    var canViewDocuments = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanViewDocuments)).Succeeded;
-    var canManageSystem = User.Identity?.IsAuthenticated == true
-        && (await Authorization.AuthorizeAsync(User, PolicyNames.CanManageSystem)).Succeeded;
-    var settingsUrl = canManageCompany ? Url.Action("Index", "Settings") : Url.Action("MobileDashboard", "Home");
-
-    // Dock primary page keys (horizontally SCROLLABLE — all 16 quick-access modules
     var dockItems = new[] {
-        new { Key = "dashboard", Label = "Home", Icon = "📊", Controller = "Home", Action = "MobileDashboard", Can = canViewOperational },
-        new { Key = "stock", Label = "Stock", Icon = "🐑", Controller = "Livestock", Action = "MobileIndex", Can = canViewOperational },
-        new { Key = "sales", Label = "Sales", Icon = "🛒", Controller = "Sales", Action = "MobileIndex", Can = canCreateSales },
-        new { Key = "purchases", Label = "Purchases", Icon = "📦", Controller = "Purchases", Action = "MobileIndex", Can = canManagePurchaseInvoices },
-        new { Key = "stockadd", Label = "Add Stock", Icon = "🐣", Controller = "StockAddition", Action = "MobileIndex", Can = canViewOperational },
-        new { Key = "invoices", Label = "Invoices", Icon = "📄", Controller = "Invoices", Action = "MobileIndex", Can = canViewInvoices },
-        new { Key = "payments", Label = "Payments", Icon = "💵", Controller = "Payments", Action = "MobileIndex", Can = canRecordPayments },
-        new { Key = "receipts", Label = "Receipts", Icon = "🧾", Controller = "Receipts", Action = "MobileIndex", Can = canGenerateReceipts },
-        new { Key = "expense", Label = "Expense", Icon = "💰", Controller = "Expenses", Action = "MobileIndex", Can = canManageExpenses },
-        new { Key = "loss", Label = "Loss", Icon = "💀", Controller = "LivestockLosses", Action = "MobileCreate", Can = canRecordLosses },
-        new { Key = "customers", Label = "Customers", Icon = "👥", Controller = "Customers", Action = "MobileIndex", Can = canManageCustomers },
-        new { Key = "suppliers", Label = "Suppliers", Icon = "🏭", Controller = "Suppliers", Action = "MobileIndex", Can = canManageSuppliers },
-        new { Key = "farms", Label = "Farms", Icon = "🌾", Controller = "Farms", Action = "MobileIndex", Can = canViewOperational },
-        new { Key = "docs", Label = "Docs", Icon = "📁", Controller = "Documents", Action = "MobileIndex", Can = canViewDocuments },
-        new { Key = "reports", Label = "Reports", Icon = "📈", Controller = "Reports", Action = "MobileActiveLivestock", Can = canViewReports },
-        new { Key = "settings", Label = "Settings", Icon = "⚙️", Controller = "Settings", Action = "Index", Can = canManageCompany },
-        new { Key = "users", Label = "Users", Icon = "🧑‍💼", Controller = "UserManagement", Action = "MobileIndex", Can = canManageUsers },
-        new { Key = "pnl", Label = "P&L", Icon = "�", Controller = "Reports", Action = "MobileProfitLoss", Can = canViewFinancialReports }
+        new { Key = "dashboard", Label = "Home", Icon = "📊", Controller = "Home", Action = "MobileDashboard", Can = canHome },
+        new { Key = "stock", Label = "Stock", Icon = "🐑", Controller = "Livestock", Action = "MobileIndex", Can = canLivestockView },
+        new { Key = "sales", Label = "Sales", Icon = "🛒", Controller = "Sales", Action = "MobileIndex", Can = canSalesCreate },
+        new { Key = "purchases", Label = "Purchases", Icon = "📦", Controller = "Purchases", Action = "MobileIndex", Can = canPurchaseInvoicesView },
+        new { Key = "stockadd", Label = "Add Stock", Icon = "🐣", Controller = "StockAddition", Action = "MobileIndex", Can = canStockAdd },
+        new { Key = "invoices", Label = "Invoices", Icon = "📄", Controller = "Invoices", Action = "MobileIndex", Can = canInvoicesView },
+        new { Key = "payments", Label = "Payments", Icon = "💵", Controller = "Payments", Action = "MobileIndex", Can = canPaymentsView },
+        new { Key = "receipts", Label = "Receipts", Icon = "🧾", Controller = "Receipts", Action = "MobileIndex", Can = canReceipts },
+        new { Key = "expense", Label = "Expense", Icon = "💰", Controller = "Expenses", Action = "MobileIndex", Can = canExpensesCreate },
+        new { Key = "loss", Label = "Loss", Icon = "💀", Controller = "LivestockLosses", Action = "MobileCreate", Can = canLossesRecord },
+        new { Key = "customers", Label = "Customers", Icon = "👥", Controller = "Customers", Action = "MobileIndex", Can = canCustomersCreate },
+        new { Key = "suppliers", Label = "Suppliers", Icon = "🏭", Controller = "Suppliers", Action = "MobileIndex", Can = canSuppliersCreate },
+        new { Key = "farms", Label = "Farms", Icon = "🌾", Controller = "Farms", Action = "MobileIndex", Can = canFarmsView },
+        new { Key = "docs", Label = "Docs", Icon = "📁", Controller = "Documents", Action = "MobileIndex", Can = canDocumentsView },
+        new { Key = "reports", Label = "Reports", Icon = "📈", Controller = "Reports", Action = "MobileIndex", Can = canReportsActive },
+        new { Key = "settings", Label = "Settings", Icon = "⚙️", Controller = "Settings", Action = "Index", Can = canAdminSettings },
+        new { Key = "users", Label = "Users", Icon = "🧑‍💼", Controller = "UserManagement", Action = "MobileIndex", Can = canAdminUsers },
+        new { Key = "pnl", Label = "P&L", Icon = "📊", Controller = "Reports", Action = "MobileProfitLoss", Can = canReportsPnl }
     }.Where(d => d.Can).ToArray();
     var dockActiveKey = (ViewData["DockKey"] as string) ?? "dashboard";
 }
@@ -92,7 +77,7 @@
     <meta name="apple-mobile-web-app-title" content="Livestock" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
-    <title>@title · Livestock Manager</title>
+    <title>@title · AHK Livestock Manager</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400..900&family=JetBrains+Mono:wght@500;700&display=swap" />
@@ -100,81 +85,8 @@
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400..900&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" /></noscript>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
-    <text>
     <style>
-        @@media (min-width: 480px) { body .quick-nav { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
-        @@media (min-width: 640px) { body .quick-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
-        @@media (min-width: 820px) { body .quick-nav { grid-template-columns: repeat(8, minmax(0, 1fr)); } }
-        @@media (max-width: 340px) {
-            body .quick-nav {
-                display: flex;
-                flex-flow: row nowrap;
-                overflow-x: auto;
-                scroll-snap-type: x mandatory;
-                -webkit-overflow-scrolling: touch;
-                scrollbar-width: none;
-                gap: 0.5rem;
-                padding: 0 0.1rem 0.1rem;
-            }
-            body .quick-nav::-webkit-scrollbar { display: none; }
-            body .quick-nav .qbtn { flex: 0 0 auto; width: 82px; scroll-snap-align: start; }
-        }
-    </style>
-    </text>
-    <style>
-        :root {
-            --sat: @sat;
-            --sab: @sab;
-            --sal: @sal;
-            --sar: @sar;
-            --brand: #1b4332;
-            --brand-2: #2d6a4f;
-            --brand-3: #40916c;
-            --accent: #52b788;
-            --accent-2: #74c69d;
-            --danger: #c81d25;
-            --danger-2: #e63946;
-            --warn: #d97706;
-            --warn-2: #f59e0b;
-            --info: #3a6ea5;
-
-            /* Typography tokens — production-grade readability (integer px → no fractional sub-pixel blur) */
-            --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-            --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            --fs-xs: 11px;          /* uppercase tiny labels */
-            --fs-sm: 13px;          /* captions, secondary info, pills */
-            --fs-base: 15px;        /* all body text / list values */
-            --fs-md: 17px;          /* primary values / select options / inputs */
-            --fs-lg: 20px;          /* page title */
-            --fs-xl: 24px;          /* big totals in cards */
-            --fs-2xl: 30px;         /* hero totals */
-            --lh-tight: 1.15;
-            --lh-snug: 1.3;
-            --lh-normal: 1.5;
-
-            /* WCAG AA ink tokens (contrast ≥ 4.5:1 on white / bg-1) */
-            --ink-900: #0d1a12;     /* highest contrast - headings / primary values */
-            --ink-800: #16261b;     /* body text */
-            --ink-700: #1f3826;     /* selected text / secondary labels */
-            --ink-600: #334d3c;     /* secondary values — still 8:1 on white */
-            --ink-muted: #536b5c;   /* captions / tertiary — 5.3:1 on white */
-            --ink-faint: #6b8573;   /* disabled / hint only — avoid for content */
-
-            --surface: #ffffff;
-            --bg-1: #f6faf7;
-            --bg-2: #edf5ef;
-            --bg-3: #e5efe7;
-            --border: #dbe7dd;
-            --border-2: #cfdbcf;
-            --shadow-sm: 0 1px 2px rgba(13, 26, 18, 0.04), 0 1px 3px rgba(13, 26, 18, 0.04);
-            --shadow-md: 0 2px 4px rgba(13, 26, 18, 0.05), 0 6px 16px rgba(13, 26, 18, 0.06);
-            --shadow-lg: 0 8px 20px rgba(27, 67, 50, 0.15), 0 2px 6px rgba(27, 67, 50, 0.08);
-            --radius-sm: 0.6rem;
-            --radius-md: 0.9rem;
-            --radius-lg: 1.15rem;
-            --radius-xl: 1.4rem;
-        }
-        html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-smoothing: antialiased; }
+        html { font-size: 16px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
         * { -webkit-tap-highlight-color: transparent !important; box-sizing: border-box; }
         html, body {
             margin: 0;
@@ -372,14 +284,17 @@
         .mob-main {
             grid-area: main;
             min-height: 0;
+            min-width: 0;
+            max-width: 100%;
             overflow-y: auto;
-            overflow-x: hidden;
+            overflow-x: clip;
             padding: 0.2rem 1rem 0.75rem;
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             position: relative;
             z-index: 10;
         }
+        .mob-main > * { min-width: 0; max-width: 100%; }
         .mob-main::-webkit-scrollbar { display: none; }
 
         /* ======================================================
@@ -1013,50 +928,6 @@
             box-shadow: 0 4px 10px rgba(27,67,50,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
         }
 
-        /* Quick Nav card on dashboard (all modules) */
-        .quick-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.45rem 0.35rem; }
-        .quick-nav .qbtn {
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 4px;
-            min-height: 70px;
-            padding: 0.45rem 0.25rem;
-            border-radius: var(--radius-md);
-            text-decoration: none;
-            color: var(--ink-900);
-            background: #fff;
-            border: 1px solid var(--border);
-            font-size: var(--fs-xs);
-            font-weight: 800;
-            font-family: var(--font-sans);
-            letter-spacing: 0.01em;
-            box-shadow: var(--shadow-sm);
-            transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
-            touch-action: manipulation;
-            line-height: 1.1;
-            text-align: center;
-        }
-        .quick-nav .qbtn:hover { box-shadow: 0 8px 18px rgba(22,28,45,0.08); }
-        .quick-nav .qbtn:active { transform: scale(0.96); }
-        .quick-nav .qbtn .icn { font-size: 1.4rem; }
-        .quick-nav .qbtn.p { background: linear-gradient(135deg, rgba(45,106,79,0.1), rgba(82,183,136,0.1)); border-color: rgba(45,106,79,0.2); color: var(--brand); }
-        .quick-nav .qbtn.d { background: linear-gradient(135deg, rgba(200,29,37,0.08), rgba(230,57,70,0.1)); border-color: rgba(200,29,37,0.2); color: #991b1b; }
-        .quick-nav .qbtn.w { background: linear-gradient(135deg, rgba(217,119,6,0.1), rgba(245,158,11,0.12)); border-color: rgba(217,119,6,0.25); color: #8a5a00; }
-        .quick-nav .qbtn.b { background: linear-gradient(135deg, rgba(58,110,165,0.08), rgba(82,183,136,0.08)); border-color: rgba(58,110,165,0.2); color: #294e78; }
-        .quick-nav .qbtn.sale { background: linear-gradient(135deg, rgba(126,61,226,0.08), rgba(76,29,149,0.1)); border-color: rgba(126,61,226,0.22); color: #54318a; }
-        .quick-nav .qbtn.pur { background: linear-gradient(135deg, rgba(69,123,157,0.09), rgba(29,53,87,0.1)); border-color: rgba(29,53,87,0.22); color: #1d3557; }
-        .quick-nav .qbtn.inv { background: linear-gradient(135deg, rgba(201,24,74,0.07), rgba(190,0,50,0.1)); border-color: rgba(201,24,74,0.22); color: #9e0b36; }
-        .quick-nav .qbtn.pay { background: linear-gradient(135deg, rgba(23,107,135,0.08), rgba(0,68,102,0.12)); border-color: rgba(23,107,135,0.25); color: #0e4d64; }
-        .quick-nav .qbtn.rec { background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(5,150,105,0.12)); border-color: rgba(16,185,129,0.28); color: #0f766e; }
-        .quick-nav .qbtn.cust { background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(37,99,235,0.1)); border-color: rgba(59,130,246,0.25); color: #1d4ed8; }
-        .quick-nav .qbtn.sup { background: linear-gradient(135deg, rgba(249,115,22,0.08), rgba(234,88,12,0.1)); border-color: rgba(249,115,22,0.25); color: #c2410c; }
-        .quick-nav .qbtn.farm { background: linear-gradient(135deg, rgba(101,67,33,0.08), rgba(120,53,15,0.1)); border-color: rgba(101,67,33,0.25); color: #78350f; }
-        .quick-nav .qbtn.doc { background: linear-gradient(135deg, rgba(75,85,99,0.08), rgba(55,65,81,0.12)); border-color: rgba(75,85,99,0.25); color: #1f2937; }
-        .quick-nav .qbtn.rep { background: linear-gradient(135deg, rgba(14,165,233,0.08), rgba(3,105,161,0.12)); border-color: rgba(14,165,233,0.28); color: #0369a1; }
-        .quick-nav .qbtn.set { background: linear-gradient(135deg, rgba(107,114,128,0.08), rgba(75,85,99,0.12)); border-color: rgba(107,114,128,0.25); color: #111827; }
-        .quick-nav .qbtn.usr { background: linear-gradient(135deg, rgba(236,72,153,0.08), rgba(219,39,119,0.12)); border-color: rgba(236,72,153,0.25); color: #be185d; }
-        .quick-nav .qbtn.sta { background: linear-gradient(135deg, rgba(244,114,182,0.08), rgba(192,38,211,0.1)); border-color: rgba(244,114,182,0.28); color: #a21caf; }
-        .quick-nav .qbtn.weigh { background: linear-gradient(135deg, rgba(34,197,94,0.08), rgba(21,128,61,0.12)); border-color: rgba(34,197,94,0.3); color: #15803d; }
-
         /* Type radio cards (livestock register) */
         .type-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
         .type-cell { position: relative; min-height: 0; }
@@ -1139,6 +1010,119 @@
         .mob-main > * { max-width: 100%; }
         .mob-main img { max-width: 100%; height: auto; }
         .row-2-gap2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin: 0 !important; }
+
+        /* ======================================================
+           ADDITIONAL PRIMITIVES — shared by Sales & other mobile pages
+           (mob-ellipsis, mob-list-two-col, mob-list-row, mob-form,
+           mob-status-card, mob-card-header/body, mob-dl, clickable cards)
+        ====================================================== */
+        .mob-form { width: 100%; min-width: 0; max-width: 100%; }
+        .mob-ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; max-width: 100%; }
+        .mob-list-two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.55rem 0.7rem;
+            align-items: start;
+            min-width: 0;
+            max-width: 100%;
+        }
+        .mob-list-two-col .k {
+            font-size: var(--fs-xs);
+            color: var(--ink-muted);
+            margin: 0 0 0.15rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+        .mob-list-two-col .v {
+            font-size: var(--fs-base);
+            font-weight: 700;
+            line-height: var(--lh-snug);
+            color: var(--ink-900);
+            letter-spacing: -0.005em;
+            word-break: break-word;
+        }
+        .mob-list-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.6rem;
+            min-width: 0;
+        }
+        .mob-list-row .k {
+            font-size: var(--fs-xs);
+            color: var(--ink-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 800;
+            line-height: 1.1;
+        }
+        .mob-list-row .v {
+            font-weight: 700;
+            color: var(--ink-900);
+            letter-spacing: -0.005em;
+            text-align: right;
+        }
+        .mob-status-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1rem 1.05rem;
+            margin-bottom: 0.85rem;
+            box-shadow: var(--shadow-md);
+            position: relative;
+        }
+        .mob-status-card .row { margin: 0; }
+        .mob-status-card .col-12 { padding: 0; }
+        .mob-status-card h1, .mob-status-card .h5 { min-width: 0; overflow-wrap: anywhere; }
+        .mob-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0.6rem;
+        }
+        .mob-card-header .mob-card-title { margin: 0; }
+        .mob-card-body { margin: 0; }
+        .mob-dl { display: grid; gap: 0.6rem; min-width: 0; }
+        .mob-dl > div {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.75rem;
+            min-width: 0;
+        }
+        .mob-dl dt {
+            font-size: var(--fs-xs);
+            color: var(--ink-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 800;
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+        .mob-dl dd {
+            margin: 0;
+            font-weight: 600;
+            color: var(--ink-900);
+            text-align: right;
+            word-break: break-word;
+            min-width: 0;
+        }
+        .mob-dl hr { margin: 0.35rem 0; border-color: var(--border); opacity: 1; }
+        .mob-btn.outline {
+            background: transparent;
+            border: 1.5px solid var(--btn, var(--border-2));
+            color: var(--btn, var(--ink-800));
+            box-shadow: none;
+        }
+        .mob-card.clickable, a.mob-card.clickable {
+            display: block;
+            color: var(--ink-900);
+            text-decoration: none;
+        }
+        .mob-card.clickable:active { transform: scale(0.985); }
     </style>
     @await RenderSectionAsync("Styles", required: false)
 </head>
@@ -1149,7 +1133,7 @@
             <div class="left">
                 <div class="mob-brand-badge" aria-hidden="true">🌾</div>
                 <div class="titles">
-                    <h1>Livestock Manager</h1>
+                    <h1>AHK Livestock Manager</h1>
                     <div class="sub">@DateTime.Now.ToString("ddd, MMM d")</div>
                 </div>
             </div>

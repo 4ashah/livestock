@@ -1,7 +1,5 @@
-using System;
-using System.Threading.Tasks;
+using System.Text;
 using Microsoft.Playwright;
-using Xunit;
 using Xunit.Abstractions;
 
 namespace LivestockManager.EndToEndTests;
@@ -27,22 +25,19 @@ namespace LivestockManager.EndToEndTests;
 [Collection(nameof(E2ETestCollection))]
 public class E2eRemediationChecklist : E2ETestCollectionBase
 {
-    private readonly E2ETestAssemblyFixture _fixture;
-
-    public static IEnumerable<object[]> MobileViewportMatrix => new List<object[]>
-    {
-        new object[] { 360, 800, "Mobile-S (Galaxy S8-style)" },
-        new object[] { 390, 844, "Mobile-M (iPhone 14-style)" },
-        new object[] { 430, 932, "Mobile-L (iPhone 14 Pro Max-style)" },
-        new object[] { 768, 1024, "Tablet-P (iPad Mini-style portrait)" },
-        new object[] { 1024, 768, "Tablet-L (iPad Mini-style landscape)" },
-        new object[] { 1366, 768, "Laptop (13\" HD)" },
-        new object[] { 1920, 1080, "Desktop (FHD 1080p)" }
-    };
+    public static IEnumerable<object[]> MobileViewportMatrix =>
+    [
+        [360, 800, "Mobile-S (Galaxy S8-style)"],
+        [390, 844, "Mobile-M (iPhone 14-style)"],
+        [430, 932, "Mobile-L (iPhone 14 Pro Max-style)"],
+        [768, 1024, "Tablet-P (iPad Mini-style portrait)"],
+        [1024, 768, "Tablet-L (iPad Mini-style landscape)"],
+        [1366, 768, "Laptop (13\" HD)"],
+        [1920, 1080, "Desktop (FHD 1080p)"]
+    ];
 
     public E2eRemediationChecklist(ITestOutputHelper output, E2ETestAssemblyFixture fixture) : base(output, fixture)
     {
-        _fixture = fixture;
     }
 
     [Fact]
@@ -218,18 +213,18 @@ public class E2eRemediationChecklist : E2ETestCollectionBase
                 var download = await waitDownload;
                 if (download != null)
                 {
-                    var temp = System.IO.Path.GetTempFileName();
+                    var temp = Path.GetTempFileName();
                     try
                     {
                         await download.SaveAsAsync(temp);
-                        var bytes = await System.IO.File.ReadAllBytesAsync(temp);
+                        var bytes = await File.ReadAllBytesAsync(temp);
                         Assert.True(bytes.Length >= 7, "PDF download should be at least 7 bytes (magic header).");
-                        var head = System.Text.Encoding.ASCII.GetString(bytes, 0, 7);
+                        var head = Encoding.ASCII.GetString(bytes, 0, 7);
                         Assert.Equal("%PDF-1.", head);
                     }
                     finally
                     {
-                        try { System.IO.File.Delete(temp); } catch { }
+                        try { File.Delete(temp); } catch { }
                     }
                 }
             }
@@ -459,11 +454,6 @@ public class E2eRemediationChecklist : E2ETestCollectionBase
     private async Task AsAccountsUserAsync(IPage page)
     {
         await LoginAsync(page, "accounts@livestock.dev", "Dev@123456");
-    }
-
-    private async Task AsFarmManagerAsync(IPage page)
-    {
-        await LoginAsync(page, "farmmanager@livestock.dev", "Dev@123456");
     }
 
     private async Task AsDataEntryAsync(IPage page)

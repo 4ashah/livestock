@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Run Playwright-based E2E tests for the Livestock Manager ASP.NET Core web application
+Run Playwright-based E2E tests for the AHK Livestock Manager ASP.NET Core web application
 against a dedicated disposable SQL Server database.
 
 .DESCRIPTION

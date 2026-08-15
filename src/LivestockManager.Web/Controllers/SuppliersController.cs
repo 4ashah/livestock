@@ -10,7 +10,7 @@ using LivestockManager.Web.Models.SupplierViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanManageSuppliers)]
+[Authorize(Policy = PermissionNames.Suppliers.Details)]
 public class SuppliersController : Controller
 {
     private readonly ISupplierService _supplierService;
@@ -37,7 +37,7 @@ public class SuppliersController : Controller
         || User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
+    [Authorize(Policy = PermissionNames.Suppliers.Details)]
     public async Task<IActionResult> Index([FromQuery] string search, [FromQuery] bool? onlyActive, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -64,7 +64,7 @@ public class SuppliersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
+    [Authorize(Policy = PermissionNames.Suppliers.Details)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -97,7 +97,7 @@ public class SuppliersController : Controller
             Notes = supplier.Notes,
             CreatedAt = supplier.CreatedAt,
             ModifiedAt = supplier.ModifiedAt,
-            PurchaseHistory = new List<object>()
+            PurchaseHistory = []
         };
 
         ViewData["CanEdit"] = CanEdit;
@@ -105,7 +105,7 @@ public class SuppliersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
+    [Authorize(Policy = PermissionNames.Suppliers.Create)]
     public IActionResult Create()
     {
         var vm = new SupplierCreateEditViewModel();
@@ -114,7 +114,7 @@ public class SuppliersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
+    [Authorize(Policy = PermissionNames.Suppliers.Create)]
     public async Task<IActionResult> Create(SupplierCreateEditViewModel vm, CancellationToken ct)
     {
         if (!ModelState.IsValid) return View(vm);
@@ -150,7 +150,7 @@ public class SuppliersController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
+    [Authorize(Policy = PermissionNames.Suppliers.Edit)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -187,7 +187,7 @@ public class SuppliersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
+    [Authorize(Policy = PermissionNames.Suppliers.Edit)]
     public async Task<IActionResult> Edit(Guid id, SupplierCreateEditViewModel vm, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -240,7 +240,7 @@ public class SuppliersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanManageSuppliers)]
+    [Authorize(Policy = PermissionNames.Suppliers.Edit)]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -267,9 +267,29 @@ public class SuppliersController : Controller
     }
 
     [HttpGet]
-    public IActionResult MobileIndex()
+    [Authorize(Policy = PermissionNames.Suppliers.Details)]
+    public async Task<IActionResult> MobileIndex([FromQuery] string search, [FromQuery] bool? onlyActive, CancellationToken ct)
     {
-        ViewData["DockKey"] = "suppliers";
-        return RedirectToAction(nameof(Index));
+        var companyId = await GetCompanyIdAsync();
+        IList<SupplierSummaryDto> suppliers;
+
+        if (!string.IsNullOrWhiteSpace(search) || onlyActive.HasValue)
+        {
+            suppliers = await _supplierService.SearchAsync(companyId, search ?? string.Empty, onlyActive, ct);
+        }
+        else
+        {
+            suppliers = await _supplierService.ListAsync(companyId, ct);
+        }
+
+        var viewModel = new SupplierListViewModel
+        {
+            Items = suppliers,
+            SearchTerm = search,
+            OnlyActive = onlyActive
+        };
+
+        ViewData["CanEdit"] = CanEdit;
+        return View("MobileIndex", viewModel);
     }
 }

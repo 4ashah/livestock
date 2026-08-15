@@ -16,18 +16,18 @@ public class RoleAuthorizationMatrixTests
     public const string CompanyAdministrator = "CompanyAdministrator";
     public const string SystemAdministrator = "SystemAdministrator";
 
-    private static readonly HashSet<string> AllowedRoles = new()
-    {
+    private static readonly HashSet<string> AllowedRoles =
+    [
         DataEntry,
         FarmManager,
         Accounts,
         OperationsManager,
         CompanyAdministrator,
         SystemAdministrator
-    };
+    ];
 
-    private static readonly string[] ExpectedPolicyNames = new[]
-    {
+    private static readonly string[] ExpectedPolicyNames =
+    [
         PolicyNames.CanViewOperationalData,
         PolicyNames.CanViewFarms,
         PolicyNames.CanManageFarms,
@@ -58,7 +58,7 @@ public class RoleAuthorizationMatrixTests
         PolicyNames.CanViewAuditLogs,
         PolicyNames.CanManageUsers,
         PolicyNames.CanManageSystem
-    };
+    ];
 
     [Fact]
     public void RoleConstants_AreExactlyAsSpecified()

@@ -21,7 +21,9 @@ public class UserAddViewModel
     [Display(Name = "Role")]
     public string SelectedRole { get; set; } = "DataEntry";
 
-    public IList<SelectListItem> RoleOptions { get; set; } = new List<SelectListItem>();
+    public IList<SelectListItem> RoleOptions { get; set; } = [];
 
     public string TemporaryPassword { get; } = "Dev@123456";
+
+    public Guid? TargetCompanyId { get; set; }
 }

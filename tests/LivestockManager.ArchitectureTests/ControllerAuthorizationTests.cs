@@ -12,9 +12,8 @@ public class ControllerAuthorizationTests
         typeof(HomeController).Assembly;
 
     [Fact]
-    public void Controllers_NoHardcodedLegacyRoleStrings()
+    public void Controllers_NoHardcodedRoleStrings_AuthorizeUsesPolicyNotRoles()
     {
-        var forbidden = "Administrator,Manager";
         var controllers = GetControllerTypes();
         Assert.NotEmpty(controllers);
 
@@ -25,9 +24,9 @@ public class ControllerAuthorizationTests
             var classAttrs = ctl.GetCustomAttributes<AuthorizeAttribute>(inherit: true);
             foreach (var a in classAttrs)
             {
-                if (!string.IsNullOrWhiteSpace(a.Roles) && a.Roles.Contains(forbidden, StringComparison.Ordinal))
+                if (!string.IsNullOrWhiteSpace(a.Roles))
                 {
-                    violations.Add($"{ctl.FullName} class-level [Authorize(Roles=\"{a.Roles}\")]");
+                    violations.Add($"{ctl.FullName} class-level [Authorize(Roles=\"{a.Roles}\")] - use Policy instead of Roles");
                 }
             }
 
@@ -41,9 +40,9 @@ public class ControllerAuthorizationTests
                 var attrs = m.GetCustomAttributes<AuthorizeAttribute>(inherit: true);
                 foreach (var a in attrs)
                 {
-                    if (!string.IsNullOrWhiteSpace(a.Roles) && a.Roles.Contains(forbidden, StringComparison.Ordinal))
+                    if (!string.IsNullOrWhiteSpace(a.Roles))
                     {
-                        violations.Add($"{ctl.FullName}.{m.Name} action-level [Authorize(Roles=\"{a.Roles}\")]");
+                        violations.Add($"{ctl.FullName}.{m.Name} action-level [Authorize(Roles=\"{a.Roles}\")] - use Policy instead of Roles");
                     }
                 }
             }

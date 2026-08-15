@@ -1,0 +1,112 @@
+@model UserEditViewModel
+@using Microsoft.AspNetCore.Identity
+@using LivestockManager.Domain.Common
+@inject SignInManager<ApplicationUser> SignInManager
+@{
+    ViewData["Title"] = "Edit User";
+    var currentUserIsSystemAdmin = SignInManager.IsSignedIn(User) && User.IsInRole(RoleNames.SystemAdministrator);
+}
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
+    <div>
+        <h1 class="h3 mb-1">👤 Edit User</h1>
+        <div class="text-muted small">Update user details and role assignments</div>
+    </div>
+    <a asp-action="Index" class="btn btn-outline-secondary">← Back to list</a>
+</div>
+
+<form asp-action="EditUser" method="post" class="row g-3" novalidate>
+    @if (ViewContext.ModelState != null && ViewContext.ModelState.Any(x => x.Value != null && x.Value.Errors != null && x.Value.Errors.Count > 0))
+    {
+        <div asp-validation-summary="All" class="col-12 alert alert-danger"></div>
+    }
+
+    <input type="hidden" asp-for="Id" />
+
+    <div class="col-md-8">
+        <div class="card shadow-sm border-0">
+            <div class="card-body row g-3">
+                <div class="col-md-12">
+                    <label asp-for="UserName" class="form-label small fw-semibold"></label>
+                    <input asp-for="UserName" class="form-control" readonly />
+                    <div class="text-muted small">Username cannot be changed after creation.</div>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="Email" class="form-label small fw-semibold"></label>
+                    <input asp-for="Email" class="form-control" readonly />
+                    <div class="text-muted small">Email cannot be changed.</div>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="FullName" class="form-label small fw-semibold"></label>
+                    <input asp-for="FullName" class="form-control" />
+                    <span asp-validation-for="FullName" class="text-danger small"></span>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="IsEnabled" class="form-label small fw-semibold"></label>
+                    <div class="form-check">
+                        <input asp-for="IsEnabled" class="form-check-input" />
+                        <label class="form-check-label" asp-for="IsEnabled">Account enabled</label>
+                    </div>
+                </div>
+
+                <div class="col-md-12">
+                    <label asp-for="SelectedRole" class="form-label small fw-semibold">Primary Role</label>
+                    @if (currentUserIsSystemAdmin)
+                    {
+                        <select asp-for="SelectedRole" asp-items="Model.RoleOptions" class="form-select"></select>
+                    }
+                    else
+                    {
+                        var filteredOptions = Model.RoleOptions.Where(o => o.Value != RoleNames.SystemAdministrator).ToList();
+                        <select asp-for="SelectedRole" asp-items="filteredOptions" class="form-select"></select>
+                    }
+                    <span asp-validation-for="SelectedRole" class="text-danger small"></span>
+                    <div class="text-muted small mt-1">
+                        Previous role: <strong>@RoleNames.GetDisplayName(Model.CurrentRole)</strong>
+                    </div>
+                </div>
+
+                @if (currentUserIsSystemAdmin)
+                {
+                    <div class="col-md-12 border-top pt-3 mt-2">
+                        <div class="form-check form-switch">
+                            <input asp-for="IncludeSystemAdmin" class="form-check-input" type="checkbox" />
+                            <label class="form-check-label fw-semibold" asp-for="IncludeSystemAdmin">
+                                Grant System Administrator (cross-company) Privileges
+                            </label>
+                        </div>
+                        @if (Model.IsSystemAdmin)
+                        {
+                            <div class="alert alert-info mt-2 mb-0 small">
+                                This user currently holds System Administrator privileges. Uncheck above to revoke.
+                            </div>
+                        }
+                    </div>
+                }
+
+                @if (!currentUserIsSystemAdmin && Model.IsSystemAdmin)
+                {
+                    <div class="col-md-12">
+                        <div class="alert alert-warning small">
+                            <strong>Note:</strong> This user holds System Administrator privileges. Company Administrators cannot modify System Admin status — contact a fellow System Administrator for cross-company privilege changes.
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-12 pt-3">
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary px-4">Save Changes</button>
+            <a asp-action="Index" class="btn btn-outline-secondary px-4">Cancel</a>
+        </div>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

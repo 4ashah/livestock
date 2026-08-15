@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using LivestockManager.Application.Common;
 using LivestockManager.Application.DTOs.Payments;
 using LivestockManager.Application.DTOs.Invoices;
@@ -15,13 +14,12 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanRecordPayments)]
+[Authorize(Policy = PermissionNames.Payments.View)]
 public class PaymentsController : Controller
 {
     private readonly IPaymentService _paymentService;
     private readonly IInvoiceService _invoiceService;
     private readonly ICustomerService _customerService;
-    private readonly IAppDbContext _db;
     private readonly UserManager<ApplicationUser> _userManager;
 
     public PaymentsController(
@@ -31,10 +29,10 @@ public class PaymentsController : Controller
         IAppDbContext db,
         UserManager<ApplicationUser> userManager)
     {
+        _ = db;
         _paymentService = paymentService;
         _invoiceService = invoiceService;
         _customerService = customerService;
-        _db = db;
         _userManager = userManager;
     }
 
@@ -50,12 +48,8 @@ public class PaymentsController : Controller
         return user?.Id ?? Guid.Empty;
     }
 
-    private bool CanEdit => User.IsInRole(RoleNames.Accounts)
-        || User.IsInRole(RoleNames.CompanyAdministrator)
-        || User.IsInRole(RoleNames.SystemAdministrator);
-
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordPayments)]
+    [Authorize(Policy = PermissionNames.Payments.View)]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, PaymentMethod? method, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -85,7 +79,7 @@ public class PaymentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordPayments)]
+    [Authorize(Policy = PermissionNames.Payments.View)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -103,7 +97,7 @@ public class PaymentsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanRecordPayments)]
+    [Authorize(Policy = PermissionNames.Payments.Record)]
     public async Task<IActionResult> Create(Guid? invoiceId, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -130,10 +124,10 @@ public class PaymentsController : Controller
             }
             model.CustomerId = invoice.CustomerId;
             model.Amount = invoice.OutstandingAmount;
-            model.Allocations = new List<PaymentAllocationDto>
-            {
+            model.Allocations =
+            [
                 new() { InvoiceId = invoiceId.Value, Amount = invoice.OutstandingAmount }
-            };
+            ];
             ViewData["SelectedInvoiceId"] = invoiceId.Value;
             ViewData["SelectedInvoiceNumber"] = invoice.InvoiceNumber;
             ViewData["OutstandingAmount"] = invoice.OutstandingAmount;
@@ -144,7 +138,7 @@ public class PaymentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanRecordPayments)]
+    [Authorize(Policy = PermissionNames.Payments.Record)]
     public async Task<IActionResult> Create(PaymentCreateDto dto, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -155,10 +149,10 @@ public class PaymentsController : Controller
             var invId = Request.Form["SelectedInvoiceId"].FirstOrDefault();
             if (!string.IsNullOrWhiteSpace(invId) && Guid.TryParse(invId, out var parsedId))
             {
-                dto.Allocations = new List<PaymentAllocationDto>
-                {
+                dto.Allocations =
+                [
                     new() { InvoiceId = parsedId, Amount = dto.Amount }
-                };
+                ];
             }
             else
             {
@@ -190,7 +184,7 @@ public class PaymentsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Policy = PolicyNames.CanReversePayments)]
+    [Authorize(Policy = PermissionNames.Payments.Reverse)]
     public async Task<IActionResult> Reverse(Guid id, string? reason, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -219,9 +213,32 @@ public class PaymentsController : Controller
     }
 
     [HttpGet]
-    public IActionResult MobileIndex()
+    [Authorize(Policy = PermissionNames.Payments.View)]
+    public async Task<IActionResult> MobileIndex(DateTime? from, DateTime? to, Guid? customerId, PaymentMethod? method, CancellationToken ct)
     {
-        ViewData["DockKey"] = "payments";
-        return RedirectToAction(nameof(Index));
+        var companyId = await GetCompanyIdAsync();
+        var payments = await _paymentService.ListAsync(companyId, ct);
+
+        if (from.HasValue)
+        {
+            var fromDto = from.Value.AsUtcDayStart();
+            payments = payments.Where(p => p.PaymentDate >= fromDto).ToList();
+        }
+        if (to.HasValue)
+        {
+            var toDto = to.Value.AsUtcDayEnd();
+            payments = payments.Where(p => p.PaymentDate <= toDto).ToList();
+        }
+        if (customerId.HasValue)
+            payments = payments.Where(p => p.CustomerId == customerId.Value).ToList();
+        if (method.HasValue)
+            payments = payments.Where(p => p.Method == method.Value).ToList();
+
+        ViewData["From"] = from?.ToString("yyyy-MM-dd");
+        ViewData["To"] = to?.ToString("yyyy-MM-dd");
+        ViewData["CustomerId"] = customerId;
+        ViewData["Method"] = method;
+        ViewData["Customers"] = await _customerService.ListAsync(companyId, ct);
+        return View("MobileIndex", payments);
     }
 }

@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Creates the FIRST company administrator account in the Livestock Manager
+Creates the FIRST company administrator account in the AHK Livestock Manager
 Production database WITHOUT persisting passwords in the script.
 
 .DESCRIPTION
@@ -68,7 +68,7 @@ function Write-Warn([string]$msg) { Write-Host "[FIRST-ADMIN][WARN] $msg" -Foreg
 
 try {
     Write-Info "============================================================"
-    Write-Info "Livestock Manager — FIRST Production Admin Creation Script"
+    Write-Info "AHK Livestock Manager — FIRST Production Admin Creation Script"
     Write-Info "============================================================"
     Write-Info "Run this script ONLY once, immediately after a fresh Production deploy:"
     Write-Info "  - Migrations already applied (dotnet ef database update)"

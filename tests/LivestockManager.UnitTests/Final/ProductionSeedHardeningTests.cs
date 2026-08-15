@@ -16,7 +16,7 @@ internal class TestHostEnvironment : IHostEnvironment
 
 public class ProductionSeedHardeningTests
 {
-    private static IHostEnvironment Env(string name) => new TestHostEnvironment { EnvironmentName = name };
+    private static TestHostEnvironment Env(string name) => new() { EnvironmentName = name };
 
     private static IConfiguration Config(params (string Key, string? Value)[] kvps)
     {
@@ -108,17 +108,17 @@ public class ProductionSeedHardeningTests
     {
         var envMissing = Env("Testing");
         var configMissing = Config(("EnableDevSeed", "true"));
-        var (tm, dm) = DemoDataSeeder.EvaluateSeedConditions(envMissing, configMissing);
+        var (tm, _) = DemoDataSeeder.EvaluateSeedConditions(envMissing, configMissing);
         Assert.False(tm);
 
         var envZero = Env("Testing");
         var configZero = Config(("EnableE2ESeed", "0"));
-        var (tz, dz) = DemoDataSeeder.EvaluateSeedConditions(envZero, configZero);
+        var (tz, _) = DemoDataSeeder.EvaluateSeedConditions(envZero, configZero);
         Assert.False(tz);
 
         var envFalse = Env("Testing");
         var configFalse = Config(("EnableE2ESeed", "false"));
-        var (tf, df) = DemoDataSeeder.EvaluateSeedConditions(envFalse, configFalse);
+        var (tf, _) = DemoDataSeeder.EvaluateSeedConditions(envFalse, configFalse);
         Assert.False(tf);
     }
 
@@ -224,7 +224,7 @@ public class ProductionSeedHardeningTests
         var env = Env("TestingE2E");
         var config = Config(("EnableE2ESeed", "1"));
         Assert.True(DemoDataSeeder.IsTestingEnvironment(env.EnvironmentName));
-        var (t, d) = DemoDataSeeder.EvaluateSeedConditions(env, config);
+        var (t, _) = DemoDataSeeder.EvaluateSeedConditions(env, config);
         Assert.True(t);
     }
 
@@ -234,7 +234,7 @@ public class ProductionSeedHardeningTests
         var env = Env("LocalDevelopment");
         var config = Config(("EnableDevSeed", "true"));
         Assert.True(DemoDataSeeder.IsDevelopmentEnvironment(env.EnvironmentName));
-        var (t, d) = DemoDataSeeder.EvaluateSeedConditions(env, config);
+        var (_, d) = DemoDataSeeder.EvaluateSeedConditions(env, config);
         Assert.True(d);
     }
 

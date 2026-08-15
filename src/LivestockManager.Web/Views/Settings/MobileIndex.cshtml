@@ -1,0 +1,140 @@
+@model SettingsViewModel
+@using LivestockManager.Domain.Helpers
+@{
+    Layout = "_MobileLayout";
+    ViewData["Title"] = "Settings";
+    ViewData["PageIcon"] = "⚙️";
+    ViewData["PageSubtitle"] = "Company profile and defaults";
+    ViewData["DockKey"] = "settings";
+    ViewData["ShowDock"] = false;
+    var successMsg = TempData["SuccessMessage"] as string;
+    var monthOptions = Enumerable.Range(1, 12).Select(m => new { Value = m, Text = new DateTime(2000, m, 1).ToString("MMMM") }).ToList();
+}
+
+@if (!string.IsNullOrWhiteSpace(successMsg))
+{
+    <div class="mob-val" style="background:rgba(45,106,79,0.10);border-color:rgba(45,106,79,0.3);color:#14532d;">✅ @successMsg</div>
+}
+
+<form asp-action="Index" method="post">
+    @Html.AntiForgeryToken()
+    <input type="hidden" name="mobile" value="1" />
+    <input type="hidden" asp-for="Id" />
+
+    <div class="mob-card">
+        <div class="mob-card-title">🏢 Company Profile</div>
+        <div class="mob-field">
+            <label asp-for="CompanyName"></label>
+            <input asp-for="CompanyName" placeholder="Acme Farms Ltd." />
+            <span asp-validation-for="CompanyName" class="text-danger small"></span>
+        </div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label asp-for="RegistrationNumber"></label>
+                    <input asp-for="RegistrationNumber" placeholder="REG-000000" />
+                    <span asp-validation-for="RegistrationNumber" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label asp-for="TaxNumber"></label>
+                    <input asp-for="TaxNumber" placeholder="TAX-000000" />
+                    <span asp-validation-for="TaxNumber" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label asp-for="Phone"></label>
+                    <input asp-for="Phone" placeholder="+1 555 0123" inputmode="tel" />
+                    <span asp-validation-for="Phone" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label asp-for="Email"></label>
+                    <input asp-for="Email" placeholder="admin@company.com" />
+                    <span asp-validation-for="Email" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+        <label class="mob-check">
+            <input asp-for="IsActive" />
+            <span>
+                Active
+                <div class="input-hint">When disabled, company data is preserved but logins and operations are restricted.</div>
+            </span>
+        </label>
+    </div>
+
+    <div class="mob-card">
+        <div class="mob-card-title">🎯 Defaults & Numbering</div>
+        <div class="f-row">
+            <div class="g ps">
+                <div class="mob-field">
+                    <label asp-for="InvoicePrefix"></label>
+                    <input asp-for="InvoicePrefix" class="text-uppercase" maxlength="10" placeholder="INV" />
+                    <span asp-validation-for="InvoicePrefix" class="text-danger small"></span>
+                </div>
+            </div>
+            <div class="g pe">
+                <div class="mob-field">
+                    <label asp-for="ReceiptPrefix"></label>
+                    <input asp-for="ReceiptPrefix" class="text-uppercase" maxlength="10" placeholder="RCT" />
+                    <span asp-validation-for="ReceiptPrefix" class="text-danger small"></span>
+                </div>
+            </div>
+        </div>
+        <div class="mob-field">
+            <label asp-for="TaxRate"></label>
+            <input asp-for="TaxRate" step="0.0001" min="0" max="1" placeholder="0.15" inputmode="decimal" />
+            <div class="input-hint">Default tax rate (0.00 to 1.00) · @PercentageDisplay.FormatTwoDecimals(Model.TaxRate)</div>
+            <span asp-validation-for="TaxRate" class="text-danger small"></span>
+        </div>
+        <div class="mob-field">
+            <label asp-for="FinancialYearStartMonth"></label>
+            <select asp-for="FinancialYearStartMonth">
+                @foreach (var m in monthOptions)
+                {
+                    <option value="@m.Value">@m.Text</option>
+                }
+            </select>
+            <span asp-validation-for="FinancialYearStartMonth" class="text-danger small"></span>
+        </div>
+        <div class="mob-field">
+            <label asp-for="Currency"></label>
+            <select asp-for="Currency">
+                @foreach (var c in Enum.GetValues<LivestockManager.Domain.Enums.Currency>())
+                {
+                    <option value="@((int)c)">@c</option>
+                }
+            </select>
+            <span asp-validation-for="Currency" class="text-danger small"></span>
+        </div>
+        <div class="mob-field">
+            <label>Weight Unit</label>
+            <div>
+                <label class="mob-check" style="padding:0.35rem 0;">
+                    <input type="radio" name="WeightUnit" value="@((int)LivestockManager.Domain.Enums.WeightUnit.Kg)" @(Model.WeightUnit == LivestockManager.Domain.Enums.WeightUnit.Kg ? "checked" : "") />
+                    <span>Kilograms (kg)</span>
+                </label>
+                <label class="mob-check" style="padding:0.35rem 0;">
+                    <input type="radio" name="WeightUnit" value="@((int)LivestockManager.Domain.Enums.WeightUnit.Lb)" @(Model.WeightUnit == LivestockManager.Domain.Enums.WeightUnit.Lb ? "checked" : "") />
+                    <span>Pounds (lb)</span>
+                </label>
+            </div>
+            <span asp-validation-for="WeightUnit" class="text-danger small"></span>
+        </div>
+    </div>
+
+    <div class="mob-submit-row">
+        <div class="sub-row">
+            <a asp-action="MobileIndex" class="mob-submit-btn small-sub" style="background:#64748b;box-shadow:none;">Cancel</a>
+            <button type="submit" class="mob-submit-btn small-sub">💾 Save Settings</button>
+        </div>
+    </div>
+</form>
+
+<partial name="_ValidationScriptsPartial" />

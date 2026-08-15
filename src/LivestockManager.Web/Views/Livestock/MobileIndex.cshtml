@@ -1,19 +1,35 @@
-@model IEnumerable<LivestockManager.Web.Models.LivestockViewModels.LivestockListItemDto>
+@model IEnumerable<LivestockManager.Web.Models.LivestockViewModels.LivestockListItemViewModel>
 @using LivestockManager.Domain.Enums
 @using LivestockManager.Domain.Helpers
 @using LivestockManager.Domain.Common
 @using LivestockManager.Application.DTOs.Livestock
 @using LivestockManager.Application.DTOs.Farms
 @using Microsoft.AspNetCore.Mvc.Rendering
+@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService Authorization
 @{
     Layout = "_MobileLayout";
     ViewData["Title"] = "Livestock";
     ViewData["PageIcon"] = "🐑";
     ViewData["PageSubtitle"] = "Herd registry, status and weights";
     ViewData["DockKey"] = "stock";
-    ViewData["ActionLabel"] = "Register";
-    ViewData["ActionIcon"] = "＋";
-    ViewData["ActionUrl"] = Url.Action("MobileRegister", "Livestock");
+
+    var auth = User.Identity?.IsAuthenticated == true;
+    var canRegister = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.Register)).Succeeded;
+    var canExport = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.Export)).Succeeded;
+    var canExportCsv = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.ExportCsv)).Succeeded;
+    var canDetails = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.Details)).Succeeded;
+    var canEdit = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.Edit)).Succeeded;
+    var canAddWeight = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.AddWeight)).Succeeded;
+    var canDischarge = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.Discharge)).Succeeded;
+    var canView = auth && (await Authorization.AuthorizeAsync(User, PermissionNames.Livestock.View)).Succeeded;
+
+    if (canRegister)
+    {
+        ViewData["ActionLabel"] = "Register";
+        ViewData["ActionIcon"] = "＋";
+        ViewData["ActionUrl"] = Url.Action("MobileRegister", "Livestock");
+    }
 
     var farmId = ViewData["FarmId"] as Guid?;
     var typeId = ViewData["LivestockTypeId"] as LivestockType?;
@@ -21,10 +37,8 @@
     var sourceFilter = ViewData["SourceFilter"] as StockSource?;
     var search = ViewData["SearchString"] as string;
     var farmOptions = ViewData["FarmOptions"] as SelectList;
-    var canEdit = User.IsInRole(RoleNames.CompanyAdministrator) || User.IsInRole(RoleNames.SystemAdministrator) || User.IsInRole(RoleNames.FarmManager);
-    var canDataEntry = canEdit || User.IsInRole(RoleNames.DataEntry);
 
-    var list = Model?.ToList() ?? new List<LivestockListItemDto>();
+    var list = Model?.ToList() ?? new List<LivestockListItemViewModel>();
     var activeCount = list.Count(x => x.Status == LivestockStatus.Active);
     var avgWeight = list.Where(x => x.Status == LivestockStatus.Active && x.CurrentWeight.HasValue)
                         .Select(x => x.CurrentWeight!.Value)
@@ -114,6 +128,27 @@
         <div class="k-caption">Sold / Lost / Etc</div>
     </div>
 </div>
+
+@if (canRegister || canExport || canExportCsv)
+{
+<div class="mob-card">
+    <div class="mob-card-title">Actions</div>
+    <div style="display:flex; flex-wrap:wrap; gap:0.55rem;">
+        @if (canRegister)
+        {
+            <a asp-action="MobileRegister" class="mob-btn primary">🐑 Register</a>
+        }
+        @if (canExport)
+        {
+            <a asp-action="Index" asp-controller="Reports" class="mob-btn">📤 Export</a>
+        }
+        @if (canExportCsv)
+        {
+            <a asp-action="MobileActiveLivestock" asp-controller="Reports" asp-route-format="csv" class="mob-btn">📄 CSV</a>
+        }
+    </div>
+</div>
+}
 
 <div class="mob-card">
     <div class="mob-card-title">Source Filter</div>
@@ -217,13 +252,21 @@
                     </div>
                 </div>
                 <div class="row-actions">
-                    <a asp-action="Details" asp-route-id="@l.Id" class="mob-btn" style="min-height:44px;">👁 View</a>
-                    @if (canDataEntry && l.Status == LivestockStatus.Active)
+                    @if (canDetails)
+                    {
+                        <a asp-action="Details" asp-route-id="@l.Id" class="mob-btn" style="min-height:44px;">👁 View</a>
+                    }
+                    @if (canAddWeight && l.Status == LivestockStatus.Active)
                     {
                         <a asp-action="AddWeight" asp-route-id="@l.Id" class="mob-btn primary" style="min-height:44px;">⚖ Weight</a>
                     }
                     @if (canEdit && l.Status == LivestockStatus.Active)
                     {
+                        <a asp-action="Edit" asp-route-id="@l.Id" class="mob-btn warn" style="min-height:44px;">✏ Edit</a>
+                    }
+                    @if (canDischarge && l.Status == LivestockStatus.Active)
+                    {
+                        <a asp-action="Discharge" asp-route-id="@l.Id" class="mob-btn info" style="min-height:44px;">🚚 Discharge</a>
                         <a asp-controller="LivestockLosses" asp-action="MobileCreate" asp-route-livestockId="@l.Id" class="mob-btn danger" style="min-height:44px;">💀 Loss</a>
                     }
                 </div>

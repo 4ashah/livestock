@@ -13,7 +13,7 @@ using LivestockManager.Infrastructure.Identity;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanViewInvoices)]
+[Authorize(Policy = PermissionNames.Invoices.View)]
 public class InvoicesController : Controller
 {
     private readonly IInvoiceService _invoiceService;
@@ -45,7 +45,7 @@ public class InvoicesController : Controller
         || User.IsInRole(RoleNames.SystemAdministrator);
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewInvoices)]
+    [Authorize(Policy = PermissionNames.Invoices.View)]
     public async Task<IActionResult> Index(DateTime? from, DateTime? to, Guid? customerId, InvoiceStatus? status, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync();
@@ -76,7 +76,7 @@ public class InvoicesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewInvoices)]
+    [Authorize(Policy = PermissionNames.Invoices.View)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -111,7 +111,7 @@ public class InvoicesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageInvoices)]
+    [Authorize(Policy = PermissionNames.Invoices.Confirm)]
     public async Task<IActionResult> Confirm(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -129,7 +129,7 @@ public class InvoicesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewInvoices)]
+    [Authorize(Policy = PermissionNames.Invoices.View)]
     public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken ct)
     {
         if (id == Guid.Empty) return NotFound();
@@ -147,9 +147,33 @@ public class InvoicesController : Controller
     }
 
     [HttpGet]
-    public IActionResult MobileIndex()
+    [Authorize(Policy = PermissionNames.Invoices.View)]
+    public async Task<IActionResult> MobileIndex(DateTime? from, DateTime? to, Guid? customerId, InvoiceStatus? status, CancellationToken ct)
     {
-        ViewData["DockKey"] = "invoices";
-        return RedirectToAction(nameof(Index));
+        var companyId = await GetCompanyIdAsync();
+        var invoices = await _invoiceService.ListAsync(companyId, ct);
+
+        if (from.HasValue)
+        {
+            var fromDto = from.Value.AsUtcDayStart();
+            invoices = invoices.Where(i => i.InvoiceDate >= fromDto).ToList();
+        }
+        if (to.HasValue)
+        {
+            var toDto = to.Value.AsUtcDayEnd();
+            invoices = invoices.Where(i => i.InvoiceDate <= toDto).ToList();
+        }
+        if (customerId.HasValue)
+            invoices = invoices.Where(i => i.CustomerId == customerId.Value).ToList();
+        if (status.HasValue)
+            invoices = invoices.Where(i => i.Status == status.Value).ToList();
+
+        ViewData["From"] = from?.ToString("yyyy-MM-dd");
+        ViewData["To"] = to?.ToString("yyyy-MM-dd");
+        ViewData["CustomerId"] = customerId;
+        ViewData["Status"] = status;
+        ViewData["Customers"] = await _customerService.ListAsync(companyId, ct);
+        ViewData["CanEdit"] = CanEdit;
+        return View("MobileIndex", invoices);
     }
 }

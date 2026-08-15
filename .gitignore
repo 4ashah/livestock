@@ -66,6 +66,8 @@ artifacts/backup-abs-j10/
 artifacts/pdf-samples/
 artifacts/pdf-samples-live/
 artifacts/live-screenshots-2a/
+artifacts/service-publish/
+artifacts/login-concepts/
 
 # Auditor git-worktree checkouts (large, disposable)
 artifacts/audit-worktrees/

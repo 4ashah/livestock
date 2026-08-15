@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting.WindowsServices;
 using LivestockManager.Application;
 using LivestockManager.Domain.Common;
 using LivestockManager.Domain.Entities;
@@ -15,6 +16,14 @@ using LivestockManager.Infrastructure.Persistence.Seed;
 using LivestockManager.Infrastructure.Security;
 using LivestockManager.Infrastructure.Services.Storage;
 using LivestockManager.Web;
+
+// When started by the Windows Service Control Manager the process begins with the
+// working directory set to C:\Windows\System32. Pin it to the published app folder so
+// appsettings.json, wwwroot, and relative file-storage paths resolve correctly.
+if (OperatingSystem.IsWindows() && WindowsServiceHelpers.IsWindowsService())
+{
+    Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+}
 
 var earlyConfigBuilder = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -105,6 +114,13 @@ if (!string.IsNullOrWhiteSpace(earlyResult.ResolvedConnectionString) &&
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Register the app as a Windows service: when launched by the SCM this enables
+// graceful start/stop handling; console launches behave exactly as before.
+builder.Host.UseWindowsService(options =>
+{
+    options.ServiceName = "LivestockManagerWeb";
+});
+
 builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
 {
     [ConnectionStringStartupValidator.CanonicalKey] = earlyResult.ResolvedConnectionString
@@ -138,96 +154,10 @@ builder.Services.Configure<RouteOptions>(options =>
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy(PolicyNames.CanViewOperationalData, policy =>
-        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanViewFarms, policy =>
-        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManageFarms, policy =>
-        policy.RequireRole(RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanViewLivestock, policy =>
-        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanRegisterLivestock, policy =>
-        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManageLivestock, policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanRecordWeight, policy =>
-        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanDischargeLivestock, policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanRecordStockPurchase, policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanRecordNewborn, policy =>
-        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManageCustomers, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManageSuppliers, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanViewDocuments, policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanUploadDocuments, policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanCreateSales, policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanReverseSales, policy =>
-        policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManagePurchaseInvoices, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanViewInvoices, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManageInvoices, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanRecordPayments, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanReversePayments, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanGenerateReceipts, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManageExpenses, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanRecordLosses, policy =>
-        policy.RequireRole(RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanViewOperationalReports, policy =>
-        policy.RequireRole(RoleNames.DataEntry, RoleNames.FarmManager, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanViewFinancialReports, policy =>
-        policy.RequireRole(RoleNames.Accounts, RoleNames.OperationsManager, RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManageCompany, policy =>
-        policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanViewAuditLogs, policy =>
-        policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManageUsers, policy =>
-        policy.RequireRole(RoleNames.CompanyAdministrator, RoleNames.SystemAdministrator));
-
-    options.AddPolicy(PolicyNames.CanManageSystem, policy =>
-        policy.RequireRole(RoleNames.SystemAdministrator));
-
+    foreach (var name in PermissionNames.All)
+    {
+        options.AddPolicy(name, policy => policy.RequireRole(PermissionRolesMatrix.ByPermission[name]));
+    }
 });
 
 var app = builder.Build();

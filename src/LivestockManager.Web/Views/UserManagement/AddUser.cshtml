@@ -1,6 +1,10 @@
 @model UserAddViewModel
+@using Microsoft.AspNetCore.Identity
+@using LivestockManager.Domain.Common
+@inject SignInManager<ApplicationUser> SignInManager
 @{
     ViewData["Title"] = "Invite User";
+    var currentUserIsSystemAdmin = SignInManager.IsSignedIn(User) && User.IsInRole(RoleNames.SystemAdministrator);
 }
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-4 border-bottom">
@@ -40,9 +44,26 @@
 
                 <div class="col-md-12">
                     <label asp-for="SelectedRole" class="form-label small fw-semibold"></label>
-                    <select asp-for="SelectedRole" asp-items="Model.RoleOptions" class="form-select"></select>
+                    @if (currentUserIsSystemAdmin)
+                    {
+                        <select asp-for="SelectedRole" asp-items="Model.RoleOptions" class="form-select"></select>
+                    }
+                    else
+                    {
+                        var filteredOptions = Model.RoleOptions.Where(o => o.Value != RoleNames.SystemAdministrator).ToList();
+                        <select asp-for="SelectedRole" asp-items="filteredOptions" class="form-select"></select>
+                    }
                     <span asp-validation-for="SelectedRole" class="text-danger small"></span>
                 </div>
+
+                @if (currentUserIsSystemAdmin)
+                {
+                    <div class="col-md-12">
+                        <label asp-for="TargetCompanyId" class="form-label small fw-semibold">Target Company (optional — only for System Admin)</label>
+                        <input asp-for="TargetCompanyId" type="hidden" value="@Model.TargetCompanyId" class="form-control" />
+                        <div class="text-muted small">Users are assigned to the current company by default.</div>
+                    </div>
+                }
 
                 <div class="col-md-12">
                     <div class="alert alert-info mb-0">

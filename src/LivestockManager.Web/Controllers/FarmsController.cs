@@ -11,7 +11,7 @@ using LivestockManager.Web.Models.FarmViewModels;
 
 namespace LivestockManager.Web.Controllers;
 
-[Authorize(Policy = PolicyNames.CanViewFarms)]
+[Authorize(Policy = PermissionNames.Farms.View)]
 public class FarmsController : Controller
 {
     private readonly IFarmService _farmService;
@@ -26,51 +26,18 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewFarms)]
     public async Task<IActionResult> Index(string? search, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
         if (companyId == null)
             return Challenge();
 
-        var dtos = await _farmService.ListByCompanyAsync(companyId.Value, search, ct);
-
-        var managerIds = dtos
-            .Where(d => d.ManagerUserId.HasValue)
-            .Select(d => d.ManagerUserId!.Value)
-            .Distinct()
-            .ToList();
-
-        Dictionary<Guid, string> managerNames = new();
-        if (managerIds.Count > 0)
-        {
-            foreach (var mid in managerIds)
-            {
-                var user = await _userManager.FindByIdAsync(mid.ToString());
-                if (user != null)
-                    managerNames[mid] = user.FullName;
-            }
-        }
-
-        var vm = dtos.Select(d => new FarmListViewModel
-        {
-            Id = d.Id,
-            Name = d.Name,
-            Code = d.Code,
-            City = d.City,
-            Currency = d.Currency,
-            IsActive = d.IsActive,
-            ManagerInfo = d.ManagerUserId.HasValue && managerNames.ContainsKey(d.ManagerUserId.Value)
-                ? managerNames[d.ManagerUserId.Value]
-                : null
-        }).ToList();
-
         ViewData["Search"] = search;
-        return View(vm);
+        return View(await BuildListVmAsync(companyId.Value, search, ct));
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanViewFarms)]
+    [Authorize(Policy = PermissionNames.Farms.Details)]
     public async Task<IActionResult> Details(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -118,7 +85,7 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageFarms)]
+    [Authorize(Policy = PermissionNames.Farms.Create)]
     public IActionResult Create()
     {
         var vm = new FarmCreateEditViewModel();
@@ -126,7 +93,7 @@ public class FarmsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanManageFarms)]
+    [Authorize(Policy = PermissionNames.Farms.Create)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Create(FarmCreateEditViewModel vm, CancellationToken ct)
     {
@@ -152,7 +119,7 @@ public class FarmsController : Controller
     }
 
     [HttpGet]
-    [Authorize(Policy = PolicyNames.CanManageFarms)]
+    [Authorize(Policy = PermissionNames.Farms.Edit)]
     public async Task<IActionResult> Edit(Guid id, CancellationToken ct)
     {
         var companyId = await GetCompanyIdAsync(ct);
@@ -189,7 +156,7 @@ public class FarmsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanManageFarms)]
+    [Authorize(Policy = PermissionNames.Farms.Edit)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Edit(Guid id, FarmCreateEditViewModel vm, CancellationToken ct)
     {
@@ -225,7 +192,7 @@ public class FarmsController : Controller
     }
 
     [HttpPost]
-    [Authorize(Policy = PolicyNames.CanManageFarms)]
+    [Authorize(Policy = PermissionNames.Farms.Archive)]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Archive(Guid id, CancellationToken ct)
     {
@@ -244,16 +211,57 @@ public class FarmsController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    private async Task<Guid?> GetCompanyIdAsync(CancellationToken ct)
+    private async Task<Guid?> GetCompanyIdAsync(CancellationToken cancellationToken)
     {
+        _ = cancellationToken;
         var user = await _userManager.GetUserAsync(User);
         return user?.CompanyId;
     }
 
-    [HttpGet]
-    public IActionResult MobileIndex()
+    private async Task<List<FarmListViewModel>> BuildListVmAsync(Guid companyId, string? search, CancellationToken ct)
     {
-        ViewData["DockKey"] = "farms";
-        return RedirectToAction(nameof(Index));
+        var dtos = await _farmService.ListByCompanyAsync(companyId, search, ct);
+
+        var managerIds = dtos
+            .Where(d => d.ManagerUserId.HasValue)
+            .Select(d => d.ManagerUserId!.Value)
+            .Distinct()
+            .ToList();
+
+        Dictionary<Guid, string> managerNames = [];
+        if (managerIds.Count > 0)
+        {
+            foreach (var mid in managerIds)
+            {
+                var user = await _userManager.FindByIdAsync(mid.ToString());
+                if (user != null)
+                    managerNames[mid] = user.FullName;
+            }
+        }
+
+        return dtos.Select(d => new FarmListViewModel
+        {
+            Id = d.Id,
+            Name = d.Name,
+            Code = d.Code,
+            City = d.City,
+            Currency = d.Currency,
+            IsActive = d.IsActive,
+            ManagerInfo = d.ManagerUserId.HasValue && managerNames.TryGetValue(d.ManagerUserId.Value, out var managerName)
+                ? managerName
+                : null
+        }).ToList();
+    }
+
+    [HttpGet]
+    [Authorize(Policy = PermissionNames.Farms.View)]
+    public async Task<IActionResult> MobileIndex(string? search, CancellationToken ct)
+    {
+        var companyId = await GetCompanyIdAsync(ct);
+        if (companyId == null)
+            return Challenge();
+
+        ViewData["Search"] = search;
+        return View("MobileIndex", await BuildListVmAsync(companyId.Value, search, ct));
     }
 }

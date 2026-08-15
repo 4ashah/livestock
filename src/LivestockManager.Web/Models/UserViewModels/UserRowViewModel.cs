@@ -10,4 +10,6 @@ public class UserRowViewModel
     public DateTimeOffset? LastLoginAt { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
     public IList<string> Roles { get; set; } = new List<string>();
+    public bool IsSystemAdmin { get; set; }
+    public Guid? CompanyId { get; set; }
 }
